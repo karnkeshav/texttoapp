@@ -35,28 +35,11 @@
       </div>
     </div>
 
-    <!-- Repo selector -->
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Your repository</div>
-    </div>
-    <div class="repo-selector">
-      <button class="repo-select-btn" onclick="toggleRepoDropdown()" id="repoSelectBtn">
-        <span class="repo-icon">📁</span>
-        <span class="repo-name" id="repoName">Select a repository…</span>
-        <svg class="repo-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <div class="repo-dropdown" id="repoDropdown">
-        <input
-          type="text"
-          class="repo-search-input"
-          placeholder="Search repositories…"
-          id="repoSearch"
-          oninput="filterRepos()"
-          autocomplete="off"
-        />
-        <div class="repo-list" id="repoList">
-          <div class="repo-loading">Loading repositories…</div>
-        </div>
+    <!-- GitHub account info -->
+    <div style="margin:0 20px 16px;">
+      <div class="sidebar-section-label" style="margin-bottom:8px;">Deployment</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-2);">
+        <span style="color:var(--green);">✅</span> New repos are created automatically on GitHub and deployed to GitHub Pages.
       </div>
     </div>
 
@@ -83,7 +66,7 @@
         </button>
         <div>
           <div class="chat-topbar-title">AppBuilder</div>
-          <div class="chat-topbar-sub" id="topbarSub">Select a repository to begin</div>
+          <div class="chat-topbar-sub" id="topbarSub">Describe your app to get started</div>
         </div>
       </div>
       <div class="topbar-status">
@@ -103,7 +86,7 @@
         </p>
         <div class="welcome-repo-warning" id="repoWarning" style="display:none;">
           <span>⚠️</span>
-          <span>Please select a GitHub repository in the sidebar first.</span>
+          <span>Please sign in with GitHub first.</span>
         </div>
       </div>
     </div>
