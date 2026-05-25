@@ -1,5 +1,5 @@
 const express = require('express');
-const { listRepos, pushFiles, enablePages } = require('../services/githubService');
+const { listRepos, createRepo, pushFiles, enablePages } = require('../services/githubService');
 
 const router = express.Router();
 
@@ -30,6 +30,30 @@ router.post('/push', requireAuth, async (req, res) => {
     res.json({ success: true, repoUrl, pagesUrl });
   } catch (err) {
     console.error('Push error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create new repo → push files → enable Pages — all in one shot
+router.post('/deploy', requireAuth, async (req, res) => {
+  const { repoName, files, description } = req.body;
+  if (!repoName || !files?.length) {
+    return res.status(400).json({ error: 'repoName and files are required' });
+  }
+
+  try {
+    // 1. Create the public repo (auto-renames if name is taken)
+    const { name, owner } = await createRepo(req.session.githubToken, repoName, description);
+
+    // 2. Push the generated files
+    const repoUrl = await pushFiles(req.session.githubToken, owner, name, files, 'Initial app — built with AppBuilder');
+
+    // 3. Enable GitHub Pages
+    const pagesUrl = await enablePages(req.session.githubToken, owner, name);
+
+    res.json({ success: true, repoUrl, pagesUrl, repoName: name });
+  } catch (err) {
+    console.error('Deploy error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

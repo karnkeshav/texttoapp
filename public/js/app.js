@@ -1,16 +1,13 @@
 /* ── AppBuilder chat interface ──────────────────────────────────── */
 
-let selectedRepo = null;     // { fullName, owner, name }
-let allRepos = [];           // cached repo list
 let isStreaming = false;
-let isNewConversation = true; // tells the server to start a fresh AG session
-const pendingFiles = new Map(); // fileId → files array (avoids putting file content in onclick attrs)
+let isNewConversation = true;
+const pendingFiles = new Map(); // fileId → { repoName, files }
 let fileIdCounter = 0;
 
 // ── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   await loadUser();
-  await loadRepos();
   autoResize(document.getElementById('chatInput'));
 });
 
@@ -34,73 +31,6 @@ async function loadUser() {
   }
 }
 
-// ── Repository loading ───────────────────────────────────────────
-async function loadRepos() {
-  try {
-    const res = await fetch('/api/github/repos');
-    if (!res.ok) throw new Error('Failed');
-    allRepos = await res.json();
-    renderRepoList(allRepos);
-  } catch {
-    document.getElementById('repoList').innerHTML =
-      '<div class="repo-loading" style="color:var(--red);">Failed to load repositories</div>';
-  }
-}
-
-function renderRepoList(repos) {
-  const list = document.getElementById('repoList');
-  if (!repos.length) {
-    list.innerHTML = '<div class="repo-loading">No repositories found</div>';
-    return;
-  }
-  list.innerHTML = repos.map(r => `
-    <div class="repo-item ${selectedRepo?.fullName === r.fullName ? 'selected' : ''}"
-         onclick="selectRepo(${JSON.stringify(r).replace(/"/g, '&quot;')})">
-      <span class="repo-item-icon">${r.private ? '🔒' : '📂'}</span>
-      <span class="repo-item-name">${r.name}</span>
-      ${r.private ? '<span class="repo-item-private">private</span>' : ''}
-    </div>
-  `).join('');
-}
-
-function filterRepos() {
-  const q = document.getElementById('repoSearch').value.toLowerCase();
-  renderRepoList(q ? allRepos.filter(r => r.name.toLowerCase().includes(q)) : allRepos);
-}
-
-function toggleRepoDropdown() {
-  const dd = document.getElementById('repoDropdown');
-  dd.classList.toggle('open');
-  if (dd.classList.contains('open')) {
-    document.getElementById('repoSearch').focus();
-    document.addEventListener('click', closeDropdownOnOutsideClick, true);
-  }
-}
-
-function closeDropdownOnOutsideClick(e) {
-  const selector = document.querySelector('.repo-selector');
-  if (!selector.contains(e.target)) {
-    document.getElementById('repoDropdown').classList.remove('open');
-    document.removeEventListener('click', closeDropdownOnOutsideClick, true);
-  }
-}
-
-function selectRepo(repo) {
-  selectedRepo = repo;
-  document.getElementById('repoName').textContent = repo.name;
-  document.getElementById('repoDropdown').classList.remove('open');
-  document.getElementById('topbarSub').textContent = `📁 ${repo.fullName}`;
-  document.getElementById('repoWarning').style.display = 'none';
-
-  // If first message hasn't been sent yet, just update welcome screen
-  renderRepoList(allRepos);
-
-  // Update placeholder to show the selected repo name
-  if (isNewConversation) {
-    document.getElementById('chatInput').placeholder =
-      `Describe the app you want to build for "${repo.name}"…`;
-  }
-}
 
 // ── New conversation ─────────────────────────────────────────────
 function startNewConversation() {
@@ -120,10 +50,6 @@ function startNewConversation() {
         Describe any app or website in plain English. AppBuilder will ask you a few questions,
         then create your complete, live website — completely free.
       </p>
-      <div class="welcome-repo-warning" id="repoWarning" style="display:none;">
-        <span>⚠️</span>
-        <span>Please select a GitHub repository in the sidebar first.</span>
-      </div>
     </div>`;
 
   document.getElementById('chatInput').placeholder =
@@ -162,13 +88,6 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text || isStreaming) return;
 
-  if (!selectedRepo) {
-    document.getElementById('repoWarning').style.display = 'flex';
-    document.getElementById('welcomeScreen').scrollIntoView({ behavior: 'smooth' });
-    openSidebar();
-    return;
-  }
-
   // Clear welcome screen on first message
   hideWelcome();
 
@@ -189,12 +108,10 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: text,
-        repoFullName: selectedRepo.fullName,
         newConversation: isNewConversation,
       }),
     });
 
-    // After the first message, all subsequent ones continue the same AG session
     isNewConversation = false;
 
     if (!res.ok) throw new Error('Server error');
@@ -305,41 +222,45 @@ function setStatus(text, thinking = false) {
   dot.className = 'status-dot' + (thinking ? ' thinking' : '');
 }
 
-// ── Code detection & GitHub push ─────────────────────────────────
+// ── Code detection & auto-deploy ─────────────────────────────────
 function checkForCode(text) {
-  // Look for HTML code blocks in the response
   const htmlMatch = text.match(/```html\s*([\s\S]*?)```/i);
-  const cssMatch = text.match(/```css\s*([\s\S]*?)```/i);
-  const jsMatch = text.match(/```(?:javascript|js)\s*([\s\S]*?)```/i);
+  if (!htmlMatch) return;
 
-  if (htmlMatch) {
-    const files = [{ path: 'index.html', content: htmlMatch[1].trim() }];
-    if (cssMatch) files.push({ path: 'style.css', content: cssMatch[1].trim() });
-    if (jsMatch) files.push({ path: 'script.js', content: jsMatch[1].trim() });
-    showPushPrompt(files);
-  }
+  // Extract REPO_NAME from the AI response (e.g. "REPO_NAME: portfolio-site")
+  const repoMatch = text.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
+  const repoName  = repoMatch
+    ? repoMatch[1].toLowerCase()
+    : `appbuilder-${Date.now().toString(36)}`;
+
+  const files = [{ path: 'index.html', content: htmlMatch[1].trim() }];
+  const cssMatch = text.match(/```css\s*([\s\S]*?)```/i);
+  const jsMatch  = text.match(/```(?:javascript|js)\s*([\s\S]*?)```/i);
+  if (cssMatch) files.push({ path: 'style.css',  content: cssMatch[1].trim() });
+  if (jsMatch)  files.push({ path: 'script.js',  content: jsMatch[1].trim() });
+
+  showDeployPrompt(repoName, files);
 }
 
-function showPushPrompt(files) {
-  if (!selectedRepo) return;
-  // Store files in memory map — never put raw file content into onclick attributes
+function showDeployPrompt(repoName, files) {
   const fileId = `fid-${++fileIdCounter}`;
-  pendingFiles.set(fileId, files);
+  pendingFiles.set(fileId, { repoName, files });
 
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
   div.innerHTML = `
     <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:14px;padding:24px;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🚀 Your app is ready!</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🚀 Your app is ready to deploy!</div>
       <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-        AppBuilder has generated <strong style="color:var(--text);">${files.length} file${files.length > 1 ? 's' : ''}</strong> for your website.
-        Click below to push them to <strong style="color:var(--purple-light);">${selectedRepo.fullName}</strong> and get your live URL.
+        AppBuilder will create a new public GitHub repository called
+        <strong style="color:var(--purple-light);">${repoName}</strong>,
+        push your code, and enable GitHub Pages — automatically.
       </p>
-      <button data-fileid="${fileId}" onclick="pushToGitHub(this.dataset.fileid, this)"
+      <button data-fileid="${fileId}" onclick="deployToGitHub(this.dataset.fileid, this)"
               style="background:var(--grad-main);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        Push to GitHub &amp; Get Live URL
+        Deploy to GitHub Pages
       </button>
     </div>
   `;
@@ -347,55 +268,49 @@ function showPushPrompt(files) {
   scrollToBottom();
 }
 
-async function pushToGitHub(fileId, btn) {
-  btn.disabled = true;
-  btn.textContent = 'Pushing…';
+async function deployToGitHub(fileId, btn) {
+  const pending = pendingFiles.get(fileId);
+  if (!pending) return;
 
-  const [owner, repo] = selectedRepo.fullName.split('/');
-  const parsedFiles = pendingFiles.get(fileId);
-  if (!parsedFiles) { btn.disabled = false; btn.textContent = 'Retry'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span style="opacity:0.7">Creating repo &amp; deploying…</span>';
+
+  const { repoName, files } = pending;
 
   try {
-    const res = await fetch('/api/github/push', {
+    const res  = await fetch('/api/github/deploy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner, repo, files: parsedFiles }),
+      body: JSON.stringify({ repoName, files, description: `Built with AppBuilder` }),
     });
     const data = await res.json();
+    const card = btn.closest('div[style]');
 
-    const parent = btn.closest('div[style]');
     if (data.success) {
-      parent.innerHTML = `
+      card.innerHTML = `
         <div class="push-success">
           <h4>🎉 Your app is live!</h4>
-          <p style="font-size:14px;color:var(--text-2);margin-bottom:12px;">
-            Your website has been pushed to GitHub and is being deployed.
+          <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
+            A new repository was created and GitHub Pages is deploying your site. It'll be live within ~60 seconds.
           </p>
           <p style="margin-bottom:8px;">
-            🔗 <strong>Live URL:</strong> <a href="${data.pagesUrl}" target="_blank">${data.pagesUrl}</a>
+            🔗 <strong>Live URL:</strong>
+            <a href="${data.pagesUrl}" target="_blank" style="color:var(--purple-light);">${data.pagesUrl}</a>
           </p>
-          <p style="margin-bottom:8px;">
-            📁 <strong>Repository:</strong> <a href="${data.repoUrl}" target="_blank">${data.repoUrl}</a>
+          <p style="margin-bottom:0;">
+            📁 <strong>Repository:</strong>
+            <a href="${data.repoUrl}" target="_blank" style="color:var(--purple-light);">${data.repoUrl}</a>
           </p>
-          <div style="margin-top:16px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13px;color:var(--text-2);">
-            <strong style="color:var(--text);display:block;margin-bottom:8px;">📋 Deployment steps:</strong>
-            <ol style="padding-left:20px;display:flex;flex-direction:column;gap:6px;">
-              <li>Go to your repository: <a href="${data.repoUrl}" target="_blank">${data.repoUrl}</a></li>
-              <li>Click <strong style="color:var(--text);">Settings</strong> → <strong style="color:var(--text);">Pages</strong> (left sidebar)</li>
-              <li>Under <strong style="color:var(--text);">Branch</strong>, select <code style="background:var(--bg);padding:1px 6px;border-radius:4px;">main</code> and click <strong style="color:var(--text);">Save</strong></li>
-              <li>Wait ~60 seconds, then visit: <a href="${data.pagesUrl}" target="_blank">${data.pagesUrl}</a></li>
-            </ol>
-          </div>
         </div>
       `;
     } else {
       btn.disabled = false;
-      btn.textContent = 'Retry push';
-      parent.querySelector('p').textContent = `Error: ${data.error}`;
+      btn.textContent = 'Retry deployment';
+      card.querySelector('p').textContent = `Error: ${data.error}`;
     }
   } catch (err) {
     btn.disabled = false;
-    btn.textContent = 'Retry push';
+    btn.textContent = 'Retry deployment';
   }
   scrollToBottom();
 }

@@ -29,6 +29,36 @@ async function getUser(accessToken) {
 }
 
 /**
+ * Create a new public repository for the authenticated user.
+ * If the name is taken, appends a numeric suffix until it finds a free name.
+ */
+async function createRepo(accessToken, name, description = 'Created with AppBuilder') {
+  const octokit = getOctokit(accessToken);
+  let repoName = name;
+  let attempt  = 0;
+
+  while (true) {
+    try {
+      const { data } = await octokit.repos.createForAuthenticatedUser({
+        name: repoName,
+        description,
+        private: false,
+        auto_init: false,
+      });
+      return { name: data.name, owner: data.owner.login, url: data.html_url };
+    } catch (err) {
+      if (err.status === 422 && attempt < 5) {
+        // Name taken — try adding a suffix
+        attempt++;
+        repoName = `${name}-${attempt}`;
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+/**
  * Push a set of files to the repo's main branch.
  * files: [{ path: 'index.html', content: '...' }, ...]
  */
@@ -120,4 +150,4 @@ async function enablePages(accessToken, owner, repo) {
   return `https://${owner}.github.io/${repo}`;
 }
 
-module.exports = { listRepos, getUser, pushFiles, enablePages };
+module.exports = { listRepos, getUser, createRepo, pushFiles, enablePages };
