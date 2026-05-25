@@ -2,18 +2,14 @@
  * Antigravity AI service
  * Google Generative Language — Interactions API
  *
- * Confirmed accepted fields (discovered via live API probing):
- *   agent, input, environment: { type }, stream
- *
- * NOT accepted: config, context, persistence, session_id,
- *               runtime_policies, rules, system, instructions
- *
- * System prompt and conversation history are embedded inside `input`.
+ * Confirmed accepted fields: agent, input, environment:{type}, stream
+ * Auth: OAuth2 Bearer token (same Gmail account used in Antigravity desktop app)
  */
 
 const axios = require('axios');
+const { OAuth2Client } = require('google-auth-library');
 
-// ── System prompt (injected at the top of every input) ────────────
+// ── System prompt embedded in every request ───────────────────────
 const SYSTEM_PROMPT = `You are AppBuilder — an expert web developer who helps people create complete, deployable web applications using only HTML and vanilla JavaScript.
 
 YOUR RULES — follow these strictly:
@@ -30,7 +26,7 @@ YOUR RULES — follow these strictly:
 
 ---`;
 
-// ── Build input string with system prompt + conversation history ──
+// ── Build input with system prompt + conversation history ─────────
 function buildInput(history, newUserMessage) {
   const lines = [SYSTEM_PROMPT, ''];
 
@@ -45,47 +41,56 @@ function buildInput(history, newUserMessage) {
   lines.push(`User: ${newUserMessage}`);
   lines.push('');
   lines.push('AppBuilder:');
-
   return lines.join('\n');
 }
 
-// ── Extract displayable text from an SSE event object ────────────
+// ── Get a fresh access token (auto-refreshes using stored refresh token) ──
+async function getFreshAccessToken(googleTokens) {
+  const client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback'
+  );
+  client.setCredentials(googleTokens);
+
+  // getAccessToken() auto-refreshes if the token is expired
+  const { token } = await client.getAccessToken();
+  return token;
+}
+
+// ── Extract displayable text from a streamed SSE event ────────────
 function extractText(event) {
   if (!event || typeof event !== 'object') return null;
-
-  if (typeof event.text === 'string' && event.text)    return event.text;
-  if (typeof event.content === 'string' && event.content) return event.content;
-  if (event.output?.text)   return event.output.text;
+  if (typeof event.text === 'string' && event.text)        return event.text;
+  if (typeof event.content === 'string' && event.content)  return event.content;
+  if (event.output?.text)    return event.output.text;
   if (event.output?.content) return event.output.content;
-  if (event.delta?.text)    return event.delta.text;
-  if (event.delta?.content) return event.delta.content;
-  if (event.agent_output?.text) return event.agent_output.text;
-  if (event.response?.text)     return event.response.text;
-  if (event.message?.content && typeof event.message.content === 'string')
-    return event.message.content;
-
+  if (event.delta?.text)     return event.delta.text;
+  if (event.delta?.content)  return event.delta.content;
+  if (event.agent_output?.text)  return event.agent_output.text;
+  if (event.response?.text)      return event.response.text;
+  if (typeof event.message?.content === 'string') return event.message.content;
   const outputTypes = new Set(['agent_output', 'response', 'text', 'message', 'final_response']);
-  if (outputTypes.has(event.type)) {
-    return event.text || event.content || null;
-  }
-
+  if (outputTypes.has(event.type)) return event.text || event.content || null;
   return null;
 }
 
 // ── Main streaming function ───────────────────────────────────────
 /**
- * @param {string}   newUserMessage  Latest message text from the user
- * @param {Array}    history         [{role:'user'|'assistant', content:string}, ...]
+ * @param {string}   newUserMessage  Latest message from the user
+ * @param {Array}    history         [{role, content}, ...] conversation so far
+ * @param {object}   googleTokens    OAuth2 tokens from req.session.googleTokens
  * @param {Function} onChunk         Called with each streamed text fragment
- * @param {Function} onDone          Called once with the full response text
+ * @param {Function} onDone          Called once with the complete response text
  */
-async function streamChat(newUserMessage, history, onChunk, onDone) {
+async function streamChat(newUserMessage, history, googleTokens, onChunk, onDone) {
   const endpoint = process.env.ANTIGRAVITY_API_ENDPOINT;
-  const apiKey   = process.env.ANTIGRAVITY_API_KEY;
   const agentId  = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
 
-  if (!endpoint) throw new Error('ANTIGRAVITY_API_ENDPOINT is not set in .env');
-  if (!apiKey)   throw new Error('ANTIGRAVITY_API_KEY is not set in .env');
+  if (!endpoint)      throw new Error('ANTIGRAVITY_API_ENDPOINT not set in .env');
+  if (!googleTokens)  throw new Error('Google account not connected — please sign in with Google first');
+
+  const accessToken = await getFreshAccessToken(googleTokens);
 
   const payload = {
     agent: agentId,
@@ -98,7 +103,7 @@ async function streamChat(newUserMessage, history, onChunk, onDone) {
     method: 'post',
     url: endpoint,
     headers: {
-      'x-goog-api-key': apiKey,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       'Accept': 'text/event-stream',
     },

@@ -8,14 +8,6 @@ function requireAuth(req, res, next) {
   next();
 }
 
-/**
- * POST /api/chat
- * Body: { message: string, repoFullName?: string, newConversation?: boolean }
- * Streams Server-Sent Events back to the client.
- *
- * Conversation history is stored in req.session.chatHistory so it can be
- * embedded in every Antigravity request (the API has no server-side session support).
- */
 router.post('/chat', requireAuth, async (req, res) => {
   const { message, repoFullName, newConversation } = req.body;
 
@@ -23,13 +15,16 @@ router.post('/chat', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'message is required' });
   }
 
+  // Must have connected Google account for Antigravity
+  if (!req.session.googleTokens) {
+    return res.status(403).json({ error: 'google_not_connected' });
+  }
+
   if (repoFullName) req.session.selectedRepo = repoFullName;
 
-  // Reset history when user starts a new conversation
   if (newConversation || !req.session.chatHistory) {
     req.session.chatHistory = [];
   }
-
   const history = req.session.chatHistory;
 
   // ── SSE setup ─────────────────────────────────────────────────
@@ -43,17 +38,21 @@ router.post('/chat', requireAuth, async (req, res) => {
 
   const onChunk = (text) => sendEvent('chunk', { text });
   const onDone  = (fullText) => {
-    // Persist both sides of the exchange in the session
     req.session.chatHistory.push({ role: 'user',      content: message.trim() });
     req.session.chatHistory.push({ role: 'assistant', content: fullText });
     sendEvent('done', { text: fullText });
     res.end();
   };
 
-  // ── Call Antigravity ──────────────────────────────────────────
   try {
     sendEvent('status', { message: 'AppBuilder is thinking…' });
-    await antigravity.streamChat(message.trim(), history, onChunk, onDone);
+    await antigravity.streamChat(
+      message.trim(),
+      history,
+      req.session.googleTokens,
+      onChunk,
+      onDone
+    );
   } catch (err) {
     console.error('─── Antigravity error ───');
     console.error('Message :', err.message);
