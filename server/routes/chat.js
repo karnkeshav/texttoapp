@@ -24,6 +24,7 @@ const antigravity    = require('../services/antigravity');
 const { analyzePlanPhase, compileSpec } = require('../services/planPhase');
 const { getFileContent } = require('../services/githubService');
 const { fullQualityPass } = require('../services/codeQuality');
+const { pooledStream, pooledGenerate } = require('../services/geminiPool');
 
 const router = express.Router();
 
@@ -87,6 +88,58 @@ function isConversationalIntent(message) {
     /\b(don'?t build|dont build|not build|first give|give me (the )?details?|tell me (about|more)|just (tell|explain|describe)|show me|walk me through|explain|describe|summarize|overview|purpose|what does|what is|what are|how does|how do|analyze|analyse|understand|review|flow|architecture|structure|codebase|logic|working|works)\b/.test(m)
   );
 }
+
+// ── Top-level intent classifier ───────────────────────────────────
+// Runs on the VERY FIRST message of a new conversation (before the build
+// state machine starts).  Returns one of:
+//   'build'      → enter prototype/complete state machine (existing flow)
+//   'conversion' → one-shot: generate formatted content (Word / Excel / CSV / JSON / PPT)
+//   'reasoning'  → one-shot: math, logic, analysis  (different system instruction)
+//   'chat'       → one-shot: general question or casual conversation
+
+const CONVERSION_RE = /\b(convert|export|save|turn|transform|put)\b.{0,40}\b(word|docx?|excel|xlsx?|spreadsheet|csv|ppt|powerpoint|presentation|json|pdf)\b|\b(word|docx?|excel|xlsx?|csv|ppt|powerpoint|json|pdf)\b.{0,30}\b(file|format|document|version)\b|\b(as|into?|in)\s+a?\s*(word|docx?|excel|xlsx?|csv|ppt|powerpoint|json|pdf)\b/i;
+
+const REASONING_RE  = /\b(calculate|compute|solve|formula|equation|integral|derivative|proof|logic\s*puzzle|what\s+is\s+\d|how\s+many|percentage|convert\s+\d)\b|\d[\d\s]*[\+\-\*\/\^][\d\s\(\)]+=/i;
+
+// Words that strongly signal the user wants to BUILD something (not just chat)
+const BUILD_SIGNAL_RE = /\b(build|create|make|generate|develop|design|i want (an?|the)|give me (an?|the)|i need (an?|the))\b.{0,50}\b(app|website|site|page|tool|dashboard|tracker|calculator|game|quiz|platform|portal|landing|shop|store)\b/i;
+
+function classifyTopLevelIntent(message) {
+  const m = message.toLowerCase().trim();
+
+  // Format conversion always wins — very specific signal
+  if (CONVERSION_RE.test(message)) return 'conversion';
+
+  // Math / logic / numerical reasoning
+  if (REASONING_RE.test(message)) return 'reasoning';
+
+  // Explicit build request → state machine
+  if (BUILD_SIGNAL_RE.test(message)) return 'build';
+
+  // Conversational question (no repo context) → one-shot chat
+  if (isConversationalIntent(message)) return 'chat';
+
+  // Default: treat as a build request (existing behaviour)
+  return 'build';
+}
+
+// ── System instructions for non-build intents ─────────────────────
+const SYS_CONVERSION = `You are Ready4Launch's document assistant. The user wants content converted to or formatted for a specific file type (Word, Excel, CSV, JSON, PPT, PDF, etc.).
+Generate the content they need, clearly structured in Markdown so it is easy to read and copy.
+Use headings, bullet points, tables and code blocks where appropriate for the target format.
+At the end of your response include this exact line:
+📄 *File download (Word / Excel / PPT) is coming in the next update — copy the content above for now.*
+Do NOT build apps or websites. Do NOT output REPO_NAME or HTML code blocks.`;
+
+const SYS_REASONING = `You are Ready4Launch's reasoning assistant. Answer the user's question with clear logical steps.
+Show your working explicitly. Use plain text, Markdown tables, or numbered steps.
+For maths: show each step on its own line. For logic: state assumptions, then derive conclusions.
+Do NOT build apps or websites. Do NOT output REPO_NAME or HTML code blocks.`;
+
+const SYS_CHAT = `You are Ready4Launch — a smart AI assistant that can build web apps, convert documents, reason through problems, and answer questions.
+Answer the user helpfully and conversationally. Be concise unless depth is asked for.
+If the user wants to build something, let them know they can describe an app and you will build and deploy it for free.
+Do NOT output REPO_NAME or HTML code blocks unless explicitly building an app.`;
 
 function interceptFramework(message) {
   const match = message.match(FRAMEWORK_RE);
@@ -165,6 +218,81 @@ router.post('/chat', requireAuth, async (req, res) => {
   const trimmedMessage = message.trim();
 
   try {
+    // ════════════════════════════════════════════════════════════
+    // TOP-LEVEL INTENT ROUTING (first message of a NEW conversation only)
+    // Intercepts non-build intents before the build state machine starts.
+    // ════════════════════════════════════════════════════════════
+    if (isFirstMessage && !isEditMode) {
+      const intent = classifyTopLevelIntent(trimmedMessage);
+
+      if (intent === 'conversion' || intent === 'reasoning' || intent === 'chat') {
+        const sysMap = {
+          conversion: SYS_CONVERSION,
+          reasoning:  SYS_REASONING,
+          chat:       SYS_CHAT,
+        };
+        const statusMap = {
+          conversion: 'Preparing your document…',
+          reasoning:  'Working through the problem…',
+          chat:       'Thinking…',
+        };
+
+        sendEvent('status', { message: statusMap[intent] });
+
+        // Mark session so subsequent turns stay in the same one-shot mode
+        req.session.chatPhase = intent;
+        req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
+
+        let responseText = '';
+        const onChunk = (t) => sendEvent('chunk', { text: t });
+        const onDone  = (t) => { responseText = t; };
+
+        await pooledStream({
+          contents:          [{ role: 'user', parts: [{ text: trimmedMessage }] }],
+          config:            { temperature: 0.5, maxOutputTokens: 8192 },
+          apiKey,
+          systemInstruction: sysMap[intent],
+          onChunk,
+          onDone,
+        });
+
+        req.session.chatHistory.push({ role: 'assistant', content: responseText });
+        sendEvent('done', { text: responseText });
+        return res.end();
+      }
+      // intent === 'build' → fall through to the state machine below
+    }
+
+    // Subsequent turns in a non-build session (conversion / reasoning / chat)
+    // stay in that mode — answer conversationally without re-entering the machine.
+    if (!isFirstMessage && ['conversion', 'reasoning', 'chat'].includes(req.session.chatPhase)) {
+      req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
+      const sysMap = { conversion: SYS_CONVERSION, reasoning: SYS_REASONING, chat: SYS_CHAT };
+      const sys = sysMap[req.session.chatPhase] || SYS_CHAT;
+
+      sendEvent('status', { message: 'Thinking…' });
+
+      let responseText = '';
+      const onChunk = (t) => sendEvent('chunk', { text: t });
+      const onDone  = (t) => { responseText = t; };
+
+      await pooledStream({
+        contents:          req.session.chatHistory.map(({ role, content }) => ({
+          role: role === 'user' ? 'user' : 'model',
+          parts: [{ text: content }],
+        })),
+        config:            { temperature: 0.5, maxOutputTokens: 8192 },
+        apiKey,
+        systemInstruction: sys,
+        onChunk,
+        onDone,
+      });
+
+      req.session.chatHistory.push({ role: 'assistant', content: responseText });
+      sendEvent('done', { text: responseText });
+      return res.end();
+    }
+
     // ════════════════════════════════════════════════════════════
     // EDIT MODE — conversational questions OR code changes for an existing repo.
     // Triggered whenever the client sends editMode=true (any turn in the session).
