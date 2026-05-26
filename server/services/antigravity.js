@@ -373,7 +373,7 @@ async function streamFromGemini(newUserMessage, history, apiKey, modelName, onCh
 async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDone, enrichedNotes = '') {
   const apiKey   = process.env.GEMINI_API_KEY;
   const agentId  = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
-  const gemModel = process.env.GEMINI_MODEL         || 'gemini-1.5-flash';
+  const gemModel = process.env.GEMINI_MODEL         || 'gemini-2.5-flash';
 
   if (!apiKey) throw new Error('GEMINI_API_KEY not set in .env');
 
