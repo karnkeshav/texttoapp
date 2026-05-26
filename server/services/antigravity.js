@@ -335,12 +335,20 @@ async function streamFromAntigravity(newUserMessage, history, apiKey, agentId, o
 }
 
 // ── FALLBACK: Gemini GenAI SDK ────────────────────────────────────
-async function streamFromGemini(newUserMessage, history, apiKey, modelName, onChunk, onDone) {
+async function streamFromGemini(newUserMessage, history, apiKey, modelName, onChunk, onDone, enrichedNotes = '') {
   const ai = new GoogleGenAI({ apiKey });
+
+  // Inject enrichedNotes into the user message so Gemini receives the same
+  // plan-phase context that Antigravity gets via buildInput().
+  let contextualMessage = newUserMessage;
+  if (enrichedNotes && enrichedNotes !== 'No additional context.') {
+    contextualMessage =
+      `── PLAN CONTEXT ──\n${enrichedNotes}\n──────────────────\n\n${newUserMessage}`;
+  }
 
   const response = await ai.models.generateContentStream({
     model: modelName,
-    contents: buildContents(history, newUserMessage),
+    contents: buildContents(history, contextualMessage),
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.7,
@@ -373,7 +381,7 @@ async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDon
   } catch (err) {
     if (shouldFallback(err)) {
       console.warn(`[AI] Antigravity ${err.response?.status} — falling back to Gemini (${gemModel})`);
-      await streamFromGemini(newUserMessage, history, apiKey, gemModel, onChunk, onDone);
+      await streamFromGemini(newUserMessage, history, apiKey, gemModel, onChunk, onDone, enrichedNotes);
       console.log('[AI] Gemini fallback ✅');
     } else {
       console.error('[AI] Antigravity error (no fallback):', err.response?.status, err.message);

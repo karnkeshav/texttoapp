@@ -28,7 +28,8 @@ router.post('/chat', requireAuth, async (req, res) => {
   if (repoFullName) req.session.selectedRepo = repoFullName;
 
   if (newConversation || !req.session.chatHistory) {
-    req.session.chatHistory = [];
+    req.session.chatHistory    = [];
+    req.session.planNotes      = ''; // domain notes from plan phase — persisted across turns
   }
   const history = req.session.chatHistory;
   const isFirstMessage = history.length === 0;
@@ -70,6 +71,8 @@ router.post('/chat', requireAuth, async (req, res) => {
       // If a critical gap exists — ask back directly, skip AI generation
       if (plan.requiresAskBack && plan.askBackQuestion) {
         const question = plan.askBackQuestion;
+        // Persist domain notes even when asking back — they'll be used on the next turn
+        req.session.planNotes = plan.enrichedNotes || '';
         req.session.chatHistory.push({ role: 'user',      content: trimmedMessage });
         req.session.chatHistory.push({ role: 'assistant', content: question });
         sendEvent('chunk', { text: question });
@@ -78,10 +81,31 @@ router.post('/chat', requireAuth, async (req, res) => {
       }
 
       enrichedNotes = plan.enrichedNotes || '';
+      req.session.planNotes = enrichedNotes; // persist for subsequent turns
     } catch (planErr) {
       // Plan phase failure is non-fatal — continue without enrichment
       console.warn('[Plan] Phase failed (non-fatal):', planErr.message);
     }
+  }
+
+  // ── Step 2b: Theme injection on message 2 (answer to ask-back) ─
+  // history has exactly 2 items = the original prompt + our ask-back question.
+  // The user is now answering that question (e.g. "dark and gold gourmet style").
+  // Combine stored domain notes + their answer so the AI gets explicit enrichedNotes
+  // instead of having to infer the theme from conversation history alone.
+  if (!enrichedNotes && history.length === 2) {
+    const originalPrompt = history[0]?.content || '';
+    const storedNotes    = req.session.planNotes || '';
+    const base = storedNotes && storedNotes !== 'No additional context.'
+      ? storedNotes
+      : `Original request: "${originalPrompt}"`;
+    enrichedNotes = `${base}\nUser's chosen style/theme: "${trimmedMessage}". Apply this throughout the app.`;
+    console.log('[Chat] Theme answer captured → enrichedNotes injected for generation');
+  }
+
+  // For turns beyond 2: re-use stored plan notes so context never fully disappears
+  if (!enrichedNotes && req.session.planNotes) {
+    enrichedNotes = req.session.planNotes;
   }
 
   // ── Step 3: Stream from Antigravity (with Gemini fallback) ────

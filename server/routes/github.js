@@ -85,13 +85,6 @@ function processFiles(files, backendOrigin) {
   });
 }
 
-// ── Telemetry report receiver ─────────────────────────────────────
-router.post('/../../api/telemetry/report', (req, res) => {
-  const { appPath, errorMsg, source, line, stackTrace } = req.body;
-  console.warn('[Telemetry]', { appPath, errorMsg, source, line, stackTrace });
-  res.status(204).end();
-});
-
 router.get('/repos', requireAuth, async (req, res) => {
   try {
     const repos = await listRepos(req.session.githubToken);
@@ -128,9 +121,13 @@ router.post('/deploy', requireAuth, async (req, res) => {
 
   try {
     const apiKey  = process.env.GEMINI_API_KEY;
-    const model   = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+    const model   = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
     // 1. Run mechanical audit + auto-heal loop on HTML files before touching GitHub
+    // Use a flag instead of returning from inside Promise.all — returning from an async
+    // callback only exits the callback, not the route handler, so headers would be sent
+    // twice if we called res.json() inside the map.
+    let auditFailure = null;
     const auditedFiles = await Promise.all(files.map(async (file) => {
       if (!file.path.endsWith('.html')) return file;
       try {
@@ -139,15 +136,21 @@ router.post('/deploy', requireAuth, async (req, res) => {
         return { ...file, content: code };
       } catch (auditErr) {
         if (auditErr.code === 'CODE_AUDIT_FAILED') {
-          return res.status(422).json({
-            error: 'code_audit_failed',
-            message: 'The generated code has structural issues that could not be auto-repaired.',
-            issues: auditErr.issues,
-          });
+          auditFailure = auditErr; // capture and bail after Promise.all resolves
+          return file;             // return original so Promise.all doesn't reject
         }
         throw auditErr;
       }
     }));
+
+    // Bail out cleanly if any file failed the audit
+    if (auditFailure) {
+      return res.status(422).json({
+        error: 'code_audit_failed',
+        message: 'The generated code has structural issues that could not be auto-repaired.',
+        issues: auditFailure.issues,
+      });
+    }
 
     // 2. Create the public repo (auto-renames if name is taken)
     const { name, owner } = await createRepo(req.session.githubToken, repoName, description);
