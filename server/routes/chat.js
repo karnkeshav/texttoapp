@@ -23,6 +23,7 @@ const express = require('express');
 const antigravity    = require('../services/antigravity');
 const { analyzePlanPhase, compileSpec } = require('../services/planPhase');
 const { getFileContent } = require('../services/githubService');
+const { fullQualityPass } = require('../services/codeQuality');
 
 const router = express.Router();
 
@@ -168,18 +169,30 @@ router.post('/chat', requireAuth, async (req, res) => {
       req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
 
       const onChunk = (text) => sendEvent('chunk', { text });
-      const onDone  = (fullText) => {
-        if (!/```html/i.test(fullText)) {
-          sendEvent('error', { message: 'Could not generate the updated code. Please try again.' });
-          return res.end();
-        }
-        req.session.chatHistory.push({ role: 'assistant', content: fullText });
-        sendEvent('done', { text: fullText, editMode: true, editOwner, editRepo });
-        res.end();
-      };
+      let capturedEdit = null;
+      const onDone  = (fullText) => { capturedEdit = fullText; };
 
       sendEvent('status', { message: 'Applying your changes…' });
       await antigravity.streamChat(editPrompt, [], null, onChunk, onDone, '');
+
+      if (!capturedEdit || !/```html/i.test(capturedEdit)) {
+        sendEvent('error', { message: 'Could not generate the updated code. Please try again.' });
+        return res.end();
+      }
+
+      // Semantic quality pass — verify the requested changes were actually made
+      let finalEdit = capturedEdit;
+      try {
+        sendEvent('status', { message: 'Verifying changes…' });
+        finalEdit = await fullQualityPass(capturedEdit, `Change request: ${trimmedMessage}`, apiKey);
+        if (finalEdit !== capturedEdit) sendEvent('status', { message: 'Self-heal complete ✓' });
+      } catch (qErr) {
+        console.warn('[QualityPass] Edit mode non-fatal:', qErr.message);
+      }
+
+      req.session.chatHistory.push({ role: 'assistant', content: finalEdit });
+      sendEvent('done', { text: finalEdit, editMode: true, editOwner, editRepo });
+      res.end();
       return;
     }
 
@@ -352,32 +365,21 @@ router.post('/chat', requireAuth, async (req, res) => {
       ? []                    // complete mode: spec self-contained, no history needed
       : history.slice(-6);   // prototype / building: send recent context
 
-    // ── SSE onChunk / onDone ───────────────────────────────────────
+    // ── Stream — capture full text, then audit, then send done ───────
     const onChunk = (text) => sendEvent('chunk', { text });
 
+    // onDone just captures — async quality pass runs after streamChat resolves
+    let capturedText    = null;
+    let outputGateError = null;
     const onDone = (fullText) => {
-      // Output gate: REPO_NAME present but no ```html = malformed
       const announcedCode = /REPO_NAME\s*:/i.test(fullText);
       const hasHtmlBlock  = /```html/i.test(fullText);
-
       if (announcedCode && !hasHtmlBlock) {
         console.warn('[Chat] Output gate: REPO_NAME without ```html — rejecting');
-        sendEvent('error', { message: 'AppBuilder generated an incomplete response. Please try again.' });
-        return res.end();
+        outputGateError = 'AppBuilder generated an incomplete response. Please try again.';
+        return;
       }
-
-      req.session.chatHistory.push({ role: 'assistant', content: fullText });
-
-      // Edit mode carries repo context so frontend can offer Push instead of Deploy
-      const donePayload = { text: fullText };
-      if (req.session.editMode) {
-        donePayload.editMode  = true;
-        donePayload.editOwner = req.session.editMode.owner;
-        donePayload.editRepo  = req.session.editMode.repo;
-      }
-
-      sendEvent('done', donePayload);
-      res.end();
+      capturedText = fullText;
     };
 
     sendEvent('status', { message: 'AppBuilder is building your app…' });
@@ -389,6 +391,43 @@ router.post('/chat', requireAuth, async (req, res) => {
       onDone,
       enrichedNotes
     );
+
+    // Handle output gate / missing response
+    if (outputGateError) {
+      sendEvent('error', { message: outputGateError });
+      return res.end();
+    }
+    if (!capturedText) {
+      sendEvent('error', { message: 'No response received. Please try again.' });
+      return res.end();
+    }
+
+    // ── Semantic quality pass (audit → self-heal → re-audit) ─────────
+    // Only runs when there's an HTML block and we have requirements to check against
+    let finalText = capturedText;
+    if (/```html/i.test(capturedText) && enrichedNotes && enrichedNotes.length > 30) {
+      try {
+        sendEvent('status', { message: 'Verifying build quality…' });
+        finalText = await fullQualityPass(capturedText, enrichedNotes, apiKey);
+        if (finalText !== capturedText) {
+          sendEvent('status', { message: 'Self-heal complete ✓' });
+        }
+      } catch (qErr) {
+        console.warn('[QualityPass] Non-fatal — proceeding with original:', qErr.message);
+        finalText = capturedText;
+      }
+    }
+
+    // Finalise
+    req.session.chatHistory.push({ role: 'assistant', content: finalText });
+    const donePayload = { text: finalText };
+    if (req.session.editMode) {
+      donePayload.editMode  = true;
+      donePayload.editOwner = req.session.editMode.owner;
+      donePayload.editRepo  = req.session.editMode.repo;
+    }
+    sendEvent('done', donePayload);
+    res.end();
 
   } catch (err) {
     console.error('─── Chat error ───');
