@@ -28,7 +28,8 @@ router.post('/chat', requireAuth, async (req, res) => {
   if (repoFullName) req.session.selectedRepo = repoFullName;
 
   if (newConversation || !req.session.chatHistory) {
-    req.session.chatHistory = [];
+    req.session.chatHistory    = [];
+    req.session.planNotes      = ''; // domain notes from plan phase — persisted across turns
   }
   const history = req.session.chatHistory;
   const isFirstMessage = history.length === 0;
@@ -61,7 +62,8 @@ router.post('/chat', requireAuth, async (req, res) => {
       sendEvent('status', { message: 'Analysing your request…' });
 
       const apiKey = process.env.GEMINI_API_KEY;
-      const model  = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+      // Plan phase uses a smarter model for reliable structured JSON output
+      const model  = process.env.PLAN_MODEL || 'gemini-2.0-flash';
       const plan   = await analyzePlanPhase(trimmedMessage, apiKey, model);
 
       console.log(`[Plan] Archetype: ${plan.archetype} | AskBack: ${plan.requiresAskBack}`);
@@ -69,6 +71,8 @@ router.post('/chat', requireAuth, async (req, res) => {
       // If a critical gap exists — ask back directly, skip AI generation
       if (plan.requiresAskBack && plan.askBackQuestion) {
         const question = plan.askBackQuestion;
+        // Persist domain notes even when asking back — they'll be used on the next turn
+        req.session.planNotes = plan.enrichedNotes || '';
         req.session.chatHistory.push({ role: 'user',      content: trimmedMessage });
         req.session.chatHistory.push({ role: 'assistant', content: question });
         sendEvent('chunk', { text: question });
@@ -77,15 +81,50 @@ router.post('/chat', requireAuth, async (req, res) => {
       }
 
       enrichedNotes = plan.enrichedNotes || '';
+      req.session.planNotes = enrichedNotes; // persist for subsequent turns
     } catch (planErr) {
       // Plan phase failure is non-fatal — continue without enrichment
       console.warn('[Plan] Phase failed (non-fatal):', planErr.message);
     }
   }
 
+  // ── Step 2b: Theme injection on message 2 (answer to ask-back) ─
+  // history has exactly 2 items = the original prompt + our ask-back question.
+  // The user is now answering that question (e.g. "dark and gold gourmet style").
+  // Combine stored domain notes + their answer so the AI gets explicit enrichedNotes
+  // instead of having to infer the theme from conversation history alone.
+  if (!enrichedNotes && history.length === 2) {
+    const originalPrompt = history[0]?.content || '';
+    const storedNotes    = req.session.planNotes || '';
+    const base = storedNotes && storedNotes !== 'No additional context.'
+      ? storedNotes
+      : `Original request: "${originalPrompt}"`;
+    enrichedNotes = `${base}\nUser's chosen style/theme: "${trimmedMessage}". Apply this throughout the app.`;
+    console.log('[Chat] Theme answer captured → enrichedNotes injected for generation');
+  }
+
+  // For turns beyond 2: re-use stored plan notes so context never fully disappears
+  if (!enrichedNotes && req.session.planNotes) {
+    enrichedNotes = req.session.planNotes;
+  }
+
   // ── Step 3: Stream from Antigravity (with Gemini fallback) ────
   const onChunk = (text) => sendEvent('chunk', { text });
   const onDone  = (fullText) => {
+    // ── Structural output gate ──────────────────────────────────
+    // If the AI announced a REPO_NAME (the signal that it's outputting code)
+    // but produced no ```html block, the response is malformed.  Surface an
+    // error rather than handing the user a broken deploy button.
+    const announcedCode = /REPO_NAME\s*:/i.test(fullText);
+    const hasHtmlBlock  = /```html/i.test(fullText);
+
+    if (announcedCode && !hasHtmlBlock) {
+      console.warn('[Chat] Output gate: REPO_NAME present but no ```html block — rejecting response');
+      sendEvent('error', { message: 'AppBuilder generated an incomplete response. Please try again.' });
+      return res.end();
+    }
+    // ────────────────────────────────────────────────────────────
+
     req.session.chatHistory.push({ role: 'user',      content: trimmedMessage });
     req.session.chatHistory.push({ role: 'assistant', content: fullText });
     sendEvent('done', { text: fullText });
@@ -97,7 +136,7 @@ router.post('/chat', requireAuth, async (req, res) => {
     await antigravity.streamChat(
       processedMessage,
       history,
-      req.session.googleTokens,
+      null,          // googleTokens removed — auth is now API-key only
       onChunk,
       onDone,
       enrichedNotes
