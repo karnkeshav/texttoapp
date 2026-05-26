@@ -349,7 +349,7 @@ async function streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, on
 
   await pooledStream({
     contents:          buildContents(history, contextualMessage),
-    config:            { temperature: 0.7, maxOutputTokens: 8192 },
+    config:            { temperature: 0.7, maxOutputTokens: 32768 },
     apiKey,
     systemInstruction: SYSTEM_INSTRUCTION,
     onChunk,
