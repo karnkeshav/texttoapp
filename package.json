@@ -7,7 +7,12 @@
     "prestart": "node scripts/kill-port.js",
     "start": "node server/index.js",
     "predev": "node scripts/kill-port.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "test": "vitest run --config vitest.config.mjs",
+    "test:watch": "vitest --config vitest.config.mjs",
+    "test:e2e": "playwright test --config playwright.config.mjs",
+    "test:e2e:ui": "playwright test --config playwright.config.mjs --ui",
+    "test:all": "npm run test && npm run test:e2e"
   },
   "dependencies": {
     "@google/genai": "^2.6.0",
@@ -21,7 +26,10 @@
     "google-auth-library": "^10.6.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "@playwright/test": "^1.60.0",
+    "jsdom": "^29.1.1",
+    "nodemon": "^3.1.0",
+    "vitest": "^4.1.7"
   },
   "engines": {
     "node": ">=20.0.0"

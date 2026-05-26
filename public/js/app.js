@@ -121,6 +121,8 @@ async function sendMessage() {
     let aiText = '';
     let buffer = '';
 
+    let finalText = null; // set when 'done' event arrives
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -138,15 +140,18 @@ async function sendMessage() {
           } else if (event.type === 'status') {
             setStatus(event.message, true);
           } else if (event.type === 'done') {
-            aiText = event.text;
+            aiText = event.text || aiText; // fall back to accumulated text if done.text is empty
             updateAIBubble(aiMsgId, aiText);
-            checkForCode(aiText);
+            finalText = aiText; // defer checkForCode OUTSIDE the try-catch
           } else if (event.type === 'error') {
             updateAIBubble(aiMsgId, `⚠️ ${event.message}`);
           }
-        } catch (_) {}
+        } catch (_) {} // only protects JSON.parse — not checkForCode
       }
     }
+
+    // checkForCode runs outside try-catch so errors surface rather than silently drop the button
+    if (finalText !== null) checkForCode(finalText);
   } catch (err) {
     updateAIBubble(aiMsgId, '⚠️ Something went wrong. Please try again.');
     console.error(err);
@@ -224,16 +229,36 @@ function setStatus(text, thinking = false) {
 
 // ── Code detection & auto-deploy ─────────────────────────────────
 function checkForCode(text) {
-  const htmlMatch = text.match(/```html\s*([\s\S]*?)```/i);
-  if (!htmlMatch) return;
+  if (!text) return;
 
-  // Extract REPO_NAME from the AI response (e.g. "REPO_NAME: portfolio-site")
+  // 1. Try a complete ```html … ``` block (normal case)
+  let htmlContent = null;
+  const completeMatch = text.match(/```html\s*([\s\S]*?)```/i);
+  if (completeMatch) {
+    htmlContent = completeMatch[1].trim();
+  }
+
+  // 2. Fallback: response was truncated — no closing ```, but HTML is still present.
+  //    Accept anything from ```html up to the last </html> in the text.
+  if (!htmlContent) {
+    const truncatedMatch = text.match(/```html\s*([\s\S]*?<\/html>)/i);
+    if (truncatedMatch) {
+      htmlContent = truncatedMatch[1].trim();
+      console.warn('[AppBuilder] HTML block had no closing ``` — used </html> as boundary');
+    }
+  }
+
+  if (!htmlContent || htmlContent.length < 50) return; // nothing useful to deploy
+
+  // Extract REPO_NAME (e.g. "REPO_NAME: portfolio-site")
   const repoMatch = text.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
   const repoName  = repoMatch
     ? repoMatch[1].toLowerCase()
     : `appbuilder-${Date.now().toString(36)}`;
 
-  const files = [{ path: 'index.html', content: htmlMatch[1].trim() }];
+  const files = [{ path: 'index.html', content: htmlContent }];
+
+  // Pick up any separate CSS / JS blocks (rare but possible)
   const cssMatch = text.match(/```css\s*([\s\S]*?)```/i);
   const jsMatch  = text.match(/```(?:javascript|js)\s*([\s\S]*?)```/i);
   if (cssMatch) files.push({ path: 'style.css',  content: cssMatch[1].trim() });
@@ -325,17 +350,27 @@ function renderMarkdown(text) {
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-  // Code blocks (must come before inline code)
-  html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) =>
-    `<pre><code>${code.trim()}</code></pre>`
-  );
+  // Code blocks — stash with placeholders so bold/italic don't process their content
+  const codeBlocks = [];
+  html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
+    codeBlocks.push(`<pre><code>${code.trim()}</code></pre>`);
+    return `\x00CB${codeBlocks.length - 1}\x00`;
+  });
 
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Inline code — stash with placeholders
+  const inlineCodes = [];
+  html = html.replace(/`([^`]+)`/g, (_, code) => {
+    inlineCodes.push(`<code>${code}</code>`);
+    return `\x00IC${inlineCodes.length - 1}\x00`;
+  });
 
-  // Bold / italic
+  // Bold / italic (safe now — code content is protected by placeholders)
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Restore inline code, then code blocks
+  inlineCodes.forEach((c, i) => { html = html.replace(`\x00IC${i}\x00`, c); });
+  codeBlocks.forEach((b, i) => { html = html.replace(`\x00CB${i}\x00`, b); });
 
   // Numbered lists
   html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (block) => {
