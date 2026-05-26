@@ -15,7 +15,7 @@
 'use strict';
 
 const vm = require('vm');
-const { pooledGenerate } = require('./geminiPool');
+const { pooledGenerate, pooledStream } = require('./geminiPool');
 
 // Self-closing tags that never have a closing counterpart
 const VOID_TAGS = new Set([
@@ -255,6 +255,166 @@ async function auditAndHeal(code, apiKey, model) {
   return { code: current, healed: true, attempts: 2 };
 }
 
+// ── Semantic audit ────────────────────────────────────────────────
+/**
+ * Asks the AI to check whether the generated app actually delivers
+ * what was specified in the requirements.
+ *
+ * Returns { passed: boolean, issues: string[] }
+ * Only flags concrete, verifiable failures — not style preferences.
+ */
+async function semanticAudit(generatedText, requirements, apiKey) {
+  if (!requirements || !generatedText) return { passed: true, issues: [] };
+
+  // Extract the HTML body for review (first 12 KB is enough for pattern matching)
+  const htmlMatch = generatedText.match(/```html\s*([\s\S]*?)```/i)
+                 || generatedText.match(/```html\s*([\s\S]*?<\/html>)/i);
+  const htmlExcerpt = (htmlMatch ? htmlMatch[1] : generatedText).slice(0, 12000);
+
+  const prompt =
+`You are a QA engineer reviewing a generated web app against its specification.
+
+SPECIFICATION:
+${requirements.slice(0, 2500)}
+
+GENERATED HTML (excerpt):
+${htmlExcerpt}
+
+Does the generated app fulfil the specification?
+Flag ONLY concrete, verifiable failures such as:
+  • A required feature is completely absent
+  • An interactive element has no event handler
+  • A required section or page is missing
+  • The wrong data/content type is shown
+
+Do NOT flag: colour choices, font preferences, layout decisions, minor copy differences.
+
+If the app meets the spec: respond with exactly the word PASS
+If there are failures: respond with FAIL then list each issue as a bullet point.
+Maximum 5 issues. Keep the entire response under 150 words.`;
+
+  let result;
+  try {
+    result = await pooledGenerate({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config:   { temperature: 0.1, maxOutputTokens: 400 },
+      apiKey,
+    });
+  } catch (err) {
+    console.warn('[SemanticAudit] pooledGenerate failed (skipping):', err.message);
+    return { passed: true, issues: [] }; // non-fatal — skip audit
+  }
+
+  const text = (result || '').trim();
+  if (/^pass/i.test(text)) return { passed: true, issues: [] };
+
+  const issues = text
+    .replace(/^fail\s*/i, '')
+    .split('\n')
+    .map(l => l.replace(/^[•\-\*\d\.]+\s*/, '').trim())
+    .filter(l => l.length > 8)
+    .slice(0, 5);
+
+  return { passed: false, issues };
+}
+
+// ── Semantic repair ───────────────────────────────────────────────
+/**
+ * Given specific semantic issues, regenerates the HTML with those issues fixed.
+ * Uses pooledStream (not pooledGenerate) so it can produce 32 K+ token output.
+ *
+ * Returns the full response string (REPO_NAME + intro + ```html...```)
+ */
+async function semanticRepair(generatedText, issues, requirements, apiKey) {
+  const htmlMatch = generatedText.match(/```html\s*([\s\S]*?)```/i)
+                 || generatedText.match(/```html\s*([\s\S]*?<\/html>)/i);
+  const currentHtml = htmlMatch ? htmlMatch[1] : generatedText;
+
+  const issueList = issues.map(i => `• ${i}`).join('\n');
+
+  const repairPrompt =
+`You are fixing a generated web app that has quality issues.
+
+SPECIFICATION:
+${requirements.slice(0, 2500)}
+
+ISSUES TO FIX:
+${issueList}
+
+CURRENT HTML:
+${currentHtml}
+
+Fix ALL listed issues while keeping everything else exactly as-is.
+Return ONLY the corrected complete HTML file — no markdown fences, no commentary.`;
+
+  let repairedHtml = '';
+  try {
+    await pooledStream({
+      contents:          [{ role: 'user', parts: [{ text: repairPrompt }] }],
+      config:            { temperature: 0.2, maxOutputTokens: 32768 },
+      apiKey,
+      systemInstruction: '',
+      onChunk: () => {},                        // silent — accumulate via onDone
+      onDone:  (text) => { repairedHtml = text; },
+    });
+  } catch (err) {
+    console.warn('[SemanticRepair] pooledStream failed:', err.message);
+    return generatedText; // return original on error
+  }
+
+  // Strip any fences the AI added
+  repairedHtml = repairedHtml
+    .replace(/^```html?\s*/i, '')
+    .replace(/```\s*$/, '')
+    .trim();
+
+  if (!repairedHtml || repairedHtml.length < 200) {
+    console.warn('[SemanticRepair] Repair output too short — keeping original');
+    return generatedText;
+  }
+
+  // Reconstruct full response, preserving intro line and REPO_NAME
+  const introMatch = generatedText.match(/^(Here[^\n]+\n)/i);
+  const repoMatch  = generatedText.match(/(REPO_NAME:\s*[^\n]+)/i);
+  const intro    = introMatch ? introMatch[1] : '';
+  const repoLine = repoMatch  ? repoMatch[1] + '\n\n' : '';
+
+  return `${intro}${repoLine}\`\`\`html\n${repairedHtml}\n\`\`\``;
+}
+
+// ── Full quality pass ─────────────────────────────────────────────
+/**
+ * Runs semantic audit → repair (if needed) → re-audit.
+ * Call this after AI streaming completes, before sending 'done' to the client.
+ *
+ * API cost: 1 pooledGenerate (audit) + optionally 1 pooledStream (repair)
+ *           + optionally 1 pooledGenerate (re-audit) = max 3 calls.
+ *
+ * @param {string} generatedText  Full AI response (REPO_NAME + ```html...```)
+ * @param {string} requirements   enrichedNotes / compiled spec used for the build
+ * @param {string} apiKey
+ * @returns {Promise<string>}     Audited (and possibly repaired) response
+ */
+async function fullQualityPass(generatedText, requirements, apiKey) {
+  // Step 1 — semantic audit
+  const audit = await semanticAudit(generatedText, requirements, apiKey);
+  console.log(
+    `[SemanticAudit] ${audit.passed ? '✅ PASS' : `❌ FAIL — ${audit.issues.length} issue(s): ${audit.issues.slice(0, 2).join(' | ')}`}`
+  );
+
+  if (audit.passed || audit.issues.length === 0) return generatedText;
+
+  // Step 2 — semantic repair
+  console.log('[SemanticRepair] Repairing…');
+  const repaired = await semanticRepair(generatedText, audit.issues, requirements, apiKey);
+
+  // Step 3 — re-audit to confirm fix
+  const reAudit = await semanticAudit(repaired, requirements, apiKey);
+  console.log(`[SemanticAudit] Re-audit: ${reAudit.passed ? '✅ PASS' : '⚠️  issues remain (proceeding with best effort)'}`);
+
+  return repaired; // return repaired regardless — always better than original
+}
+
 module.exports = {
   checkTagBalance,
   checkSelectors,
@@ -262,4 +422,7 @@ module.exports = {
   checkCSSBraces,
   checkMetaTags,
   auditAndHeal,
+  semanticAudit,
+  semanticRepair,
+  fullQualityPass,
 };
