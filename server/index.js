@@ -3,10 +3,9 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 
-const authRoutes       = require('./routes/auth');
-const googleAuthRoutes = require('./routes/googleAuth');
-const chatRoutes       = require('./routes/chat');
-const githubRoutes     = require('./routes/github');
+const authRoutes   = require('./routes/auth');
+const chatRoutes   = require('./routes/chat');
+const githubRoutes = require('./routes/github');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,7 +32,6 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ── API / Auth Routes ─────────────────────────────────────────────
 app.use('/auth', authRoutes);
-app.use('/auth', googleAuthRoutes);
 app.use('/api', chatRoutes);
 app.use('/api/github', githubRoutes);
 
@@ -61,46 +59,51 @@ app.post('/api/telemetry/report', (req, res) => {
   res.json({ status: 'logged' });
 });
 
-// ── Diagnostic endpoint (dev only) ───────────────────────────────
+// ── Diagnostic endpoint ───────────────────────────────────────────
+// Reflects the actual stack: API-key auth, Antigravity primary + Gemini fallback.
 app.get('/api/diagnose', async (req, res) => {
-  const { OAuth2Client } = require('google-auth-library');
-  const axios = require('axios');
+  const { GoogleGenAI } = require('@google/genai');
+  const apiKey = process.env.GEMINI_API_KEY;
 
   const result = {
-    github_logged_in:  !!req.session.githubToken,
-    google_connected:  !!req.session.googleTokens,
-    google_token_keys: req.session.googleTokens ? Object.keys(req.session.googleTokens) : [],
-    granted_scope: req.session.googleTokens?.scope || null,
-    antigravity_endpoint: process.env.ANTIGRAVITY_API_ENDPOINT,
-    agent_id: process.env.ANTIGRAVITY_AGENT_ID,
-    access_token_test: null,
-    api_test: null,
+    github_logged_in:       !!req.session.githubToken,
+    github_user:            req.session.user?.login || null,
+    gemini_api_configured:  !!apiKey,
+    gemini_model:           process.env.GEMINI_MODEL  || 'gemini-2.0-flash',
+    plan_model:             process.env.PLAN_MODEL    || 'gemini-2.0-flash',
+    antigravity_agent:      process.env.ANTIGRAVITY_AGENT_ID || null,
+    backend_origin:         process.env.BACKEND_ORIGIN || null,
+    gemini_live_test:       null,
+    antigravity_live_test:  null,
   };
 
-  if (req.session.googleTokens) {
+  if (apiKey) {
+    // ── Gemini SDK live ping ──────────────────────────────────────
     try {
-      const client = new OAuth2Client(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_CALLBACK_URL
-      );
-      client.setCredentials(req.session.googleTokens);
-      const { token } = await client.getAccessToken();
-      result.access_token_test = token ? `OK (starts: ${token.slice(0,10)}...)` : 'NULL';
+      const ai  = new GoogleGenAI({ apiKey });
+      const res = await ai.models.generateContent({
+        model: result.gemini_model,
+        contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
+        config: { maxOutputTokens: 10 },
+      });
+      result.gemini_live_test = { ok: true, response: (res.text || '').trim().slice(0, 40) };
+    } catch (err) {
+      result.gemini_live_test = { ok: false, error: err.message };
+    }
 
-      // Test the actual Antigravity API
-      try {
-        const r = await axios.post(
-          process.env.ANTIGRAVITY_API_ENDPOINT,
-          { agent: process.env.ANTIGRAVITY_AGENT_ID, input: 'Say hi.', environment: { type: 'remote_sandbox' }, stream: false },
-          { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 20000 }
-        );
-        result.api_test = { status: r.status, data: JSON.stringify(r.data).slice(0, 300) };
-      } catch (apiErr) {
-        result.api_test = { status: apiErr.response?.status, error: apiErr.response?.data || apiErr.message };
-      }
-    } catch (tokenErr) {
-      result.access_token_test = `ERROR: ${tokenErr.message}`;
+    // ── Antigravity API ping (key-auth, non-streaming) ────────────
+    try {
+      const axios    = require('axios');
+      const agentId  = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`;
+      const r = await axios.post(
+        endpoint,
+        { agent: agentId, input: 'Reply with the single word OK.', environment: { type: 'remote_sandbox' }, stream: false },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 20_000 }
+      );
+      result.antigravity_live_test = { ok: true, status: r.status, data: JSON.stringify(r.data).slice(0, 120) };
+    } catch (err) {
+      result.antigravity_live_test = { ok: false, status: err.response?.status, error: err.response?.data || err.message };
     }
   }
 

@@ -111,6 +111,20 @@ router.post('/chat', requireAuth, async (req, res) => {
   // ── Step 3: Stream from Antigravity (with Gemini fallback) ────
   const onChunk = (text) => sendEvent('chunk', { text });
   const onDone  = (fullText) => {
+    // ── Structural output gate ──────────────────────────────────
+    // If the AI announced a REPO_NAME (the signal that it's outputting code)
+    // but produced no ```html block, the response is malformed.  Surface an
+    // error rather than handing the user a broken deploy button.
+    const announcedCode = /REPO_NAME\s*:/i.test(fullText);
+    const hasHtmlBlock  = /```html/i.test(fullText);
+
+    if (announcedCode && !hasHtmlBlock) {
+      console.warn('[Chat] Output gate: REPO_NAME present but no ```html block — rejecting response');
+      sendEvent('error', { message: 'AppBuilder generated an incomplete response. Please try again.' });
+      return res.end();
+    }
+    // ────────────────────────────────────────────────────────────
+
     req.session.chatHistory.push({ role: 'user',      content: trimmedMessage });
     req.session.chatHistory.push({ role: 'assistant', content: fullText });
     sendEvent('done', { text: fullText });
@@ -122,7 +136,7 @@ router.post('/chat', requireAuth, async (req, res) => {
     await antigravity.streamChat(
       processedMessage,
       history,
-      req.session.googleTokens,
+      null,          // googleTokens removed — auth is now API-key only
       onChunk,
       onDone,
       enrichedNotes
