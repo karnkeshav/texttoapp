@@ -4,7 +4,9 @@
   "description": "Build any app using structured text — powered by AI",
   "main": "server/index.js",
   "scripts": {
+    "prestart": "node scripts/kill-port.js",
     "start": "node server/index.js",
+    "predev": "node scripts/kill-port.js",
     "dev": "nodemon server/index.js"
   },
   "dependencies": {
