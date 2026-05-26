@@ -43,9 +43,12 @@ function checkTagBalance(html) {
     if (VOID_TAGS.has(tag) || selfClose) continue;
 
     if (isClose) {
+      // Only pop when the top of stack matches — avoids false "unclosed" reports
       if (stack.length > 0 && stack[stack.length - 1] === tag) stack.pop();
     } else {
-      stack.push(tag);
+      // Only track critical tags — non-critical open tags (span, a, p, li, td…)
+      // are ignored so they cannot block critical tags from being matched on close.
+      if (CRITICAL_TAGS.has(tag)) stack.push(tag);
     }
   }
 
@@ -161,7 +164,7 @@ function checkMetaTags(html) {
   if (!/<meta\s[^>]*name\s*=\s*["']viewport["']/i.test(html)) {
     issues.push('Missing <meta name="viewport"> — mobile layout will be broken');
   }
-  if (!/<title\s*>/i.test(html)) {
+  if (!/<title(?:\s[^>]*)?>/ .test(html)) {
     issues.push('Missing <title> — browser tab will show a blank label');
   }
 

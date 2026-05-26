@@ -58,4 +58,19 @@ router.get('/status', (req, res) => {
   }
 });
 
+// ── Test-only bypass (only active when NODE_ENV=test) ─────────────
+// Allows Playwright E2E tests to inject a fake authenticated session
+// without going through the real GitHub OAuth flow.
+if (process.env.NODE_ENV === 'test') {
+  router.get('/test-login', (req, res) => {
+    req.session.githubToken = 'test-token';
+    req.session.user = {
+      login: 'testuser',
+      name:  'Test User',
+      avatarUrl: null,
+    };
+    res.json({ ok: true, user: 'testuser' });
+  });
+}
+
 module.exports = router;

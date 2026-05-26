@@ -350,17 +350,27 @@ function renderMarkdown(text) {
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-  // Code blocks (must come before inline code)
-  html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) =>
-    `<pre><code>${code.trim()}</code></pre>`
-  );
+  // Code blocks — stash with placeholders so bold/italic don't process their content
+  const codeBlocks = [];
+  html = html.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
+    codeBlocks.push(`<pre><code>${code.trim()}</code></pre>`);
+    return `\x00CB${codeBlocks.length - 1}\x00`;
+  });
 
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Inline code — stash with placeholders
+  const inlineCodes = [];
+  html = html.replace(/`([^`]+)`/g, (_, code) => {
+    inlineCodes.push(`<code>${code}</code>`);
+    return `\x00IC${inlineCodes.length - 1}\x00`;
+  });
 
-  // Bold / italic
+  // Bold / italic (safe now — code content is protected by placeholders)
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+  // Restore inline code, then code blocks
+  inlineCodes.forEach((c, i) => { html = html.replace(`\x00IC${i}\x00`, c); });
+  codeBlocks.forEach((b, i) => { html = html.replace(`\x00CB${i}\x00`, b); });
 
   // Numbered lists
   html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (block) => {
