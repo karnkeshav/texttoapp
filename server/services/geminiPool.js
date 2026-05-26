@@ -2,41 +2,82 @@
 /**
  * geminiPool.js — Multi-SDK, multi-model Gemini fallback pool
  *
- * Discovery results (run scripts/discover-models.js to re-check):
- *   ✅ gemini-2.5-flash  — new SDK (@google/genai v2)   — generateContent + Stream
- *   ✅ gemini-2.5-flash  — legacy SDK (@google/generative-ai) — generateContent + Stream
- *   ❌ gemini-2.0-*      — limit:0 (no free-tier quota on this project)
- *   ❌ gemini-1.5-*      — 404 (not on v1beta endpoint)
- *   ❌ gemini-2.5-pro    — limit:0 (needs billing)
+ * Discovery results (scripts/discover-models.js — run to refresh):
+ *   ✅ Free-tier, both SDKs:  gemini-3.5-flash, gemini-2.5-flash, gemini-3.1-flash-lite,
+ *                              gemini-3-flash-preview, gemini-2.5-flash-lite,
+ *                              gemini-flash-latest, gemini-flash-lite-latest
+ *   ✅ Legacy SDK only:       gemma-4-31b-it, gemma-4-26b-a4b-it  (BAD_REQUEST on new SDK)
+ *   ❌ Needs billing:         gemini-2.5-pro, gemini-2.0-*, gemini-3-pro-*, gemini-3.1-pro-*
+ *   ❌ Not found:             gemini-3.1-flash-lite-preview
  *
  * Pool behaviour:
- *   - Round-robins through all slots on every call
- *   - On 429 / quota error: marks that slot as cooling down for COOLDOWN_MS
- *   - On 404 / unknown: marks slot as permanently dead for this process lifetime
- *   - Tries every active slot before giving up
- *   - On exhaustion: re-tries cooled-down slots once with a short extra wait
+ *   - Tries slots in order on every call (first = highest priority)
+ *   - On 429 / quota error: marks that slot cooling for COOLDOWN_MS, tries next slot
+ *   - On 404 / permanent error: marks slot dead for this process lifetime
+ *   - On full exhaustion: waits out shortest cooldown and retries once
+ *   - Each model has its OWN per-minute quota — 9 working models = 9× the capacity
  *
- * Adding models when you enable billing: just push more entries to POOL_CONFIG.
+ * To add billing-enabled models: uncomment entries in the BILLING section below.
  */
 
 const { GoogleGenAI }        = require('@google/genai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// ── Pool configuration ────────────────────────────────────────────
-// Order = priority. First slot is tried first on every request.
+// ── Pool configuration ────────────────────────────────────────────────────────
+// Order = priority. Earlier = tried first. Each model has independent quota.
+// generate = one-shot (plan phase, code repair)   stream = SSE chat
 const POOL_CONFIG = [
-  // Slot 0 — new SDK, fast non-streaming (plan phase / repair pass)
-  { sdk: 'new',    model: 'gemini-2.5-flash', mode: 'generate'  },
-  // Slot 1 — legacy SDK, non-streaming (backup for slot 0)
-  { sdk: 'legacy', model: 'gemini-2.5-flash', mode: 'generate'  },
-  // Slot 2 — new SDK, streaming (main chat generation)
-  { sdk: 'new',    model: 'gemini-2.5-flash', mode: 'stream'    },
-  // Slot 3 — legacy SDK, streaming (backup for slot 2)
-  { sdk: 'legacy', model: 'gemini-2.5-flash', mode: 'stream'    },
-  // ── Add billing-enabled models here when available ──────────────
-  // { sdk: 'new',    model: 'gemini-2.5-pro',   mode: 'generate'  },
-  // { sdk: 'new',    model: 'gemini-2.0-flash',  mode: 'generate'  },
-  // { sdk: 'new',    model: 'gemini-2.0-flash',  mode: 'stream'    },
+
+  // ── Tier 1: Newest / highest-capability flash models ─────────────────────
+  { sdk: 'new',    model: 'gemini-3.5-flash',       mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-3.5-flash',       mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-3.5-flash',       mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-3.5-flash',       mode: 'stream'   },
+
+  { sdk: 'new',    model: 'gemini-2.5-flash',       mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-2.5-flash',       mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-2.5-flash',       mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-2.5-flash',       mode: 'stream'   },
+
+  { sdk: 'new',    model: 'gemini-3.1-flash-lite',  mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-3.1-flash-lite',  mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-3.1-flash-lite',  mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-3.1-flash-lite',  mode: 'stream'   },
+
+  { sdk: 'new',    model: 'gemini-3-flash-preview',  mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-3-flash-preview',  mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-3-flash-preview',  mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-3-flash-preview',  mode: 'stream'   },
+
+  // ── Tier 2: Lighter / alias models ───────────────────────────────────────
+  { sdk: 'new',    model: 'gemini-2.5-flash-lite',  mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-2.5-flash-lite',  mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',  mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',  mode: 'stream'   },
+
+  { sdk: 'new',    model: 'gemini-flash-latest',    mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-flash-latest',    mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-flash-latest',    mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-flash-latest',    mode: 'stream'   },
+
+  { sdk: 'new',    model: 'gemini-flash-lite-latest', mode: 'generate' },
+  { sdk: 'new',    model: 'gemini-flash-lite-latest', mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemini-flash-lite-latest', mode: 'generate' },
+  { sdk: 'legacy', model: 'gemini-flash-lite-latest', mode: 'stream'   },
+
+  // ── Tier 3: Gemma open-source (legacy SDK only — new SDK returns BAD_REQUEST)
+  { sdk: 'legacy', model: 'gemma-4-31b-it',          mode: 'generate' },
+  { sdk: 'legacy', model: 'gemma-4-31b-it',          mode: 'stream'   },
+  { sdk: 'legacy', model: 'gemma-4-26b-a4b-it',      mode: 'generate' },
+  { sdk: 'legacy', model: 'gemma-4-26b-a4b-it',      mode: 'stream'   },
+
+  // ── Billing-enabled (uncomment when you add a payment method) ────────────
+  // { sdk: 'new',    model: 'gemini-2.5-pro',          mode: 'generate' },
+  // { sdk: 'new',    model: 'gemini-2.5-pro',          mode: 'stream'   },
+  // { sdk: 'new',    model: 'gemini-2.0-flash',        mode: 'generate' },
+  // { sdk: 'new',    model: 'gemini-2.0-flash',        mode: 'stream'   },
+  // { sdk: 'new',    model: 'gemini-3.1-pro-preview',  mode: 'generate' },
+  // { sdk: 'new',    model: 'gemini-3.1-pro-preview',  mode: 'stream'   },
 ];
 
 const COOLDOWN_MS = 60_000; // 1 min cooldown after 429
@@ -74,6 +115,14 @@ function isNotFound(err) {
   const msg = err?.message || String(err);
   return msg.includes('"code":404') || msg.includes('NOT_FOUND') ||
          msg.includes('no longer available') || msg.includes('not found for API');
+}
+
+// BAD_REQUEST (400) — model doesn't support the requested config (e.g. Gemma + JSON mode)
+// Mark dead so we skip it for this process run rather than throwing to the user.
+function isBadRequest(err) {
+  const msg = err?.message || String(err);
+  return msg.includes('"code":400') || msg.includes('BAD_REQUEST') ||
+         msg.includes('Invalid JSON') || msg.includes('response_mime_type');
 }
 
 // ── Helpers to extract text from SDK responses ────────────────────
@@ -176,8 +225,9 @@ async function pooledGenerate({ contents, config, apiKey }) {
       console.log(`[GeminiPool] generate ✅ slot ${i} (${slot.sdk}/${slot.model})`);
       return text;
     } catch (err) {
-      if (isQuotaError(err)) { markCooling(i); continue; }
-      if (isNotFound(err))   { markDead(i);    continue; }
+      if (isQuotaError(err))  { markCooling(i); continue; }
+      if (isNotFound(err))    { markDead(i);    continue; }
+      if (isBadRequest(err))  { markDead(i);    continue; } // e.g. Gemma + JSON mode
       throw err; // unexpected — surface immediately
     }
   }
@@ -241,8 +291,9 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
       onDone(fullText);
       return;
     } catch (err) {
-      if (isQuotaError(err)) { markCooling(i); continue; }
-      if (isNotFound(err))   { markDead(i);    continue; }
+      if (isQuotaError(err))  { markCooling(i); continue; }
+      if (isNotFound(err))    { markDead(i);    continue; }
+      if (isBadRequest(err))  { markDead(i);    continue; }
       throw err;
     }
   }

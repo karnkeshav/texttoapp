@@ -1,161 +1,154 @@
 'use strict';
 /**
- * discover-models.js
- * Probes every Gemini model candidate on both SDKs using the key in .env
- * Reports which ones work → used to build the model pool in geminiPool.js
+ * discover-models.js — correct version
+ *
+ * 1. Fetches the live model list from the API (no guessing)
+ * 2. Filters for models that support generateContent
+ * 3. Tests each with a 3s delay between probes to avoid burst rate-limiting
+ * 4. Tests both SDKs (new + legacy) per model
+ * 5. Prints a clean summary and the POOL_CONFIG snippet to paste into geminiPool.js
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-const { GoogleGenAI }     = require('@google/genai');
+
+const axios                  = require('axios');
+const { GoogleGenAI }        = require('@google/genai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const API_KEY = process.env.GEMINI_API_KEY;
 if (!API_KEY) { console.error('No GEMINI_API_KEY in .env'); process.exit(1); }
 
-// All plausible models to test
-const CANDIDATES = [
-  // Gemini 2.5 family
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite-preview-06-17',
-  'gemini-2.5-pro',
-  'gemini-2.5-pro-preview-05-06',
-  'gemini-2.5-pro-preview-06-05',
-  // Gemini 2.0 family
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash-exp',
-  'gemini-2.0-pro-exp',
-  // Gemini 1.5 family
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash-8b-latest',
-  'gemini-1.5-pro',
-  'gemini-1.5-pro-latest',
-  // Legacy preview names
-  'gemini-3.1-flash-lite-preview',
-];
+const DELAY_MS = 3000; // space requests to avoid burst 429s
 
-const PAD = 44;
+// Models to SKIP regardless (non-text: TTS, image, video, embedding, audio, robotics)
+const SKIP_RE = /tts|imagen|veo|lyria|embedding|aqa|audio|image|robotics|computer.use|nano.banana|deep.research/i;
 
-// ── New SDK (@google/genai v2) ─────────────────────────────────────
+// ── Step 1: Fetch model list from API ────────────────────────────
+async function fetchModels() {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}&pageSize=200`;
+  const { data } = await axios.get(url, { timeout: 15_000 });
+  return (data.models || [])
+    .filter(m => {
+      const methods = m.supportedGenerationMethods || [];
+      return methods.includes('generateContent') && !SKIP_RE.test(m.name);
+    })
+    .map(m => m.name.replace('models/', '')); // strip "models/" prefix
+}
+
+// ── Step 2: Test a model on the new SDK ──────────────────────────
 async function testNewSDK(model) {
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   const r = await ai.models.generateContent({
     model,
-    contents: [{ role: 'user', parts: [{ text: 'Say: ok' }] }],
-    config: { maxOutputTokens: 10, thinkingConfig: { thinkingBudget: 0 } },
+    contents: [{ role: 'user', parts: [{ text: 'Reply with just: ok' }] }],
+    config: { maxOutputTokens: 20, thinkingConfig: { thinkingBudget: 0 } },
   });
-  const text = r.text ?? r.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-  return text.trim().slice(0, 20) || '(empty response)';
+  return (r.text ?? r.candidates?.[0]?.content?.parts?.find(p => p.text)?.text ?? '').trim().slice(0, 30) || '(empty)';
 }
 
-// ── New SDK streaming (@google/genai v2) ──────────────────────────
-async function testNewSDKStream(model) {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
-  const stream = await ai.models.generateContentStream({
-    model,
-    contents: [{ role: 'user', parts: [{ text: 'Say: ok' }] }],
-    config: { maxOutputTokens: 10 },
-  });
-  let out = '';
-  for await (const chunk of stream) { out += chunk.text || ''; }
-  return out.trim().slice(0, 20) || '(empty stream)';
-}
-
-// ── Legacy SDK (@google/generative-ai) ───────────────────────────
+// ── Step 3: Test a model on the legacy SDK ───────────────────────
 async function testLegacySDK(model) {
   const genAI = new GoogleGenerativeAI(API_KEY);
   const m = genAI.getGenerativeModel({ model });
-  const result = await m.generateContent('Say: ok');
-  const text = result.response.text();
-  return text.trim().slice(0, 20) || '(empty response)';
-}
-
-// ── Legacy SDK streaming ──────────────────────────────────────────
-async function testLegacyStream(model) {
-  const genAI = new GoogleGenerativeAI(API_KEY);
-  const m = genAI.getGenerativeModel({ model });
-  const result = await m.generateContentStream('Say: ok');
-  let out = '';
-  for await (const chunk of result.stream) {
-    out += chunk.text() || '';
-  }
-  return out.trim().slice(0, 20) || '(empty stream)';
-}
-
-function status(ok, msg) {
-  return ok ? `✅ ${msg}` : `❌ ${msg}`;
-}
-
-async function probe(model) {
-  const row = { model, newSDK: null, newStream: null, legacySDK: null, legacyStream: null };
-
-  // Test all 4 in parallel
-  const [nRes, nStr, lRes, lStr] = await Promise.allSettled([
-    testNewSDK(model),
-    testNewSDKStream(model),
-    testLegacySDK(model),
-    testLegacyStream(model),
-  ]);
-
-  row.newSDK     = nRes.status === 'fulfilled' ? nRes.value    : classify(nRes.reason);
-  row.newStream  = nStr.status === 'fulfilled' ? nStr.value    : classify(nStr.reason);
-  row.legacySDK  = lRes.status === 'fulfilled' ? lRes.value    : classify(lRes.reason);
-  row.legacyStream = lStr.status === 'fulfilled' ? lStr.value  : classify(lStr.reason);
-
-  return row;
+  const result = await m.generateContent('Reply with just: ok');
+  return (result.response.text() || '').trim().slice(0, 30) || '(empty)';
 }
 
 function classify(err) {
   const msg = err?.message || String(err);
-  const code = msg.match(/"code":(\d+)/)?.[1];
-  const stat = msg.match(/"status":"([^"]+)"/)?.[1];
-  if (code === '429') return `QUOTA_429`;
-  if (code === '404') return `NOT_FOUND_404`;
-  if (code === '403') return `FORBIDDEN_403`;
-  if (msg.includes('limit: 0')) return `LIMIT_ZERO`;
-  return `ERR_${code || stat || msg.slice(0, 20)}`;
+  if (msg.includes('limit: 0'))         return '❌ LIMIT_ZERO (needs billing)';
+  if (msg.includes('"code":429') || msg.includes('429'))
+    return '⏳ QUOTA_429 (rate limited)';
+  if (msg.includes('"code":404') || msg.includes('NOT_FOUND') || msg.includes('no longer available'))
+    return '❌ NOT_FOUND';
+  if (msg.includes('"code":400'))       return '❌ BAD_REQUEST';
+  return `❌ ERR: ${msg.slice(0, 60)}`;
 }
 
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Main ──────────────────────────────────────────────────────────
 (async () => {
-  console.log('\n' + '═'.repeat(110));
-  console.log('  GEMINI MODEL DISCOVERY — both SDKs, same API key');
-  console.log('═'.repeat(110));
-  console.log(
-    `  ${'MODEL'.padEnd(PAD)} ${'NEW-SDK'.padEnd(22)} ${'NEW-STREAM'.padEnd(22)} ${'LEGACY-SDK'.padEnd(22)} LEGACY-STREAM`
-  );
-  console.log('─'.repeat(110));
+  console.log('\nFetching model list from API…');
+  const models = await fetchModels();
+  console.log(`Found ${models.length} text-generation models to test:\n`);
+  models.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
 
-  const working = { newSDK: [], newStream: [], legacySDK: [], legacyStream: [] };
+  console.log('\n' + '═'.repeat(100));
+  console.log('  TESTING — 3s gap between each model to avoid burst rate limits');
+  console.log('═'.repeat(100));
 
-  for (const model of CANDIDATES) {
-    process.stdout.write(`  ${model.padEnd(PAD)} ...`);
-    const r = await probe(model);
+  const results = [];
 
-    const cols = [
-      r.newSDK, r.newStream, r.legacySDK, r.legacyStream,
-    ].map(v => {
-      const ok = v && !v.startsWith('QUOTA') && !v.startsWith('NOT_FOUND') &&
-                 !v.startsWith('ERR') && !v.startsWith('LIMIT') && !v.startsWith('FORBIDDEN');
-      return ok ? `✅ ${v}`.padEnd(22) : `❌ ${v}`.padEnd(22);
-    });
+  for (const model of models) {
+    process.stdout.write(`\n  ${model.padEnd(50)} `);
 
-    process.stdout.write(`\r  ${model.padEnd(PAD)} ${cols.join(' ')}\n`);
+    let newResult, legResult;
 
-    const ok = v => v && !v.startsWith('QUOTA') && !v.startsWith('NOT_FOUND') &&
-                    !v.startsWith('ERR') && !v.startsWith('LIMIT') && !v.startsWith('FORBIDDEN');
-    if (ok(r.newSDK))      working.newSDK.push(model);
-    if (ok(r.newStream))   working.newStream.push(model);
-    if (ok(r.legacySDK))   working.legacySDK.push(model);
-    if (ok(r.legacyStream)) working.legacyStream.push(model);
+    // Test new SDK
+    try {
+      newResult = { ok: true, text: await testNewSDK(model) };
+      process.stdout.write(`new:✅ ${newResult.text.padEnd(15)} `);
+    } catch (e) {
+      newResult = { ok: false, text: classify(e) };
+      process.stdout.write(`new:${newResult.text.slice(0, 25).padEnd(28)} `);
+    }
+
+    await sleep(1500);
+
+    // Test legacy SDK
+    try {
+      legResult = { ok: true, text: await testLegacySDK(model) };
+      process.stdout.write(`legacy:✅ ${legResult.text}`);
+    } catch (e) {
+      legResult = { ok: false, text: classify(e) };
+      process.stdout.write(`legacy:${legResult.text.slice(0, 30)}`);
+    }
+
+    results.push({ model, newSDK: newResult, legacySDK: legResult });
+    await sleep(DELAY_MS);
   }
 
-  console.log('═'.repeat(110));
-  console.log('\n✅ WORKING MODELS SUMMARY:');
-  console.log('  New SDK  (generateContent):       ', working.newSDK.join(', ') || 'none');
-  console.log('  New SDK  (generateContentStream): ', working.newStream.join(', ') || 'none');
-  console.log('  Legacy SDK (generateContent):     ', working.legacySDK.join(', ') || 'none');
-  console.log('  Legacy SDK (generateContentStream):', working.legacyStream.join(', ') || 'none');
+  console.log('\n\n' + '═'.repeat(100));
+  console.log('  SUMMARY');
+  console.log('═'.repeat(100));
+
+  const working = results.filter(r => r.newSDK.ok || r.legacySDK.ok);
+  const quotaOnly = results.filter(r => !r.newSDK.ok && !r.legacySDK.ok &&
+    (r.newSDK.text.includes('429') || r.legacySDK.text.includes('429')));
+
+  console.log(`\n✅ Working (${working.length}):`);
+  working.forEach(r => console.log(`   ${r.model}  new:${r.newSDK.ok ? '✅' : '❌'}  legacy:${r.legacySDK.ok ? '✅' : '❌'}`));
+
+  console.log(`\n⏳ Rate-limited only (${quotaOnly.length}) — may work with billing or after cooldown:`);
+  quotaOnly.forEach(r => console.log(`   ${r.model}`));
+
+  const neither = results.filter(r => !r.newSDK.ok && !r.legacySDK.ok && !quotaOnly.includes(r));
+  console.log(`\n❌ Unavailable (${neither.length}):`);
+  neither.forEach(r => console.log(`   ${r.model}  — ${r.newSDK.text}`));
+
+  // ── Print POOL_CONFIG snippet ─────────────────────────────────
+  console.log('\n\n' + '═'.repeat(100));
+  console.log('  POOL_CONFIG SNIPPET — paste into server/services/geminiPool.js');
+  console.log('═'.repeat(100) + '\n');
+  console.log('const POOL_CONFIG = [');
+  for (const r of working) {
+    if (r.newSDK.ok) {
+      console.log(`  { sdk: 'new',    model: '${r.model}', mode: 'generate' },`);
+      console.log(`  { sdk: 'new',    model: '${r.model}', mode: 'stream'   },`);
+    }
+    if (r.legacySDK.ok) {
+      console.log(`  { sdk: 'legacy', model: '${r.model}', mode: 'generate' },`);
+      console.log(`  { sdk: 'legacy', model: '${r.model}', mode: 'stream'   },`);
+    }
+  }
+  if (quotaOnly.length) {
+    console.log('  // ── Rate-limited (uncomment if quota resets) ──');
+    for (const r of quotaOnly) {
+      console.log(`  // { sdk: 'new',    model: '${r.model}', mode: 'generate' },`);
+      console.log(`  // { sdk: 'new',    model: '${r.model}', mode: 'stream'   },`);
+    }
+  }
+  console.log('];');
   console.log('');
 })();
