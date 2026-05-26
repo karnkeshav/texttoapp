@@ -1,13 +1,14 @@
 /**
- * AI service — Antigravity (primary) + Gemini (fallback)
+ * AI service — Antigravity (primary) + Gemini pool (fallback)
  *
  * Primary:  Antigravity Interactions API via API key
  *           POST generativelanguage.googleapis.com/v1beta/interactions?key=…
- * Fallback: Google GenAI SDK (gemini-3.1-flash-lite) — kicks in on 429 / 5xx
+ * Fallback: geminiPool — round-robins both SDKs across all working models,
+ *           cools down quota-exhausted slots and retries automatically.
  */
 
 const axios = require('axios');
-const { GoogleGenAI } = require('@google/genai');
+const { pooledStream } = require('./geminiPool');
 
 // ── System prompt ─────────────────────────────────────────────────
 const SYSTEM_INSTRUCTION = `You are AppBuilder — an elite frontend engineer who crafts visually stunning, fully functional single-page web apps using only HTML and vanilla JavaScript.
@@ -337,43 +338,29 @@ async function streamFromAntigravity(newUserMessage, history, apiKey, agentId, o
   });
 }
 
-// ── FALLBACK: Gemini GenAI SDK ────────────────────────────────────
-async function streamFromGemini(newUserMessage, history, apiKey, modelName, onChunk, onDone, enrichedNotes = '') {
-  const ai = new GoogleGenAI({ apiKey });
-
-  // Inject enrichedNotes into the user message so Gemini receives the same
-  // plan-phase context that Antigravity gets via buildInput().
+// ── FALLBACK: Gemini pool (both SDKs, all working models) ─────────
+async function streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes = '') {
+  // Inject plan context so Gemini gets the same context as Antigravity
   let contextualMessage = newUserMessage;
   if (enrichedNotes && enrichedNotes !== 'No additional context.') {
     contextualMessage =
       `── PLAN CONTEXT ──\n${enrichedNotes}\n──────────────────\n\n${newUserMessage}`;
   }
 
-  const response = await ai.models.generateContentStream({
-    model: modelName,
-    contents: buildContents(history, contextualMessage),
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.7,
-      maxOutputTokens: 8192,
-    },
+  await pooledStream({
+    contents:          buildContents(history, contextualMessage),
+    config:            { temperature: 0.7, maxOutputTokens: 8192 },
+    apiKey,
+    systemInstruction: SYSTEM_INSTRUCTION,
+    onChunk,
+    onDone,
   });
-
-  let fullText = '';
-  for await (const chunk of response) {
-    const text = chunk.text;
-    if (text) { fullText += text; onChunk(text); }
-  }
-
-  onDone(fullText);
-  return fullText;
 }
 
 // ── Main entry point ──────────────────────────────────────────────
 async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDone, enrichedNotes = '') {
-  const apiKey   = process.env.GEMINI_API_KEY;
-  const agentId  = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
-  const gemModel = process.env.GEMINI_MODEL         || 'gemini-2.5-flash';
+  const apiKey  = process.env.GEMINI_API_KEY;
+  const agentId = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
 
   if (!apiKey) throw new Error('GEMINI_API_KEY not set in .env');
 
@@ -383,9 +370,9 @@ async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDon
     console.log('[AI] Antigravity ✅');
   } catch (err) {
     if (shouldFallback(err)) {
-      console.warn(`[AI] Antigravity ${err.response?.status} — falling back to Gemini (${gemModel})`);
-      await streamFromGemini(newUserMessage, history, apiKey, gemModel, onChunk, onDone, enrichedNotes);
-      console.log('[AI] Gemini fallback ✅');
+      console.warn(`[AI] Antigravity ${err.response?.status} — falling back to Gemini pool`);
+      await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes);
+      console.log('[AI] Gemini pool ✅');
     } else {
       console.error('[AI] Antigravity error (no fallback):', err.response?.status, err.message);
       throw err;

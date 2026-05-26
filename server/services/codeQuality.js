@@ -15,7 +15,7 @@
 'use strict';
 
 const vm = require('vm');
-const { GoogleGenAI } = require('@google/genai');
+const { pooledGenerate } = require('./geminiPool');
 
 // Self-closing tags that never have a closing counterpart
 const VOID_TAGS = new Set([
@@ -171,8 +171,7 @@ function checkMetaTags(html) {
 }
 
 // ── Repair pass ───────────────────────────────────────────────────
-async function runRepairPass(code, errors, apiKey, model) {
-  const ai        = new GoogleGenAI({ apiKey });
+async function runRepairPass(code, errors, apiKey, _model) {
   const errorList = errors.map(e => `• ${e}`).join('\n');
 
   const prompt = `You are a code repair assistant. Fix ONLY the following structural issues in this HTML file.
@@ -184,17 +183,12 @@ ${errorList}
 HTML FILE:
 ${code}`;
 
-  const response = await ai.models.generateContent({
-    model: model || 'gemini-2.5-flash',
+  // pooledGenerate tries all working SDK/model slots automatically
+  const text = await pooledGenerate({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: {
-      temperature: 0.1,
-      maxOutputTokens: 8192,
-      thinkingConfig: { thinkingBudget: 0 }, // disable thinking — required for .text on 2.5+ models
-    },
+    config:   { temperature: 0.1, maxOutputTokens: 8192 },
+    apiKey,
   });
-
-  const text = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
   const fenced = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
   return fenced ? fenced[1].trim() : text.trim();
 }

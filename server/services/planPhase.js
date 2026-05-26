@@ -14,7 +14,7 @@
  *  4. Severe contrast violation — explicit colour choices break legibility
  */
 
-const { GoogleGenAI } = require('@google/genai');
+const { pooledGenerate } = require('./geminiPool');
 
 const ANALYSIS_PROMPT = `You are a design-aware requirements analyst for AppBuilder — a platform that converts plain-English descriptions into complete, beautiful HTML+JS web apps.
 
@@ -104,23 +104,21 @@ const RESPONSE_SCHEMA = {
  * @param {string} [model]
  * @returns {{ archetype, requiresAskBack, askBackQuestion, enrichedNotes }}
  */
-async function analyzePlanPhase(userMessage, apiKey, model = 'gemini-2.0-flash') {
-  const ai = new GoogleGenAI({ apiKey });
+async function analyzePlanPhase(userMessage, apiKey, _model) {
   const prompt = ANALYSIS_PROMPT.replace('{PROMPT}', userMessage);
 
-  const response = await ai.models.generateContent({
-    model,
+  // pooledGenerate cycles through all working SDK/model slots automatically
+  const rawText = await pooledGenerate({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: {
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
       temperature: 0.3,
       maxOutputTokens: 600,
-      thinkingConfig: { thinkingBudget: 0 }, // disable thinking — required for .text on 2.5+ models
     },
+    apiKey,
   });
 
-  const rawText = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
   const parsed = JSON.parse(rawText);
   return {
     archetype:       parsed.archetype       || 'NOVICE',

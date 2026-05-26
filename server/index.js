@@ -60,37 +60,31 @@ app.post('/api/telemetry/report', (req, res) => {
 });
 
 // ── Diagnostic endpoint ───────────────────────────────────────────
-// Reflects the actual stack: API-key auth, Antigravity primary + Gemini fallback.
+// Reflects the actual stack: API-key auth, Antigravity primary + Gemini pool fallback.
 app.get('/api/diagnose', async (req, res) => {
-  const { GoogleGenAI } = require('@google/genai');
+  const { pooledGenerate, poolStatus } = require('./services/geminiPool');
   const apiKey = process.env.GEMINI_API_KEY;
 
   const result = {
     github_logged_in:       !!req.session.githubToken,
     github_user:            req.session.user?.login || null,
     gemini_api_configured:  !!apiKey,
-    gemini_model:           process.env.GEMINI_MODEL  || 'gemini-2.5-flash',
-    plan_model:             process.env.PLAN_MODEL    || 'gemini-2.5-flash',
     antigravity_agent:      process.env.ANTIGRAVITY_AGENT_ID || null,
     backend_origin:         process.env.BACKEND_ORIGIN || null,
+    gemini_pool:            poolStatus(),
     gemini_live_test:       null,
     antigravity_live_test:  null,
   };
 
   if (apiKey) {
-    // ── Gemini SDK live ping ──────────────────────────────────────
+    // ── Gemini pool live ping ─────────────────────────────────────
     try {
-      const ai  = new GoogleGenAI({ apiKey });
-      const res = await ai.models.generateContent({
-        model: result.gemini_model,
+      const text = await pooledGenerate({
         contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
-        config: {
-          maxOutputTokens: 10,
-          thinkingConfig: { thinkingBudget: 0 }, // disable thinking — required for .text on 2.5+ models
-        },
+        config:   { maxOutputTokens: 10 },
+        apiKey,
       });
-      const resText = res.text ?? res.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-      result.gemini_live_test = { ok: true, response: resText.trim().slice(0, 40) };
+      result.gemini_live_test = { ok: true, response: text.trim().slice(0, 40) };
     } catch (err) {
       result.gemini_live_test = { ok: false, error: err.message };
     }
