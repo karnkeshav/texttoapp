@@ -322,7 +322,7 @@ router.post('/chat', requireAuth, async (req, res) => {
       let responseText = '';
       await pooledStream({
         contents:          [{ role: 'user', parts }],
-        config:            { temperature: 0.5, maxOutputTokens: 8192 },
+        config:            { temperature: 0.5, maxOutputTokens: 4096 },
         apiKey,
         tier:              'build',            // build-tier = best vision/reasoning models
         multimodal:        isImageAttachment,  // new-SDK-only slots for inlineData
@@ -362,13 +362,16 @@ router.post('/chat', requireAuth, async (req, res) => {
         req.session.chatPhase = intent;
         req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
 
+        // Token budget: conversion may produce long documents; chat/reasoning are shorter
+        const tokenBudget = { conversion: 8192, reasoning: 3072, chat: 2048 };
+
         let responseText = '';
         const onChunk = (t) => sendEvent('chunk', { text: t });
         const onDone  = (t) => { responseText = t; };
 
         await pooledStream({
           contents:          [{ role: 'user', parts: [{ text: trimmedMessage }] }],
-          config:            { temperature: 0.5, maxOutputTokens: 8192 },
+          config:            { temperature: 0.5, maxOutputTokens: tokenBudget[intent] ?? 2048 },
           apiKey,
           tier:              'chat',           // chat-tier: lite models + Gemma
           systemInstruction: sysMap[intent],
@@ -443,16 +446,23 @@ router.post('/chat', requireAuth, async (req, res) => {
 
         sendEvent('status', { message: req.session.chatPhase === 'conversion' ? 'Preparing document…' : 'Thinking…' });
 
+        // Token budget per section for follow-ups
+        const followUpBudget = { conversion: 8192, reasoning: 3072, chat: 2048, vision: 4096 };
+        const maxTokens = followUpBudget[req.session.chatPhase] ?? 2048;
+
+        // Limit history to last 10 entries (5 exchanges) to cap input tokens
+        const trimmedHistory = req.session.chatHistory.slice(-10);
+
         let responseText = '';
         const onChunk = (t) => sendEvent('chunk', { text: t });
         const onDone  = (t) => { responseText = t; };
 
         await pooledStream({
-          contents:          req.session.chatHistory.map(({ role, content }) => ({
+          contents:          trimmedHistory.map(({ role, content }) => ({
             role: role === 'user' ? 'user' : 'model',
             parts: [{ text: content }],
           })),
-          config:            { temperature: 0.5, maxOutputTokens: 8192 },
+          config:            { temperature: 0.5, maxOutputTokens: maxTokens },
           apiKey,
           tier:              'chat',
           systemInstruction: sys,
@@ -567,13 +577,15 @@ router.post('/chat', requireAuth, async (req, res) => {
       req.session.originalRequest = trimmedMessage;
       req.session.chatPhase       = 'mode';
 
-      // Run plan phase silently to get domain enrichment notes
+      // Run plan phase silently to get domain enrichment notes + style question
       sendEvent('status', { message: 'Analysing your request…' });
       try {
         const plan = await analyzePlanPhase(trimmedMessage, apiKey);
-        req.session.planNotes = plan.enrichedNotes || '';
+        req.session.planNotes  = plan.enrichedNotes   || '';
+        req.session.planAskBack = plan.askBackQuestion || ''; // cache for prototype mode
       } catch (e) {
         console.warn('[Plan] Non-fatal:', e.message);
+        req.session.planAskBack = '';
       }
 
       // Framework intercept annotation (just log; mode Q handles everything)
@@ -610,13 +622,8 @@ router.post('/chat', requireAuth, async (req, res) => {
         req.session.buildMode = 'prototype';
         req.session.chatPhase = 'prototype_style';
 
-        // Get a domain-specific style question from plan phase (re-run with cached notes)
-        sendEvent('status', { message: 'Preparing style options…' });
-        let styleQ = defaultStyleQuestion();
-        try {
-          const plan2 = await analyzePlanPhase(req.session.originalRequest, apiKey);
-          if (plan2.askBackQuestion) styleQ = plan2.askBackQuestion;
-        } catch { /* keep default */ }
+        // Use the style question cached during the init plan-phase call (no second API call)
+        const styleQ = req.session.planAskBack || defaultStyleQuestion();
 
         req.session.chatHistory.push({ role: 'assistant', content: styleQ });
         sendEvent('chunk', { text: styleQ });

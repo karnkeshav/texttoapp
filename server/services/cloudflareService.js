@@ -178,15 +178,18 @@ async function deployToCloudflare(files, projectNameHint) {
   }
 
   const deployment  = res.data?.result || {};
-  const stageStatus = deployment.latest_stage?.status;
+  const deployId    = deployment.id || null;
+  let   stageStatus = deployment.latest_stage?.status;
 
-  if (stageStatus && stageStatus !== 'success') {
-    console.error(`[CF] Deployment stage status: ${stageStatus}`, JSON.stringify(deployment.latest_stage));
-    if (stageStatus === 'failure') {
-      throw new Error(`Deployment failed during "${deployment.latest_stage?.name}" stage. Check Cloudflare dashboard.`);
-    }
-    // 'active' / 'queued' — still processing (shouldn't happen for direct upload, but log it)
-    console.warn(`[CF] Deployment stage "${stageStatus}" — may still be processing`);
+  if (stageStatus === 'failure') {
+    throw new Error(`Deployment failed during "${deployment.latest_stage?.name}" stage. Check Cloudflare dashboard.`);
+  }
+
+  // If the deployment is still queued / idle, poll until it goes live (up to 90 s).
+  // Direct Upload normally activates within 10–30 s; 'idle' means CF queued it.
+  if (stageStatus !== 'success' && deployId) {
+    console.log(`[CF] Stage "${stageStatus}" — polling until ready (max 90 s)…`);
+    stageStatus = await _waitForDeployment(projectName, deployId);
   }
 
   // Always use the canonical project URL — deployment.url is an internal
@@ -194,12 +197,49 @@ async function deployToCloudflare(files, projectNameHint) {
   // refuses to navigate to and that doesn't represent the live site.
   const liveUrl = `https://${projectName}.pages.dev`;
 
-  console.log(`[CF] Deployed → ${liveUrl}  (id: ${deployment.id}, stage: ${stageStatus ?? 'unknown'}, rawUrl: ${deployment.url})`);
+  console.log(`[CF] Deployed → ${liveUrl}  (id: ${deployId}, stage: ${stageStatus})`);
   return {
     url:          liveUrl,
     projectName,
-    deploymentId: deployment.id || null,
+    deploymentId: deployId,
   };
+}
+
+/**
+ * Poll a deployment until its latest_stage.status is 'success' or 'failure'.
+ * Returns the final status string.
+ * Gives up (and returns 'timeout') after maxWaitMs — the canonical URL will
+ * still work once CF finishes, usually within a few minutes.
+ */
+async function _waitForDeployment(projectName, deploymentId, maxWaitMs = 90_000) {
+  const POLL_MS = 5_000; // check every 5 seconds
+  const start   = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, POLL_MS));
+
+    try {
+      const pollUrl = accountPath(`/pages/projects/${projectName}/deployments/${deploymentId}`);
+      const pollRes = await axios.get(pollUrl, { headers: cfHeaders(), timeout: 12_000 });
+      const dep     = pollRes.data?.result || {};
+      const stage   = dep.latest_stage?.status;
+      const name    = dep.latest_stage?.name;
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      console.log(`[CF] Poll +${elapsed}s: stage=${stage} (${name})`);
+
+      if (stage === 'success') return 'success';
+      if (stage === 'failure') {
+        throw new Error(`Deployment failed at stage "${name}". Check Cloudflare dashboard.`);
+      }
+      // still queued / active / idle → keep polling
+    } catch (err) {
+      if (err.message?.includes('failed at stage')) throw err; // propagate failure
+      console.warn('[CF] Poll error (will retry):', err.message);
+    }
+  }
+
+  console.warn(`[CF] Deployment ${deploymentId} still processing after ${maxWaitMs / 1000}s — returning URL anyway (site will be live shortly)`);
+  return 'timeout';
 }
 
 module.exports = { deployToCloudflare };
