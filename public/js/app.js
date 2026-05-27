@@ -7,7 +7,7 @@ let fileIdCounter = 0;
 
 // ── Deploy mode — set from URL param ?mode=cloudflare ────────────
 // 'github'     → user arrived via /auth/github, deploy to GitHub Pages
-// 'cloudflare' → user arrived via ?mode=cloudflare, deploy to CF Pages
+// 'cloudflare' → user arrived via ?mode=cloudflare, instant managed deploy
 // null         → direct access; deploy buttons show both options
 const _urlMode = new URLSearchParams(window.location.search).get('mode');
 let deployMode = (_urlMode === 'cloudflare') ? 'cloudflare'
@@ -111,9 +111,9 @@ async function loadUser() {
     if (!data.authenticated) {
       // Guest / Cloudflare mode — no GitHub session
       if (avatarEl) avatarEl.textContent = '⚡';
-      if (nameEl)   nameEl.textContent   = deployMode === 'cloudflare' ? 'Cloudflare mode' : 'Ready4Launch';
+      if (nameEl)   nameEl.textContent   = deployMode === 'cloudflare' ? 'Instant Deploy' : 'Ready4Launch';
       if (subEl)    subEl.textContent    = deployMode === 'cloudflare'
-        ? 'Deploys to Cloudflare Pages'
+        ? 'Live link ready in seconds'
         : 'Connect GitHub to deploy apps';
 
       // Cloudflare mode: hide repo panel; also hide "Connect GitHub" banner
@@ -156,9 +156,9 @@ function updateWelcomeForMode() {
 
   if (deployMode === 'cloudflare') {
     if (titleEl)  titleEl.textContent  = 'What do you want to build?';
-    if (subEl2)   subEl2.textContent   = 'Describe your app in plain English. Ready4Launch will ask a few questions, build it, and deploy to Cloudflare Pages — no GitHub account needed.';
-    if (inputEl)  inputEl.placeholder  = 'Describe the app you want to build… (deploys to Cloudflare Pages)';
-    if (topbarEl) topbarEl.textContent = 'Cloudflare Pages mode — no GitHub needed';
+    if (subEl2)   subEl2.textContent   = 'Describe your app in plain English. Ready4Launch will ask a few questions, build it, and publish it live — no GitHub account needed.';
+    if (inputEl)  inputEl.placeholder  = 'Describe the app you want to build…';
+    if (topbarEl) topbarEl.textContent = 'Instant Deploy — live link, no account needed';
   } else if (deployMode === 'github') {
     if (topbarEl) topbarEl.textContent = 'GitHub Pages mode — deploy to your repo';
   }
@@ -823,7 +823,7 @@ async function deployToGitHub(fileId, btn) {
   scrollToBottom();
 }
 
-// ── Cloudflare Pages deploy ───────────────────────────────────────
+// ── Instant Deploy (managed cloud) ───────────────────────────────
 function showCloudflareDeployPrompt(projectName, files) {
   const fileId = `fid-${++fileIdCounter}`;
   pendingFiles.set(fileId, { projectName, files });
@@ -832,16 +832,16 @@ function showCloudflareDeployPrompt(projectName, files) {
   const div = document.createElement('div');
   div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
   div.innerHTML = `
-    <div style="background:rgba(246,130,31,0.08);border:1px solid rgba(246,130,31,0.3);border-radius:14px;padding:24px;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🌐 Your app is ready to deploy!</div>
+    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:14px;padding:24px;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🚀 Your app is ready — publish it live!</div>
       <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-        Ready4Launch will deploy <strong style="color:#f6821f;">${escapeHtml(projectName)}</strong> to
-        <strong>Cloudflare Pages</strong> — no GitHub account needed. Your live URL will appear below.
+        <strong style="color:#818cf8;">${escapeHtml(projectName)}</strong> is built and ready.
+        One click and it's live on the internet — no account needed.
       </p>
       <button data-fileid="${fileId}" onclick="deployToCloudflarePages(this.dataset.fileid, this)"
-              style="background:linear-gradient(135deg,#f6821f,#d96a0b);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
-        <svg viewBox="0 0 32 20" fill="none" width="22" height="14"><path d="M22.3 6.6c-.1-.5-.4-1-.8-1.4A5.8 5.8 0 0 0 10.8 7c-.1.5-.1 1 0 1.4a4 4 0 1 0 .6 8H22a4 4 0 0 0 .3-8.4z" fill="#F6821F"/><path d="M22 9.8a4 4 0 0 0-.4-.1l-.2-.7a5.7 5.7 0 0 0-10.8-.3 4 4 0 1 0 .5 7.9H22a4 4 0 0 0 0-7.8z" fill="#FBAD41"/></svg>
-        Deploy to Cloudflare Pages
+              style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        Publish Live ⚡
       </button>
     </div>`;
   container.appendChild(div);
@@ -853,7 +853,7 @@ async function deployToCloudflarePages(fileId, btn) {
   if (!pending) return;
 
   btn.disabled = true;
-  btn.innerHTML = '<span style="opacity:0.7">Deploying to Cloudflare…</span>';
+  btn.innerHTML = '<span style="opacity:0.7">Publishing your app…</span>';
 
   const { projectName, files } = pending;
   const card = btn.closest('div[style*="border-radius:14px"]');
@@ -869,16 +869,16 @@ async function deployToCloudflarePages(fileId, btn) {
     if (data.success) {
       card.innerHTML = `
         <div class="push-success">
-          <h4>🎉 Your site is live on Cloudflare!</h4>
+          <h4>🎉 Your app is live!</h4>
           <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-            Deployed to Cloudflare Pages. The URL below is live immediately — no waiting.
+            Published and live instantly — share the link below with anyone.
           </p>
           <p style="margin-bottom:8px;">
             🔗 <strong>Live URL:</strong>
-            <a href="${data.url}" target="_blank" rel="noopener" style="color:#f6821f;">${data.url}</a>
+            <a href="${data.url}" target="_blank" rel="noopener" style="color:#818cf8;">${data.url}</a>
           </p>
           <p style="font-size:12px;color:var(--text-3);margin-bottom:0;">
-            Project: ${escapeHtml(data.projectName)}
+            App ID: ${escapeHtml(data.projectName)}
           </p>
         </div>`;
     } else {

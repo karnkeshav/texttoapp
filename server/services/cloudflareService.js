@@ -26,7 +26,9 @@ function sanitizeName(raw) {
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 28) || 'r4l-site';
+    .slice(0, 28)
+    .replace(/^-+|-+$/g, '') // re-trim after slice in case slice cut mid-word
+    || 'r4l-site';
 }
 
 function sha256hex(buf) {
@@ -55,6 +57,19 @@ function accountPath(subPath) {
   return `${CF_API}/accounts/${id}${subPath}`;
 }
 
+/** Log CF error details for diagnosing API failures */
+function logCfError(context, err) {
+  const status = err.response?.status;
+  const body   = err.response?.data;
+  const errors = body?.errors;
+  console.error(`[CF] ${context} — HTTP ${status ?? 'network'}: ${err.message}`);
+  if (errors?.length) {
+    errors.forEach(e => console.error(`  CF error ${e.code}: ${e.message}`));
+  } else if (body) {
+    console.error('  CF response body:', JSON.stringify(body).slice(0, 400));
+  }
+}
+
 // ── Core functions ────────────────────────────────────────────────
 
 /**
@@ -72,11 +87,15 @@ async function ensureProject(projectName) {
     console.log(`[CF] Created project: ${projectName}`);
   } catch (err) {
     const status = err.response?.status;
-    // 400 / 409 = project already exists — that's fine, continue
-    if (status !== 400 && status !== 409) {
-      const detail = JSON.stringify(err.response?.data || err.message);
-      throw new Error(`Cloudflare project creation failed (${status}): ${detail}`);
+    // 409 = project already exists — that's fine, continue.
+    // Any other error (incl. 400 "invalid name", 401 auth) must propagate.
+    if (status === 409) {
+      console.log(`[CF] Project '${projectName}' already exists — reusing`);
+      return projectName;
     }
+    logCfError(`ensureProject(${projectName})`, err);
+    const cfMsg = err.response?.data?.errors?.[0]?.message || err.message;
+    throw new Error(`Cloud project setup failed (${status}): ${cfMsg}`);
   }
   return projectName;
 }
@@ -91,8 +110,8 @@ async function ensureProject(projectName) {
 async function deployToCloudflare(files, projectNameHint) {
   if (!process.env.CLOUDFLARE_ACCOUNT_ID || !process.env.CLOUDFLARE_API_TOKEN) {
     throw new Error(
-      'Cloudflare is not configured. Add CLOUDFLARE_ACCOUNT_ID and ' +
-      'CLOUDFLARE_API_TOKEN to the server environment variables.'
+      'Live Deploy is not configured on this server. ' +
+      'Contact support or choose "Host on GitHub" instead.'
     );
   }
 
@@ -101,7 +120,7 @@ async function deployToCloudflare(files, projectNameHint) {
 
   // Build content-addressed manifest
   // CF Pages v2: manifest maps "/path" → sha256hex; each file part is named by its hash
-  const manifest  = {};
+  const manifest   = {};
   const hashToFile = new Map(); // deduplicate identical files
 
   for (const file of files) {
@@ -116,25 +135,34 @@ async function deployToCloudflare(files, projectNameHint) {
     }
   }
 
-  // Build multipart form
+  // Build multipart form — omit `filename` on manifest to match CF spec exactly
   const form = new FormData();
-  form.append('manifest', JSON.stringify(manifest), {
+  form.append('manifest', Buffer.from(JSON.stringify(manifest)), {
     contentType: 'application/json',
-    filename:    'manifest.json',
   });
   for (const [hash, { buf, path: fp }] of hashToFile) {
     form.append(hash, buf, {
-      filename:    hash,      // CF expects hash as filename
       contentType: guessMime(fp),
     });
   }
 
   const deployUrl = accountPath(`/pages/projects/${projectName}/deployments`);
-  const res = await axios.post(deployUrl, form, {
-    headers: cfHeaders(form.getHeaders()),
-    maxContentLength: Infinity,
-    maxBodyLength:    Infinity,
-  });
+  let res;
+  try {
+    res = await axios.post(deployUrl, form, {
+      headers: {
+        ...cfHeaders(),
+        ...form.getHeaders(),
+      },
+      maxContentLength: Infinity,
+      maxBodyLength:    Infinity,
+      timeout:          120_000,
+    });
+  } catch (err) {
+    logCfError(`deploy(${projectName})`, err);
+    const cfMsg = err.response?.data?.errors?.[0]?.message || err.message;
+    throw new Error(`Deployment failed (${err.response?.status ?? 'network'}): ${cfMsg}`);
+  }
 
   const deployment = res.data?.result || {};
   const liveUrl    = deployment.url || `https://${projectName}.pages.dev`;

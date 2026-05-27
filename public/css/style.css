@@ -630,8 +630,8 @@ body {
   transform: translateY(-1px);
 }
 .build-opt-cf:hover {
-  border-color: rgba(246,130,31,0.5);
-  background: rgba(246,130,31,0.06);
+  border-color: rgba(99,102,241,0.5);
+  background: rgba(99,102,241,0.06);
   transform: translateY(-1px);
 }
 
