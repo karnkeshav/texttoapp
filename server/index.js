@@ -11,6 +11,12 @@ const convertRoutes = require('./routes/convert');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Trust Render's HTTPS proxy ────────────────────────────────────
+// Render terminates SSL at the proxy layer and forwards as HTTP internally.
+// Without this, Express thinks requests are HTTP → secure cookies are never
+// sent → sessions vanish after the GitHub OAuth redirect.
+app.set('trust proxy', 1);
+
 // ── Middleware ────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -23,7 +29,8 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: 'lax',                   // allows cookie to survive the GitHub → Render redirect
+      maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days
     },
   })
 );
