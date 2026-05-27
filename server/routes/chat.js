@@ -101,10 +101,19 @@ const CONVERSION_RE = /\b(convert|export|save|turn|transform|put)\b.{0,40}\b(wor
 
 const REASONING_RE  = /\b(calculate|compute|solve|formula|equation|integral|derivative|proof|logic\s*puzzle|what\s+is\s+\d|how\s+many|percentage|convert\s+\d)\b|\d[\d\s]*[\+\-\*\/\^][\d\s\(\)]+=/i;
 
-// Image generation — "generate/create/draw/... [any words] image/picture/..."
-// Allows adjectives/descriptors between the verb and the image noun.
-// Must NOT match when paired with a build-target noun (app, website, etc.)
-const IMAGE_GEN_RE = /\b(generate|create|draw|make|produce|render|paint|illustrate)\b.{0,80}\b(image|picture|photo(?:graph)?|illustration|artwork|drawing|painting|portrait|landscape|logo|icon|wallpaper|banner|thumbnail|visual)\b/i;
+// Image generation detection — two tiers:
+//
+// Tier 1 (unambiguous visual verbs): draw / paint / illustrate
+//   These almost exclusively mean "create an image" regardless of subject.
+//   No explicit image noun required. ("draw a dragon", "paint me a sunset")
+//
+// Tier 2 (ambiguous verbs + visual noun): generate/create/make/produce/render
+//   Require an explicit visual output noun within 150 chars.
+//   Noun list is wide to cover prompts that don't say "image" explicitly
+//   (e.g. "generate a cyberpunk cityscape", "create a poster for my event").
+//
+// Must NOT match when BUILD_SIGNAL_RE also fires (checked at call site).
+const IMAGE_GEN_RE = /\b(draw|paint|illustrate)\b|(?:\b(generate|create|make|produce|render|paint|illustrate|draw)\b[\s\S]{0,150}\b(image|images|picture|pictures|photo|photos|photograph|photographs|illustration|illustrations|artwork|drawing|drawings|painting|paintings|portrait|portraits|landscape|landscapes|logo|logos|icon|icons|wallpaper|banner|thumbnail|visual|visuals|graphic|graphics|sketch|avatar|poster|flyer|mockup|infographic|meme|animation|render|renders|rendering|visualization|visualisation|scene|scenes|art|cityscape|cityscapes|scenery|background|backgrounds|texture|textures|character|characters|design|concept)\b)/i;
 
 // Words that strongly signal the user wants to BUILD something (not just chat)
 const BUILD_SIGNAL_RE = /\b(build|create|make|generate|develop|design|i want (an?|the)|give me (an?|the)|i need (an?|the))\b.{0,50}\b(app|website|site|page|tool|dashboard|tracker|calculator|game|quiz|platform|portal|landing|shop|store)\b/i;
