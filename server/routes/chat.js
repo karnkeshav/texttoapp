@@ -146,6 +146,22 @@ Answer the user helpfully and conversationally. Be concise unless depth is asked
 If the user wants to build something, let them know they can describe an app and you will build and deploy it for free.
 Do NOT output REPO_NAME or HTML code blocks unless explicitly building an app.`;
 
+// Used both by the attachment handler (first image turn) and
+// follow-up turns while chatPhase === 'vision'.
+const SYS_VISION = `You are Ready4Launch's image and document analysis assistant.
+
+HARD CAPABILITY LIMITS — always be honest about these:
+• You CAN analyse, describe, read text in, and answer questions about images the user uploads.
+• You CANNOT generate, create, draw, render, or produce new images in any way.
+  If the user asks you to create or generate an image, say exactly this:
+  "I can only analyse images you share with me — I cannot generate new ones.
+   For AI image generation, try DALL·E (ChatGPT Plus), Midjourney, Adobe Firefly, or Canva AI."
+
+When shown an image: describe colours, shapes, objects, text, layout, mood, and composition.
+Answer any specific question the user has about what is in the image.
+When shown a non-image file reference: help with whatever the user asks about its content.
+Be concise. Do NOT output REPO_NAME or \`\`\`html blocks unless explicitly asked to build an app.`;
+
 function detectConversionFormat(message) {
   const m = message.toLowerCase();
   if (/\b(word|docx?)\b/.test(m))                        return 'docx';
@@ -259,14 +275,10 @@ router.post('/chat', requireAuth, async (req, res) => {
         parts.push({ text: trimmedMessage });
       }
 
-      const SYS_VISION = `You are Ready4Launch — a smart AI assistant that can analyse images, answer questions about documents, and build web apps.
-When shown an image: describe it clearly, identify key elements, answer any user question about it.
-When shown a document reference: acknowledge it and help with whatever the user asks.
-Be helpful and concise. Do NOT output REPO_NAME or HTML code blocks unless the user explicitly asks to build an app.`;
-
       sendEvent('status', { message: isImageAttachment ? 'Analysing image…' : 'Processing file…' });
 
-      req.session.chatPhase = 'chat';  // keep in chat mode for follow-ups
+      // 'vision' phase: follow-up turns use SYS_VISION (image-aware, no fake image creation)
+      req.session.chatPhase = 'vision';
 
       let responseText = '';
       await pooledStream({
@@ -338,22 +350,36 @@ Be helpful and concise. Do NOT output REPO_NAME or HTML code blocks unless the u
       // intent === 'build' → fall through to the state machine below
     }
 
-    // Subsequent turns in a non-build session (conversion / reasoning / chat)
-    // stay in that mode — answer conversationally without re-entering the machine.
-    if (!isFirstMessage && ['conversion', 'reasoning', 'chat'].includes(req.session.chatPhase)) {
+    // Subsequent turns in a non-build session (conversion / reasoning / chat / vision).
+    // Key behaviours:
+    //   • 'vision' follow-ups use SYS_VISION (prevents fake image-creation claims)
+    //   • Any phase can be re-routed to 'conversion' if CONVERSION_RE matches the new message
+    //   • Conversion format is updated when the user asks for a different format
+    if (!isFirstMessage && ['conversion', 'reasoning', 'chat', 'vision'].includes(req.session.chatPhase)) {
       req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
-      const sysMap = { conversion: SYS_CONVERSION, reasoning: SYS_REASONING, chat: SYS_CHAT };
-      const sys = sysMap[req.session.chatPhase] || SYS_CHAT;
 
-      // Update format if user mentions a new one (e.g. "now give me the Excel version")
-      if (req.session.chatPhase === 'conversion') {
+      // ── Intent re-routing within an active session ─────────────────────────
+      if (req.session.chatPhase !== 'conversion' && CONVERSION_RE.test(trimmedMessage)) {
+        // User switched to a file-format request mid-session (e.g. after image analysis)
+        req.session.chatPhase = 'conversion';
+        req.session.conversionFormat = detectConversionFormat(trimmedMessage);
+      } else if (req.session.chatPhase === 'conversion') {
+        // Update format if user explicitly mentions a different one
         const newFmt = detectConversionFormat(trimmedMessage);
         if (newFmt !== 'docx' || /\bdocx?\b/i.test(trimmedMessage)) {
           req.session.conversionFormat = newFmt;
         }
       }
 
-      sendEvent('status', { message: 'Thinking…' });
+      const sysMap = {
+        conversion: SYS_CONVERSION,
+        reasoning:  SYS_REASONING,
+        chat:       SYS_CHAT,
+        vision:     SYS_VISION,    // image follow-ups: analysis only, no fake generation
+      };
+      const sys = sysMap[req.session.chatPhase] || SYS_CHAT;
+
+      sendEvent('status', { message: req.session.chatPhase === 'conversion' ? 'Preparing document…' : 'Thinking…' });
 
       let responseText = '';
       const onChunk = (t) => sendEvent('chunk', { text: t });
@@ -366,7 +392,7 @@ Be helpful and concise. Do NOT output REPO_NAME or HTML code blocks unless the u
         })),
         config:            { temperature: 0.5, maxOutputTokens: 8192 },
         apiKey,
-        tier:              'chat',             // chat-tier: lite models + Gemma
+        tier:              'chat',
         systemInstruction: sys,
         onChunk,
         onDone,
