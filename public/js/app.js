@@ -84,7 +84,6 @@ function clearAttachment() {
 window.addEventListener('DOMContentLoaded', async () => {
   await loadUser();
   autoResize(document.getElementById('chatInput'));
-  loadUserRepos(); // populate sidebar on load
 });
 
 // ── User profile ─────────────────────────────────────────────────
@@ -94,14 +93,38 @@ async function loadUser() {
     const data = await res.json();
     if (!data.authenticated) { window.location.href = '/'; return; }
     const { login, name, avatarUrl } = data.user;
+    const hasGitHub = !!data.hasGitHub;
+    const hasGoogle = !!data.hasGoogle;
 
+    // Avatar
     const avatarEl = document.getElementById('userAvatar');
     if (avatarUrl) {
-      avatarEl.innerHTML = `<img src="${avatarUrl}" alt="${login}" />`;
+      avatarEl.innerHTML = `<img src="${avatarUrl}" alt="${escapeHtml(name || login)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
     } else {
       avatarEl.textContent = (name || login)[0].toUpperCase();
     }
+
+    // Name
     document.getElementById('userName').textContent = name || `@${login}`;
+
+    // Sub-text — shows which accounts are connected
+    const subEl = document.getElementById('userSub');
+    if (subEl) {
+      if (hasGoogle && hasGitHub) subEl.textContent = 'Google + GitHub connected';
+      else if (hasGoogle)         subEl.textContent = 'Signed in with Google';
+      else if (hasGitHub)         subEl.textContent = 'GitHub connected';
+      else                        subEl.textContent = 'Signed in';
+    }
+
+    // Show "Connect GitHub" banner only if Google-only (no GitHub)
+    const ghBanner = document.getElementById('connectGithubBanner');
+    const repoSection = document.getElementById('repoSection');
+    if (ghBanner)    ghBanner.style.display    = (hasGoogle && !hasGitHub) ? 'block' : 'none';
+    if (repoSection) repoSection.style.display = hasGitHub ? 'flex' : 'none';
+
+    // Load repos only when GitHub is available
+    if (hasGitHub) loadUserRepos();
+
   } catch {
     window.location.href = '/';
   }
