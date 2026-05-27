@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ready4Launch — Build Any App With Structured Text</title>
+  <title>Ready4Launch — Build, Generate &amp; Convert with AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -19,11 +19,13 @@
       <span class="logo-text">Ready4Launch</span>
     </div>
     <div class="nav-actions">
+      <a href="#capabilities" class="nav-link">Features</a>
       <a href="#how-it-works" class="nav-link">How it works</a>
-      <a href="#setup" class="nav-link">Setup guide</a>
-      <button class="btn btn-primary" onclick="document.getElementById('setup').scrollIntoView({behavior:'smooth'})">
-        Get started
-      </button>
+      <a href="#setup" class="nav-link">Setup</a>
+      <a href="/auth/github" class="btn btn-primary nav-github-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Sign in with GitHub
+      </a>
     </div>
     <button class="nav-mobile-menu" aria-label="Menu" onclick="toggleMobileMenu()">
       <span></span><span></span><span></span>
@@ -43,28 +45,35 @@
   <div class="hero-content">
     <div class="hero-badge">
       <span class="badge-dot"></span>
-      AI-powered · Free to deploy · No coding needed
+      Free · No code · Powered by Google AI
     </div>
 
     <h1 class="hero-title">
-      Build any app<br />
-      <span class="gradient-text">with structured text</span>
+      Build apps. Generate images.<br />
+      <span class="gradient-text">Convert anything. All for free.</span>
     </h1>
 
     <p class="hero-subtitle">
-      Describe your idea. Answer a few questions. Watch your fully-functional website
-      appear — hosted for free on GitHub Pages. Zero code. Zero cost.
+      One AI assistant that builds and deploys web apps, creates images with Google Imagen,
+      analyses documents, converts to Word/Excel/PDF, and answers any question — all from plain English.
     </p>
 
+    <!-- PRIMARY CTA — GitHub login, always visible above the fold -->
     <div class="hero-cta">
-      <button class="btn btn-hero" onclick="document.getElementById('setup').scrollIntoView({behavior:'smooth'})">
-        Start building for free
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </button>
-      <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+      <a href="/auth/github" class="btn btn-hero">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Get started free with GitHub
+      </a>
+      <a href="#capabilities" class="btn btn-ghost">See what it can do ↓</a>
     </div>
 
-    <!-- Mini demo card -->
+    <div class="hero-trust">
+      <span>✓ No credit card</span>
+      <span>✓ No coding skills needed</span>
+      <span>✓ Your code stays in your GitHub</span>
+    </div>
+
+    <!-- Animated prompt strip -->
     <div class="hero-demo">
       <div class="demo-card">
         <div class="demo-header">
@@ -77,12 +86,10 @@
         </div>
         <div class="demo-messages" id="demoMessages">
           <div class="demo-msg user">
-            <div class="demo-bubble user">I want a portfolio website for a photographer with a gallery, contact form, and dark theme.</div>
+            <div class="demo-bubble user"><span id="typingCursor"></span></div>
           </div>
-          <div class="demo-msg ai">
-            <div class="demo-bubble ai">
-              <span class="typing-cursor" id="typingCursor"></span>
-            </div>
+          <div class="demo-msg ai" id="demoAiMsg" style="display:none;">
+            <div class="demo-bubble ai" id="demoAiBubble"></div>
           </div>
         </div>
       </div>
@@ -90,62 +97,189 @@
   </div>
 </section>
 
+<!-- ══════════════════════ CAPABILITIES ══════════════════════ -->
+<section id="capabilities" class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">What you can do</span>
+      <h2 class="section-title">Five things. One conversation.</h2>
+      <p class="section-subtitle">Mix and match freely — switch from chat to image generation to document conversion, mid-conversation. Start a new conversation to build a web app.</p>
+    </div>
+
+    <div class="cap-grid">
+
+      <!-- 1. Build Web Apps -->
+      <div class="cap-card cap-build">
+        <div class="cap-card-header">
+          <div class="cap-icon">🚀</div>
+          <div class="cap-label">Build Web Apps</div>
+          <div class="cap-badge">Free hosting</div>
+        </div>
+        <p class="cap-desc">Describe any website in plain English. Ready4Launch asks smart questions, then builds and deploys a complete, responsive website to GitHub Pages — automatically.</p>
+        <div class="cap-prompt-box">
+          <div class="cap-prompt-label">Try saying:</div>
+          <div class="cap-prompt-text">"Build me a portfolio website for a photographer, with a gallery grid, contact form, and a dark minimal theme."</div>
+        </div>
+        <div class="cap-features">
+          <span>✓ Responsive design</span>
+          <span>✓ GitHub Pages hosting</span>
+          <span>✓ Edit anytime</span>
+        </div>
+        <a href="/auth/github" class="cap-try-btn">Try it free →</a>
+      </div>
+
+      <!-- 2. Generate Images -->
+      <div class="cap-card cap-image">
+        <div class="cap-card-header">
+          <div class="cap-icon">🎨</div>
+          <div class="cap-label">Generate Images</div>
+          <div class="cap-badge">Google Imagen 3</div>
+        </div>
+        <p class="cap-desc">Create stunning images from text descriptions using Google's Imagen 3 model. Refine with follow-up prompts until it's exactly what you need.</p>
+        <div class="cap-prompt-box">
+          <div class="cap-prompt-label">Try saying:</div>
+          <div class="cap-prompt-text">"Generate a cyberpunk cityscape at sunset — neon lights reflecting in rain puddles, cinematic mood, ultra-detailed."</div>
+        </div>
+        <div class="cap-features">
+          <span>✓ Google Imagen 3</span>
+          <span>✓ Refine with follow-ups</span>
+          <span>✓ Download instantly</span>
+        </div>
+        <a href="/auth/github" class="cap-try-btn">Try it free →</a>
+      </div>
+
+      <!-- 3. Analyse Images & Docs -->
+      <div class="cap-card cap-vision">
+        <div class="cap-card-header">
+          <div class="cap-icon">🔍</div>
+          <div class="cap-label">Analyse Images &amp; Files</div>
+          <div class="cap-badge">Multimodal AI</div>
+        </div>
+        <p class="cap-desc">Upload any image, PDF, or document. Ask questions, extract text, summarise content, translate, or describe what you see — all in seconds.</p>
+        <div class="cap-prompt-box">
+          <div class="cap-prompt-label">Try saying:</div>
+          <div class="cap-prompt-text">[Upload an image or PDF] "Summarise the key points from this report" or "What's the mood of this photo?"</div>
+        </div>
+        <div class="cap-features">
+          <span>✓ Images, PDFs, CSV, JSON</span>
+          <span>✓ Up to 10 MB</span>
+          <span>✓ Ask anything</span>
+        </div>
+        <a href="/auth/github" class="cap-try-btn">Try it free →</a>
+      </div>
+
+      <!-- 4. Convert Documents -->
+      <div class="cap-card cap-convert">
+        <div class="cap-card-header">
+          <div class="cap-icon">📄</div>
+          <div class="cap-label">Convert to Office Files</div>
+          <div class="cap-badge">6 formats</div>
+        </div>
+        <p class="cap-desc">Ask for any document and download it instantly. Word, Excel, PowerPoint, PDF, CSV, or JSON — each format is intelligently structured, not just plain text.</p>
+        <div class="cap-prompt-box">
+          <div class="cap-prompt-label">Try saying:</div>
+          <div class="cap-prompt-text">"Write a Q3 sales report with regional breakdowns and convert it to Word, Excel, and a PowerPoint deck."</div>
+        </div>
+        <div class="cap-features">
+          <span>✓ Word, Excel, PPT, PDF</span>
+          <span>✓ CSV &amp; JSON</span>
+          <span>✓ Instant download</span>
+        </div>
+        <a href="/auth/github" class="cap-try-btn">Try it free →</a>
+      </div>
+
+      <!-- 5. Chat & Reason -->
+      <div class="cap-card cap-chat">
+        <div class="cap-card-header">
+          <div class="cap-icon">🧠</div>
+          <div class="cap-label">Chat &amp; Reason</div>
+          <div class="cap-badge">Always on</div>
+        </div>
+        <p class="cap-desc">Ask anything — solve maths problems, get explanations, brainstorm ideas, or just have a conversation. Ready4Launch is always ready to help, even between other tasks.</p>
+        <div class="cap-prompt-box">
+          <div class="cap-prompt-label">Try saying:</div>
+          <div class="cap-prompt-text">"Calculate compound interest on $10,000 at 7% annual rate for 20 years, and show me the year-by-year breakdown."</div>
+        </div>
+        <div class="cap-features">
+          <span>✓ Maths &amp; logic</span>
+          <span>✓ Research &amp; writing</span>
+          <span>✓ No extra setup</span>
+        </div>
+        <a href="/auth/github" class="cap-try-btn">Try it free →</a>
+      </div>
+
+    </div>
+
+    <!-- Routing note -->
+    <div class="routing-note">
+      <span class="routing-icon">💡</span>
+      <span><strong>Smart routing:</strong> Switch freely between image generation, analysis, documents, and chat mid-conversation. When you're ready to build a web app, just start a fresh conversation — the build state machine locks in so your project is never interrupted.</span>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════════════ HOW IT WORKS ══════════════════════ -->
-<section id="how-it-works" class="section">
+<section id="how-it-works" class="section section-dark">
   <div class="container">
     <div class="section-header">
       <span class="section-tag">Process</span>
-      <h2 class="section-title">How it works</h2>
-      <p class="section-subtitle">From idea to live website in minutes — no coding, no servers, no cost.</p>
+      <h2 class="section-title">From idea to live website in minutes</h2>
+      <p class="section-subtitle">No coding, no servers, no cost.</p>
     </div>
 
     <div class="steps-grid">
       <div class="step-card">
         <div class="step-number">01</div>
-        <div class="step-icon">🛠️</div>
-        <h3>Set up your workspace</h3>
-        <p>Install GitHub Desktop and create your free repository. We walk you through every step below.</p>
+        <div class="step-icon">🔗</div>
+        <h3>Sign in with GitHub</h3>
+        <p>Connect your free GitHub account. Ready4Launch will push your finished website directly to your repository.</p>
       </div>
       <div class="step-connector"></div>
       <div class="step-card">
         <div class="step-number">02</div>
-        <div class="step-icon">🔗</div>
-        <h3>Connect your GitHub</h3>
-        <p>Sign in with GitHub so Ready4Launch can push your finished website directly to your repository.</p>
+        <div class="step-icon">💬</div>
+        <h3>Describe what you want</h3>
+        <p>Tell Ready4Launch what you want to build, generate, or do. It asks smart follow-up questions to understand exactly what you need.</p>
       </div>
       <div class="step-connector"></div>
       <div class="step-card">
         <div class="step-number">03</div>
-        <div class="step-icon">💬</div>
-        <h3>Describe your app</h3>
-        <p>Tell Ready4Launch what you want to build. It will ask smart questions to understand exactly what you need.</p>
+        <div class="step-icon">⚡</div>
+        <h3>AI does the work</h3>
+        <p>Builds your complete website, generates your image, or prepares your document — no code needed, no waiting.</p>
       </div>
       <div class="step-connector"></div>
       <div class="step-card">
         <div class="step-number">04</div>
         <div class="step-icon">🚀</div>
-        <h3>Go live instantly</h3>
-        <p>Ready4Launch generates your complete website and guides you to publish it for free on GitHub Pages.</p>
+        <h3>Go live or download</h3>
+        <p>Deploy your website to GitHub Pages with one click, download your generated image, or save your document instantly.</p>
       </div>
+    </div>
+
+    <!-- Sign in CTA repeated -->
+    <div style="text-align:center;margin-top:56px;">
+      <a href="/auth/github" class="btn btn-hero" style="display:inline-flex;">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Start for free — sign in with GitHub
+      </a>
     </div>
   </div>
 </section>
 
 <!-- ══════════════════════ SETUP GUIDE ══════════════════════ -->
-<section id="setup" class="section section-dark">
+<section id="setup" class="section">
   <div class="container">
     <div class="section-header">
-      <span class="section-tag">Before you start</span>
-      <h2 class="section-title">One-time setup guide</h2>
+      <span class="section-tag">One-time setup</span>
+      <h2 class="section-title">Ready in 5 minutes</h2>
       <p class="section-subtitle">
-        Follow these simple steps to prepare your workspace. You only do this once.
-        Each step takes about 2 minutes.
+        Set up your GitHub workspace once — then build unlimited apps for free, forever.
       </p>
     </div>
 
     <div class="setup-steps">
 
-      <!-- Step 1 -->
       <div class="setup-step" data-step="1">
         <div class="setup-step-header" onclick="toggleStep(1)">
           <div class="setup-step-left">
@@ -163,27 +297,25 @@
           <ol class="setup-instructions">
             <li>Go to <strong>desktop.github.com</strong> in your browser</li>
             <li>Click the purple <strong>"Download for [your OS]"</strong> button</li>
-            <li>Open the downloaded file and install GitHub Desktop (just click Next/Install)</li>
-            <li>Launch GitHub Desktop — it will ask you to sign in to GitHub</li>
+            <li>Open the downloaded file and install GitHub Desktop</li>
+            <li>Launch GitHub Desktop — sign in to GitHub when prompted</li>
             <li>Click <strong>"Sign in to GitHub.com"</strong> and follow the steps</li>
-            <li>Enter your name and email when asked — this is just for labelling your changes</li>
-            <li>Click <strong>"Finish"</strong> — GitHub Desktop is ready!</li>
+            <li>Enter your name and email, then click <strong>"Finish"</strong></li>
           </ol>
           <div class="setup-tip">
             <span class="tip-icon">💡</span>
-            <span>Don't have a GitHub account yet? Go to <strong>github.com</strong> and click "Sign up" — it's completely free.</span>
+            <span>Don't have a GitHub account? Go to <strong>github.com</strong> and click "Sign up" — it's completely free.</span>
           </div>
         </div>
       </div>
 
-      <!-- Step 2 -->
       <div class="setup-step" data-step="2">
         <div class="setup-step-header" onclick="toggleStep(2)">
           <div class="setup-step-left">
             <div class="setup-step-badge">Step 2</div>
             <div class="setup-step-info">
               <h3>Create your project repository</h3>
-              <p>A repository is like a folder for your website — GitHub will host it for free</p>
+              <p>A repository is like a folder for your website — GitHub will host it free</p>
             </div>
           </div>
           <div class="setup-step-icon">
@@ -192,47 +324,41 @@
         </div>
         <div class="setup-step-body">
           <div class="setup-tabs">
-            <button class="tab-btn active" onclick="switchTab(this, 'new-repo')">Create a new repository</button>
-            <button class="tab-btn" onclick="switchTab(this, 'existing-repo')">Use an existing repository</button>
+            <button class="tab-btn active" onclick="switchTab(this, 'new-repo')">Create new repository</button>
+            <button class="tab-btn" onclick="switchTab(this, 'existing-repo')">Use existing repository</button>
           </div>
           <div id="new-repo" class="tab-content active">
             <ol class="setup-instructions">
-              <li>Open GitHub Desktop</li>
-              <li>Click <strong>File → New Repository</strong> (or press Ctrl+N / Cmd+N)</li>
-              <li>Give it a name — use lowercase letters and dashes only (e.g. <code>my-portfolio</code>)</li>
-              <li>Choose where to save it on your computer (Desktop is fine)</li>
+              <li>Open GitHub Desktop → <strong>File → New Repository</strong></li>
+              <li>Give it a name using lowercase letters and dashes (e.g. <code>my-portfolio</code>)</li>
               <li>Tick <strong>"Initialize this repository with a README"</strong></li>
               <li>Click <strong>"Create Repository"</strong></li>
-              <li>Click <strong>"Publish repository"</strong> in the top bar — make sure it says <em>Public</em> (GitHub Pages only works on public repos for free accounts)</li>
-              <li>Click <strong>"Publish Repository"</strong> — you're done!</li>
+              <li>Click <strong>"Publish repository"</strong> → make sure it says <em>Public</em></li>
+              <li>Click <strong>"Publish Repository"</strong> — done!</li>
             </ol>
           </div>
           <div id="existing-repo" class="tab-content">
             <ol class="setup-instructions">
-              <li>Open GitHub Desktop</li>
-              <li>Click <strong>File → Clone Repository</strong> (or press Ctrl+Shift+O / Cmd+Shift+O)</li>
-              <li>Switch to the <strong>"GitHub.com"</strong> tab — your repositories will appear</li>
-              <li>Click the repository you want to use</li>
-              <li>Choose where to save it on your computer</li>
+              <li>Open GitHub Desktop → <strong>File → Clone Repository</strong></li>
+              <li>Switch to the <strong>"GitHub.com"</strong> tab</li>
+              <li>Click the repository you want to use, choose a save location</li>
               <li>Click <strong>"Clone"</strong></li>
-              <li>Your repository is now on your computer and synced with GitHub</li>
             </ol>
           </div>
           <div class="setup-tip">
             <span class="tip-icon">💡</span>
-            <span>Remember your repository name — you'll select it in Ready4Launch in the next steps.</span>
+            <span>Remember your repository name — you'll select it in Ready4Launch when building.</span>
           </div>
         </div>
       </div>
 
-      <!-- Step 3 -->
       <div class="setup-step" data-step="3">
         <div class="setup-step-header" onclick="toggleStep(3)">
           <div class="setup-step-left">
             <div class="setup-step-badge">Step 3</div>
             <div class="setup-step-info">
               <h3>Enable GitHub Pages</h3>
-              <p>This is what turns your repository into a live website — and it's free</p>
+              <p>This turns your repository into a live public website — free forever</p>
             </div>
           </div>
           <div class="setup-step-icon">
@@ -241,30 +367,25 @@
         </div>
         <div class="setup-step-body">
           <ol class="setup-instructions">
-            <li>Go to <strong>github.com</strong> and sign in</li>
-            <li>Click on your repository name</li>
-            <li>Click <strong>"Settings"</strong> (the gear icon in the top tabs)</li>
-            <li>Scroll down the left sidebar and click <strong>"Pages"</strong></li>
-            <li>Under <strong>"Branch"</strong>, click the dropdown and select <strong>"main"</strong></li>
-            <li>Leave the folder as <strong>"/ (root)"</strong></li>
-            <li>Click <strong>"Save"</strong></li>
-            <li>Wait about 60 seconds, then refresh — you'll see a green banner with your website's URL!</li>
+            <li>Go to <strong>github.com</strong>, open your repository</li>
+            <li>Click <strong>"Settings"</strong> (gear icon) → <strong>"Pages"</strong> in the left sidebar</li>
+            <li>Under <strong>"Branch"</strong>, select <strong>"main"</strong> and leave folder as <strong>"/ (root)"</strong></li>
+            <li>Click <strong>"Save"</strong> — your site will be live in about 60 seconds</li>
           </ol>
           <div class="setup-tip">
             <span class="tip-icon">💡</span>
-            <span>Your website will be at: <strong>yourusername.github.io/your-repo-name</strong> — share it with anyone!</span>
+            <span>Your site URL will be: <strong>yourusername.github.io/your-repo-name</strong></span>
           </div>
         </div>
       </div>
 
-      <!-- Step 4 -->
       <div class="setup-step" data-step="4">
         <div class="setup-step-header" onclick="toggleStep(4)">
           <div class="setup-step-left">
             <div class="setup-step-badge">Step 4</div>
             <div class="setup-step-info">
-              <h3>Check your configuration</h3>
-              <p>Quick checks to make sure everything is ready before you build</p>
+              <h3>Quick checklist &amp; launch</h3>
+              <p>Confirm everything is ready, then connect your GitHub</p>
             </div>
           </div>
           <div class="setup-step-icon">
@@ -286,12 +407,7 @@
             <label class="check-item">
               <input type="checkbox" onchange="updateChecklist()" />
               <span class="checkmark"></span>
-              <span>I have a repository created (or cloned)</span>
-            </label>
-            <label class="check-item">
-              <input type="checkbox" onchange="updateChecklist()" />
-              <span class="checkmark"></span>
-              <span>The repository is set to <strong>Public</strong></span>
+              <span>I have a public repository created</span>
             </label>
             <label class="check-item">
               <input type="checkbox" onchange="updateChecklist()" />
@@ -305,77 +421,17 @@
               <span class="ready-icon">🎉</span>
               <div>
                 <strong>You're all set!</strong>
-                <p>All checks complete. Click the button below to start building your app.</p>
+                <p>Click below to sign in and start building.</p>
               </div>
             </div>
-            <button class="btn btn-hero btn-ready" onclick="startBuilding()">
-              I'm ready — Start building!
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </button>
+            <a href="/auth/github" class="btn btn-hero btn-ready" style="justify-content:center;text-decoration:none;">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              Sign in with GitHub — Start building!
+            </a>
           </div>
         </div>
       </div>
 
-    </div>
-
-    <!-- GitHub connect CTA (shown even before checklist) -->
-    <div class="connect-section">
-      <div class="connect-card">
-        <div class="connect-icon">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        </div>
-        <div class="connect-text">
-          <h3>Connect your GitHub account</h3>
-          <p>Ready4Launch needs access to push your website files directly to your repository. We only request the permissions we need — nothing more.</p>
-        </div>
-        <a href="/auth/github" class="btn btn-primary connect-btn" id="connectGithubBtn">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-          Sign in with GitHub
-        </a>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ══════════════════════ FEATURES ══════════════════════ -->
-<section class="section">
-  <div class="container">
-    <div class="section-header">
-      <span class="section-tag">Why Ready4Launch</span>
-      <h2 class="section-title">Everything you need. Nothing you don't.</h2>
-    </div>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">🆓</div>
-        <h3>Completely free</h3>
-        <p>Your website is hosted on GitHub Pages — free forever, no credit card needed.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📱</div>
-        <h3>Mobile-ready by default</h3>
-        <p>Every app Ready4Launch creates is fully responsive — looks great on any screen.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⚡</div>
-        <h3>No code required</h3>
-        <p>Just describe what you want in plain English. Ready4Launch handles all the code.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔒</div>
-        <h3>Your code, your repo</h3>
-        <p>Everything goes into your own GitHub account. You own it completely.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🎨</div>
-        <h3>Beautiful designs</h3>
-        <p>Professional, modern UI with animations, gradients, and responsive layouts.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔄</div>
-        <h3>Instant updates</h3>
-        <p>Want changes? Just describe them. Ready4Launch updates and re-deploys automatically.</p>
-      </div>
     </div>
   </div>
 </section>
@@ -388,7 +444,8 @@
         <span class="logo-icon">⚡</span>
         <span class="logo-text">Ready4Launch</span>
       </div>
-      <p class="footer-text">Build any app with structured text. Free. Fast. No code.</p>
+      <p class="footer-text">Build apps · Generate images · Convert documents · All free.</p>
+      <a href="/auth/github" class="btn btn-primary" style="font-size:14px;padding:10px 20px;">Sign in with GitHub</a>
     </div>
   </div>
 </footer>
