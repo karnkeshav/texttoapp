@@ -154,6 +154,14 @@ function isBadRequest(err) {
          msg.includes('Invalid JSON') || msg.includes('response_mime_type');
 }
 
+// PERMISSION_DENIED (403) or invalid API key for a specific model.
+// Treat as temporary cooldown — the key may still work for other models/endpoints.
+function isPermissionError(err) {
+  const msg = err?.message || String(err);
+  return msg.includes('"code":403') || msg.includes('PERMISSION_DENIED') ||
+         msg.includes('API_KEY_INVALID') || err?.status === 403;
+}
+
 // ── Helpers to extract text from SDK responses ────────────────────
 function extractText(response, sdk) {
   if (sdk === 'legacy') {
@@ -274,10 +282,12 @@ async function pooledGenerate({ contents, config, apiKey, tier = 'build' }) {
       console.log(`[GeminiPool] generate ✅ slot ${i} (${slot.sdk}/${slot.model}) [${slot.tier}]`);
       return text;
     } catch (err) {
-      if (isQuotaError(err))  { markCooling(i); continue; }
-      if (isNotFound(err))    { markDead(i);    continue; }
-      if (isBadRequest(err))  { markDead(i);    continue; } // e.g. Gemma + JSON mode
-      throw err; // unexpected — surface immediately
+      if (isQuotaError(err))      { markCooling(i); continue; }
+      if (isNotFound(err))        { markDead(i);    continue; }
+      if (isBadRequest(err))      { markDead(i);    continue; } // e.g. Gemma + JSON mode
+      if (isPermissionError(err)) { markCooling(i); continue; }
+      // Unexpected error: log and try next slot rather than surfacing immediately
+      console.warn(`[GeminiPool] Slot ${i} (${slot.sdk}/${slot.model}) unexpected error: ${err.message} — trying next slot`);
     }
   }
 
@@ -326,12 +336,12 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
 
   for (const { slot, i } of streamSlots) {
     if (!isAvailable(i)) continue;
+    let fullText = '';
     try {
       const stream = slot.sdk === 'new'
         ? await newSDKStream(slot.model, contents, config, apiKey, systemInstruction)
         : await legacySDKStream(slot.model, contents, config, apiKey, systemInstruction);
 
-      let fullText = '';
       for await (const chunk of stream) {
         const text = chunk.text || '';
         if (text) { fullText += text; onChunk(text); }
@@ -340,9 +350,16 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
       onDone(fullText);
       return;
     } catch (err) {
-      if (isQuotaError(err))  { markCooling(i); continue; }
-      if (isNotFound(err))    { markDead(i);    continue; }
-      if (isBadRequest(err))  { markDead(i);    continue; }
+      if (isQuotaError(err))      { markCooling(i); continue; }
+      if (isNotFound(err))        { markDead(i);    continue; }
+      if (isBadRequest(err))      { markDead(i);    continue; }
+      if (isPermissionError(err)) { markCooling(i); continue; }
+      // Unexpected error — if no content was streamed yet, try the next slot.
+      // If content was partially sent we can't safely restart, so surface the error.
+      if (fullText.length === 0) {
+        console.warn(`[GeminiPool] Slot ${i} (${slot.sdk}/${slot.model}) unexpected error: ${err.message} — trying next slot`);
+        continue;
+      }
       throw err;
     }
   }
