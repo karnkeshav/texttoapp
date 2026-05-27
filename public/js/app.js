@@ -368,7 +368,33 @@ async function sendMessage() {
 
     isNewConversation = false;
 
-    if (!res.ok) throw new Error('Server error');
+    // ── Package gate errors — handle before reading stream ────────
+    if (!res.ok) {
+      let errData = {};
+      try { errData = await res.json(); } catch (_) {}
+
+      if (errData.error === 'not_authenticated') {
+        updateAIBubble(aiMsgId, '');
+        showSignInWall();
+      } else if (errData.error === 'no_package') {
+        updateAIBubble(aiMsgId, '');
+        showPricingModal();
+      } else if (errData.error === 'package_expired') {
+        updateAIBubble(aiMsgId,
+          `⏰ **${errData.package === 'demo' ? 'Demo expired' : 'Subscription expired'}** — ` +
+          `${errData.message} [View plans →](#plans)`
+        );
+        showPricingModal(errData.message);
+      } else if (errData.error === 'daily_limit_reached') {
+        updateAIBubble(aiMsgId,
+          `🚫 **Daily limit reached** — ${errData.message}`
+        );
+        showDailyLimitBanner(errData);
+      } else {
+        updateAIBubble(aiMsgId, '⚠️ Something went wrong. Please try again.');
+      }
+      return; // stop — finally block handles setStreaming(false) + scrollToBottom
+    }
 
     const reader  = res.body.getReader();
     const decoder = new TextDecoder();
@@ -985,4 +1011,135 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Package gate UI — modals & banners
+// ══════════════════════════════════════════════════════════════════
+
+function removeModal() {
+  document.getElementById('r4l-modal-overlay')?.remove();
+}
+
+function showSignInWall() {
+  removeModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'r4l-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
+  overlay.innerHTML = `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:40px 36px;max-width:420px;width:100%;text-align:center;">
+      <div style="font-size:40px;margin-bottom:16px;">⚡</div>
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:10px;">Sign in to continue</h2>
+      <p style="color:var(--text-2);font-size:15px;margin-bottom:28px;">Create a free account to build and deploy apps with Ready4Launch.</p>
+      <a href="/auth/google" style="display:inline-flex;align-items:center;gap:10px;background:#fff;color:#333;border:1px solid #ddd;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;text-decoration:none;margin-bottom:12px;width:100%;justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </a>
+      <button onclick="removeModal()" style="background:transparent;border:none;color:var(--text-3);font-size:13px;cursor:pointer;margin-top:4px;">Maybe later</button>
+    </div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) removeModal(); });
+  document.body.appendChild(overlay);
+}
+
+async function showPricingModal(headline) {
+  removeModal();
+
+  // Fetch catalogue from server
+  let plans = [];
+  try {
+    const r = await fetch('/api/user/packages');
+    plans = await r.json();
+  } catch (_) {}
+
+  const overlay = document.createElement('div');
+  overlay.id = 'r4l-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;overflow-y:auto;';
+
+  const cardsHtml = plans.map(p => `
+    <div style="flex:1;min-width:220px;background:${p.highlight ? 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(79,70,229,0.12))' : 'var(--surface-1)'};border:${p.highlight ? '2px solid #6366f1' : '1px solid var(--border)'};border-radius:16px;padding:28px 22px;position:relative;">
+      ${p.highlight ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;white-space:nowrap;">MOST POPULAR</div>' : ''}
+      <div style="font-size:17px;font-weight:700;margin-bottom:4px;">${escapeHtml(p.name)}</div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:16px;">${escapeHtml(p.tagline)}</div>
+      <div style="font-size:28px;font-weight:800;margin-bottom:2px;">${escapeHtml(p.price)}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:20px;">${escapeHtml(p.priceSub)}</div>
+      <ul style="list-style:none;padding:0;margin:0 0 24px;font-size:13px;color:var(--text-2);">
+        ${p.features.map(f => `<li style="padding:4px 0;">✓ ${escapeHtml(f)}</li>`).join('')}
+      </ul>
+      <button onclick="activatePackage('${p.id}',this)" style="width:100%;background:${p.highlight ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : 'var(--surface-2)'};color:${p.highlight ? '#fff' : 'var(--text-1)'};border:${p.highlight ? 'none' : '1px solid var(--border)'};border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);">
+        ${escapeHtml(p.cta)}
+      </button>
+    </div>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:24px;padding:40px 32px;max-width:860px;width:100%;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="font-size:36px;margin-bottom:12px;">🚀</div>
+        <h2 style="font-size:24px;font-weight:800;margin-bottom:8px;">${escapeHtml(headline || 'Choose your Ready4Launch plan')}</h2>
+        <p style="color:var(--text-2);font-size:15px;">Build, publish and deploy apps — pick the plan that fits.</p>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;">${cardsHtml}</div>
+      <div style="text-align:center;">
+        <button onclick="removeModal()" style="background:transparent;border:none;color:var(--text-3);font-size:13px;cursor:pointer;">Maybe later</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) removeModal(); });
+  document.body.appendChild(overlay);
+}
+
+async function activatePackage(packageId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Activating…';
+  try {
+    const res  = await fetch('/api/user/package', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ packageType: packageId }),
+    });
+    const data = await res.json();
+
+    if (res.status === 401) {
+      removeModal();
+      showSignInWall();
+      return;
+    }
+    if (data.success) {
+      removeModal();
+      // Show confirmation in chat
+      const container = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
+      div.innerHTML = `
+        <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:14px;padding:20px;">
+          <h4 style="margin:0 0 8px;font-size:16px;">🎉 ${escapeHtml(data.packageName)} activated!</h4>
+          <p style="margin:0;font-size:14px;color:var(--text-2);">${escapeHtml(data.message)} You can now start building.</p>
+        </div>`;
+      container.appendChild(div);
+      scrollToBottom();
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Try again';
+    }
+  } catch (_) {
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  }
+}
+
+function showDailyLimitBanner(errData) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
+  div.innerHTML = `
+    <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.3);border-radius:14px;padding:20px;">
+      <p style="margin:0 0 12px;font-weight:600;font-size:15px;">🚫 Daily limit reached for <strong>${escapeHtml(errData.section || 'this section')}</strong></p>
+      <p style="margin:0 0 16px;font-size:14px;color:var(--text-2);">
+        You've used all <strong>${errData.limit}</strong> free ${escapeHtml(errData.section || '')} prompts for today on the Demo plan.
+        Come back tomorrow, or upgrade for more.
+      </p>
+      <button onclick="showPricingModal('Upgrade to build more today')" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);">
+        ⬆️ Upgrade plan
+      </button>
+    </div>`;
+  container.appendChild(div);
+  scrollToBottom();
 }

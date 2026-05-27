@@ -5,17 +5,38 @@
  * Initialised lazily on first call so the server still starts if
  * FIREBASE_* env vars are missing (e.g. local dev without Firestore).
  *
- * User document path: /users/{uid}
- * Fields:
- *   uid         string   — Google sub (unique per Google account)
- *   email       string
- *   name        string
- *   picture     string   — profile photo URL
- *   provider    string   — 'google' | 'github'
- *   createdAt   timestamp
- *   lastLogin   timestamp
- *   githubLogin string?  — set when user later connects GitHub
+ * Collections:
+ *   /users/{uid}                — user profile + package info
+ *   /users/{uid}/usage/{date}   — daily prompt counters per section
+ *   /users/{uid}/sessions       — activity history (last 50)
+ *
+ * Package types:
+ *   demo    — free trial, 2 prompts/section/day, expires 5 days after purchase
+ *   starter — paid, 20 prompts/section/day, 30 days
+ *   pro     — paid, unlimited, 30 days
  */
+
+// ── Package definitions ───────────────────────────────────────────
+const PACKAGES = {
+  demo: {
+    name:                  'Demo',
+    daysValid:             5,
+    promptsPerSectionPerDay: 2,
+    unlimited:             false,
+  },
+  starter: {
+    name:                  'Starter',
+    daysValid:             30,
+    promptsPerSectionPerDay: 20,
+    unlimited:             false,
+  },
+  pro: {
+    name:                  'Pro',
+    daysValid:             30,
+    promptsPerSectionPerDay: null,
+    unlimited:             true,
+  },
+};
 
 let _admin = null;
 let _db    = null;
@@ -96,4 +117,180 @@ async function linkGitHub(uid, githubLogin) {
   }
 }
 
-module.exports = { upsertUser, linkGitHub };
+// ── Package management ────────────────────────────────────────────
+
+/**
+ * Set (or upgrade) a user's package. Calculates expiry automatically.
+ */
+async function setPackage(uid, packageType) {
+  const admin = getAdmin();
+  if (!admin || !_db) return;
+
+  const pkg = PACKAGES[packageType];
+  if (!pkg) throw new Error(`Unknown package: ${packageType}`);
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + pkg.daysValid);
+
+  await _db.collection('users').doc(uid).update({
+    package:           packageType,
+    packageBoughtAt:   admin.firestore.FieldValue.serverTimestamp(),
+    packageExpiresAt:  admin.firestore.Timestamp.fromDate(expiresAt),
+  });
+}
+
+/**
+ * Read a user's package status.
+ * Returns null when Firestore is not configured.
+ * Returns { package, packageBoughtAt, packageExpiresAt, expired } otherwise.
+ */
+async function getPackageStatus(uid) {
+  const admin = getAdmin();
+  if (!admin || !_db) return null; // Firestore not configured — open access
+
+  try {
+    const snap = await _db.collection('users').doc(uid).get();
+    if (!snap.exists) return { package: null };
+
+    const d = snap.data();
+    const expiresAt = d.packageExpiresAt?.toDate() || null;
+    const expired   = expiresAt ? new Date() > expiresAt : false;
+
+    return {
+      package:          d.package   || null,
+      packageBoughtAt:  d.packageBoughtAt?.toDate()  || null,
+      packageExpiresAt: expiresAt,
+      expired,
+    };
+  } catch (err) {
+    console.error('[Firestore] getPackageStatus error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Check whether the user can send a prompt in `section` today.
+ * Increments the counter only when allowed.
+ *
+ * Returns { allowed, count, limit }
+ *   allowed — whether the prompt is permitted
+ *   count   — NEW count after increment (or current count when blocked)
+ *   limit   — null = unlimited, number = per-section-per-day cap
+ */
+async function checkAndIncrementUsage(uid, section, packageType) {
+  const admin = getAdmin();
+  if (!admin || !_db) return { allowed: true, count: 0, limit: null };
+
+  const pkg   = PACKAGES[packageType];
+  const limit = pkg?.unlimited ? null : (pkg?.promptsPerSectionPerDay ?? null);
+
+  const today   = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const usageRef = _db.collection('users').doc(uid).collection('usage').doc(today);
+
+  try {
+    // Use a transaction so read + write is atomic
+    return await _db.runTransaction(async (tx) => {
+      const snap    = await tx.get(usageRef);
+      const current = snap.exists ? (snap.data()[section] || 0) : 0;
+
+      if (limit !== null && current >= limit) {
+        return { allowed: false, count: current, limit };
+      }
+
+      tx.set(
+        usageRef,
+        {
+          [section]: admin.firestore.FieldValue.increment(1),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return { allowed: true, count: current + 1, limit };
+    });
+  } catch (err) {
+    console.error('[Firestore] checkAndIncrementUsage error:', err.message);
+    return { allowed: true, count: 0, limit: null }; // fail-open
+  }
+}
+
+/**
+ * Append an activity entry to the user's session history (last 50 kept).
+ */
+async function recordSession(uid, { type, summary }) {
+  const admin = getAdmin();
+  if (!admin || !_db) return;
+  try {
+    await _db.collection('users').doc(uid).collection('sessions').add({
+      type,
+      summary: (summary || '').slice(0, 120),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('[Firestore] recordSession error:', err.message);
+  }
+}
+
+/**
+ * Return a user's full profile: info + package + today's usage + recent sessions.
+ */
+async function getUserProfile(uid) {
+  const admin = getAdmin();
+  if (!admin || !_db) return null;
+
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const [userSnap, usageSnap, sessionsSnap] = await Promise.all([
+      _db.collection('users').doc(uid).get(),
+      _db.collection('users').doc(uid).collection('usage').doc(today).get(),
+      _db.collection('users').doc(uid).collection('sessions')
+         .orderBy('createdAt', 'desc').limit(50).get(),
+    ]);
+
+    if (!userSnap.exists) return null;
+    const d = userSnap.data();
+
+    const expiresAt = d.packageExpiresAt?.toDate() || null;
+    const pkg       = d.package || null;
+    const pkgDef    = pkg ? PACKAGES[pkg] : null;
+
+    const todayUsage = usageSnap.exists ? usageSnap.data() : {};
+    const sessions   = sessionsSnap.docs.map(doc => {
+      const s = doc.data();
+      return {
+        id:        doc.id,
+        type:      s.type,
+        summary:   s.summary,
+        createdAt: s.createdAt?.toDate()?.toISOString() || null,
+      };
+    });
+
+    return {
+      uid:              d.uid,
+      email:            d.email,
+      name:             d.name,
+      picture:          d.picture,
+      provider:         d.provider,
+      githubLogin:      d.githubLogin || null,
+      createdAt:        d.createdAt?.toDate()?.toISOString() || null,
+      lastLogin:        d.lastLogin?.toDate()?.toISOString() || null,
+      package:          pkg,
+      packageName:      pkgDef?.name || null,
+      packageBoughtAt:  d.packageBoughtAt?.toDate()?.toISOString() || null,
+      packageExpiresAt: expiresAt?.toISOString() || null,
+      packageExpired:   expiresAt ? new Date() > expiresAt : false,
+      limit:            pkgDef?.promptsPerSectionPerDay ?? null,
+      unlimited:        pkgDef?.unlimited ?? false,
+      todayUsage:       { build: 0, chat: 0, convert: 0, vision: 0, ...todayUsage },
+      sessions,
+    };
+  } catch (err) {
+    console.error('[Firestore] getUserProfile error:', err.message);
+    return null;
+  }
+}
+
+module.exports = {
+  upsertUser, linkGitHub,
+  setPackage, getPackageStatus, checkAndIncrementUsage, recordSession, getUserProfile,
+  PACKAGES,
+};

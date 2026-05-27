@@ -25,6 +25,8 @@ const { analyzePlanPhase, compileSpec } = require('../services/planPhase');
 const { getFileContent } = require('../services/githubService');
 const { fullQualityPass } = require('../services/codeQuality');
 const { pooledStream, pooledGenerate } = require('../services/geminiPool');
+const { checkGate, quickSection } = require('../middleware/packageGate');
+const { recordSession } = require('../services/firestoreService');
 
 const router = express.Router();
 
@@ -263,6 +265,21 @@ router.post('/chat', requireAuth, async (req, res) => {
 
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+  }
+
+  // ── Package gate — must run BEFORE SSE headers so we can return JSON ──
+  const isNewConv = !!(newConversation || isFirstMessage);
+  const section   = quickSection(
+    message,
+    !!(attachment && attachment.mimeType?.startsWith('image/')),
+    !!isEditMode
+  );
+  const gate = await checkGate(req, section, isNewConv);
+  if (!gate.ok) return res.status(gate.status).json(gate);
+
+  // Record session start (non-blocking) — only on new conversations
+  if (isNewConv && gate.uid) {
+    recordSession(gate.uid, { type: section, summary: message.trim().slice(0, 120) }).catch(() => {});
   }
 
   // ── SSE setup ─────────────────────────────────────────────────

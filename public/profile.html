@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Account — Ready4Launch</title>
+  <style>
+    :root {
+      --bg:        #0f0f13;
+      --surface-1: #18181f;
+      --surface-2: #1e1e28;
+      --border:    rgba(255,255,255,0.08);
+      --text-1:    #f0f0f5;
+      --text-2:    #9999aa;
+      --text-3:    #66667a;
+      --purple:    #6366f1;
+      --purple-light: #818cf8;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text-1); font-family: var(--font); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--border); }
+    .nav-logo { font-size:18px; font-weight:800; background:linear-gradient(135deg,#818cf8,#6366f1); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-decoration:none; }
+    .nav-links { display:flex; gap:16px; align-items:center; }
+    .nav-links a { color:var(--text-2); text-decoration:none; font-size:14px; }
+    .nav-links a:hover { color:var(--text-1); }
+    .btn-primary { background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff !important; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none !important; display:inline-block; }
+
+    /* ── Layout ── */
+    .page { max-width:960px; margin:0 auto; padding:40px 24px; }
+    .grid { display:grid; grid-template-columns:280px 1fr; gap:24px; }
+    @media (max-width:720px) { .grid { grid-template-columns:1fr; } }
+
+    /* ── Cards ── */
+    .card { background:var(--surface-1); border:1px solid var(--border); border-radius:16px; padding:24px; }
+    .card + .card { margin-top:16px; }
+    .card-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); margin-bottom:16px; }
+
+    /* ── Avatar ── */
+    .avatar { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#6366f1,#4f46e5); display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700; overflow:hidden; margin-bottom:16px; }
+    .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .profile-name { font-size:18px; font-weight:700; margin-bottom:4px; }
+    .profile-email { font-size:13px; color:var(--text-2); margin-bottom:20px; }
+
+    /* ── Package badge ── */
+    .pkg-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600; }
+    .pkg-demo    { background:rgba(251,191,36,0.12); color:#fbbf24; }
+    .pkg-starter { background:rgba(99,102,241,0.12); color:#818cf8; }
+    .pkg-pro     { background:rgba(167,139,250,0.12); color:#c4b5fd; }
+    .pkg-none    { background:rgba(255,255,255,0.06); color:var(--text-2); }
+
+    /* ── Usage bars ── */
+    .usage-row { margin-bottom:14px; }
+    .usage-label { display:flex; justify-content:space-between; font-size:13px; color:var(--text-2); margin-bottom:6px; }
+    .usage-bar { height:6px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden; }
+    .usage-fill { height:100%; background:linear-gradient(90deg,#6366f1,#818cf8); border-radius:4px; transition:width .4s ease; }
+
+    /* ── Session history ── */
+    .session-item { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+    .session-item:last-child { border-bottom:none; }
+    .session-icon { width:32px; height:32px; border-radius:8px; background:rgba(99,102,241,0.12); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+    .session-info { flex:1; min-width:0; }
+    .session-type { font-size:12px; font-weight:600; color:var(--purple-light); text-transform:uppercase; letter-spacing:.05em; }
+    .session-summary { font-size:13px; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+    .session-time { font-size:11px; color:var(--text-3); margin-top:2px; }
+
+    .empty-state { text-align:center; padding:40px; color:var(--text-3); font-size:14px; }
+    .spinner { text-align:center; padding:60px; color:var(--text-3); font-size:14px; }
+
+    /* ── Expiry warning ── */
+    .expiry-warn { background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.25); border-radius:10px; padding:12px 16px; font-size:13px; color:#fbbf24; margin-top:16px; }
+    .expiry-expired { background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.3); color:#f87171; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ Ready4Launch</a>
+  <div class="nav-links">
+    <a href="/app">← Back to app</a>
+    <a href="/auth/logout" style="color:var(--text-3);">Sign out</a>
+  </div>
+</nav>
+
+<div class="page">
+  <div id="loadingState" class="spinner">Loading your profile…</div>
+  <div id="errorState" style="display:none;" class="empty-state">
+    <p>Could not load profile. <a href="/auth/google" style="color:var(--purple-light);">Sign in</a> to continue.</p>
+  </div>
+
+  <div id="profileContent" style="display:none;">
+    <div class="grid">
+
+      <!-- Left column: profile + package -->
+      <div>
+        <!-- Profile card -->
+        <div class="card">
+          <div class="avatar" id="avatarEl"></div>
+          <div class="profile-name" id="nameEl"></div>
+          <div class="profile-email" id="emailEl"></div>
+
+          <div class="card-title">Current Plan</div>
+          <div id="pkgBadge" class="pkg-badge pkg-none">No plan</div>
+          <div id="expiryNote"></div>
+
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+            <a href="/app" class="btn-primary" style="text-align:center;">→ Start Building</a>
+            <button onclick="showUpgradeModal()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);border-radius:8px;padding:8px;font-size:13px;cursor:pointer;font-family:var(--font);">
+              ⬆️ Upgrade plan
+            </button>
+          </div>
+        </div>
+
+        <!-- Today's usage -->
+        <div class="card" id="usageCard">
+          <div class="card-title">Today's Usage</div>
+          <div id="usageBars"></div>
+        </div>
+      </div>
+
+      <!-- Right column: session history -->
+      <div>
+        <div class="card">
+          <div class="card-title">Activity History</div>
+          <div id="sessionList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Pricing modal placeholder (reuses app.js logic) -->
+<div id="r4l-modal-overlay" style="display:none;"></div>
+
+<script>
+const SECTION_ICONS = { build: '🏗️', chat: '💬', convert: '📄', vision: '🖼️', research: '🔍' };
+const SECTION_LABELS = { build: 'Build', chat: 'Chat', convert: 'Convert', vision: 'Vision', research: 'Research' };
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function daysLeft(iso) {
+  if (!iso) return null;
+  const diff = new Date(iso).getTime() - Date.now();
+  return Math.ceil(diff / 86400000);
+}
+
+async function loadProfile() {
+  try {
+    const res  = await fetch('/api/user/profile');
+    if (res.status === 401 || res.status === 404) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display  = 'block';
+      return;
+    }
+    const p = await res.json();
+    renderProfile(p);
+  } catch (err) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display  = 'block';
+  }
+}
+
+function renderProfile(p) {
+  document.getElementById('loadingState').style.display  = 'none';
+  document.getElementById('profileContent').style.display = 'block';
+
+  // Avatar
+  const avatarEl = document.getElementById('avatarEl');
+  if (p.picture) {
+    avatarEl.innerHTML = `<img src="${p.picture}" alt="${p.name || ''}" />`;
+  } else {
+    avatarEl.textContent = (p.name || p.email || '?')[0].toUpperCase();
+  }
+
+  document.getElementById('nameEl').textContent  = p.name  || p.email || 'Member';
+  document.getElementById('emailEl').textContent = p.email || '';
+
+  // Package badge
+  const pkgBadge = document.getElementById('pkgBadge');
+  const cls = p.package ? `pkg-${p.package}` : 'pkg-none';
+  pkgBadge.className = `pkg-badge ${cls}`;
+  pkgBadge.textContent = p.packageName ? `${p.packageName} Plan` : 'No plan selected';
+
+  // Expiry
+  const expiryNote = document.getElementById('expiryNote');
+  if (p.package && p.packageExpiresAt) {
+    const days = daysLeft(p.packageExpiresAt);
+    if (p.packageExpired) {
+      expiryNote.innerHTML = `<div class="expiry-warn expiry-expired" style="margin-top:12px;">⚠️ Plan expired — please renew to continue.</div>`;
+    } else if (days !== null && days <= 2) {
+      expiryNote.innerHTML = `<div class="expiry-warn" style="margin-top:12px;">⏰ Expires in <strong>${days} day${days !== 1 ? 's' : ''}</strong></div>`;
+    } else if (days !== null) {
+      expiryNote.innerHTML = `<div style="margin-top:12px;font-size:12px;color:var(--text-3);">Expires in ${days} days</div>`;
+    }
+  }
+
+  // Usage bars
+  const sections = ['build', 'chat', 'convert', 'vision'];
+  const limit    = p.limit; // null = unlimited
+  const usageBars = document.getElementById('usageBars');
+  usageBars.innerHTML = sections.map(s => {
+    const used = p.todayUsage?.[s] || 0;
+    const pct  = limit ? Math.min(100, (used / limit) * 100) : (used > 0 ? 100 : 0);
+    const label = limit ? `${used} / ${limit}` : (p.unlimited ? `${used} (unlimited)` : `${used}`);
+    return `
+      <div class="usage-row">
+        <div class="usage-label">
+          <span>${SECTION_ICONS[s]} ${SECTION_LABELS[s]}</span>
+          <span>${label}</span>
+        </div>
+        <div class="usage-bar"><div class="usage-fill" style="width:${limit ? pct : 0}%"></div></div>
+      </div>`;
+  }).join('');
+
+  // Session history
+  const sessionList = document.getElementById('sessionList');
+  if (!p.sessions?.length) {
+    sessionList.innerHTML = '<div class="empty-state">No activity yet — start building!</div>';
+  } else {
+    sessionList.innerHTML = p.sessions.map(s => `
+      <div class="session-item">
+        <div class="session-icon">${SECTION_ICONS[s.type] || '💡'}</div>
+        <div class="session-info">
+          <div class="session-type">${SECTION_LABELS[s.type] || s.type}</div>
+          <div class="session-summary">${s.summary || '(no summary)'}</div>
+          <div class="session-time">${timeAgo(s.createdAt)}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+async function showUpgradeModal() {
+  // Fetch packages and render inline
+  let plans = [];
+  try { const r = await fetch('/api/user/packages'); plans = await r.json(); } catch (_) {}
+
+  const overlay = document.createElement('div');
+  overlay.id = 'r4l-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;overflow-y:auto;';
+
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const cardsHtml = plans.map(p => `
+    <div style="flex:1;min-width:220px;background:${p.highlight ? 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(79,70,229,0.14))' : 'var(--surface-2)'};border:${p.highlight ? '2px solid #6366f1' : '1px solid var(--border)'};border-radius:16px;padding:28px 22px;position:relative;">
+      ${p.highlight ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;">POPULAR</div>' : ''}
+      <div style="font-size:17px;font-weight:700;margin-bottom:4px;">${esc(p.name)}</div>
+      <div style="font-size:28px;font-weight:800;margin:12px 0 4px;">${esc(p.price)}</div>
+      <div style="font-size:12px;color:var(--text-3);margin-bottom:20px;">${esc(p.priceSub)}</div>
+      <ul style="list-style:none;padding:0;margin:0 0 24px;font-size:13px;color:var(--text-2);">
+        ${p.features.map(f => `<li style="padding:4px 0;">✓ ${esc(f)}</li>`).join('')}
+      </ul>
+      <button onclick="activatePlanProfile('${p.id}',this)" style="width:100%;background:${p.highlight ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : '#333'};color:#fff;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;">
+        ${esc(p.cta)}
+      </button>
+    </div>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:24px;padding:40px 32px;max-width:860px;width:100%;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <h2 style="font-size:22px;font-weight:800;margin-bottom:8px;">Choose your plan</h2>
+        <p style="color:var(--text-2);font-size:14px;">Upgrade anytime — changes take effect immediately.</p>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-bottom:24px;">${cardsHtml}</div>
+      <div style="text-align:center;">
+        <button onclick="document.getElementById('r4l-modal-overlay').remove()" style="background:transparent;border:none;color:var(--text-3);font-size:13px;cursor:pointer;">Cancel</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function activatePlanProfile(packageId, btn) {
+  btn.disabled = true; btn.textContent = 'Activating…';
+  try {
+    const res  = await fetch('/api/user/package', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ packageType: packageId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('r4l-modal-overlay')?.remove();
+      loadProfile(); // refresh
+    } else {
+      btn.disabled = false; btn.textContent = 'Try again';
+    }
+  } catch (_) {
+    btn.disabled = false; btn.textContent = 'Try again';
+  }
+}
+
+loadProfile();
+</script>
+</body>
+</html>
