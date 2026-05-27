@@ -353,57 +353,77 @@ router.post('/chat', requireAuth, async (req, res) => {
     // Subsequent turns in a non-build session (conversion / reasoning / chat / vision).
     // Key behaviours:
     //   • 'vision' follow-ups use SYS_VISION (prevents fake image-creation claims)
-    //   • Any phase can be re-routed to 'conversion' if CONVERSION_RE matches the new message
+    //   • Any phase can freely re-route to any other non-build phase
+    //   • If user asks to BUILD an app, session resets and falls through to the state machine
     //   • Conversion format is updated when the user asks for a different format
     if (!isFirstMessage && ['conversion', 'reasoning', 'chat', 'vision'].includes(req.session.chatPhase)) {
-      req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
 
-      // ── Intent re-routing within an active session ─────────────────────────
-      if (req.session.chatPhase !== 'conversion' && CONVERSION_RE.test(trimmedMessage)) {
-        // User switched to a file-format request mid-session (e.g. after image analysis)
-        req.session.chatPhase = 'conversion';
-        req.session.conversionFormat = detectConversionFormat(trimmedMessage);
-      } else if (req.session.chatPhase === 'conversion') {
-        // Update format if user explicitly mentions a different one
-        const newFmt = detectConversionFormat(trimmedMessage);
-        if (newFmt !== 'docx' || /\bdocx?\b/i.test(trimmedMessage)) {
-          req.session.conversionFormat = newFmt;
+      // ── Build escape hatch — user wants to start a fresh app ─────────────
+      if (classifyTopLevelIntent(trimmedMessage) === 'build') {
+        req.session.chatHistory      = [];
+        req.session.planNotes        = '';
+        req.session.buildMode        = null;
+        req.session.chatPhase        = 'init';
+        req.session.questionIndex    = 0;
+        req.session.gatheredAnswers  = [];
+        req.session.originalRequest  = '';
+        req.session.compiledSpec     = '';
+        req.session.editMode         = null;
+        req.session.conversionFormat = null;
+        console.log('[Chat] Build escape hatch — resetting session and entering state machine');
+        // Fall through to the state machine below (do NOT return here)
+      } else {
+        req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
+
+        // ── Intent re-routing within an active session ────────────────────────
+        if (CONVERSION_RE.test(trimmedMessage)) {
+          // User switched to (or stayed in) a file-format request
+          req.session.chatPhase        = 'conversion';
+          req.session.conversionFormat = detectConversionFormat(trimmedMessage);
+        } else if (REASONING_RE.test(trimmedMessage)) {
+          req.session.chatPhase = 'reasoning';
+        } else if (req.session.chatPhase !== 'vision') {
+          // Free re-route: treat as chat unless it was a vision session
+          // (vision stays vision until explicitly converted or a new image is uploaded)
+          req.session.chatPhase = classifyTopLevelIntent(trimmedMessage) === 'chat'
+            ? 'chat'
+            : req.session.chatPhase;
         }
+
+        const sysMap = {
+          conversion: SYS_CONVERSION,
+          reasoning:  SYS_REASONING,
+          chat:       SYS_CHAT,
+          vision:     SYS_VISION,    // image follow-ups: analysis only, no fake generation
+        };
+        const sys = sysMap[req.session.chatPhase] || SYS_CHAT;
+
+        sendEvent('status', { message: req.session.chatPhase === 'conversion' ? 'Preparing document…' : 'Thinking…' });
+
+        let responseText = '';
+        const onChunk = (t) => sendEvent('chunk', { text: t });
+        const onDone  = (t) => { responseText = t; };
+
+        await pooledStream({
+          contents:          req.session.chatHistory.map(({ role, content }) => ({
+            role: role === 'user' ? 'user' : 'model',
+            parts: [{ text: content }],
+          })),
+          config:            { temperature: 0.5, maxOutputTokens: 8192 },
+          apiKey,
+          tier:              'chat',
+          systemInstruction: sys,
+          onChunk,
+          onDone,
+        });
+
+        req.session.chatHistory.push({ role: 'assistant', content: responseText });
+        const followUpPayload = req.session.chatPhase === 'conversion'
+          ? { text: responseText, downloadable: true, detectedFormat: req.session.conversionFormat || 'docx' }
+          : { text: responseText };
+        sendEvent('done', followUpPayload);
+        return res.end();
       }
-
-      const sysMap = {
-        conversion: SYS_CONVERSION,
-        reasoning:  SYS_REASONING,
-        chat:       SYS_CHAT,
-        vision:     SYS_VISION,    // image follow-ups: analysis only, no fake generation
-      };
-      const sys = sysMap[req.session.chatPhase] || SYS_CHAT;
-
-      sendEvent('status', { message: req.session.chatPhase === 'conversion' ? 'Preparing document…' : 'Thinking…' });
-
-      let responseText = '';
-      const onChunk = (t) => sendEvent('chunk', { text: t });
-      const onDone  = (t) => { responseText = t; };
-
-      await pooledStream({
-        contents:          req.session.chatHistory.map(({ role, content }) => ({
-          role: role === 'user' ? 'user' : 'model',
-          parts: [{ text: content }],
-        })),
-        config:            { temperature: 0.5, maxOutputTokens: 8192 },
-        apiKey,
-        tier:              'chat',
-        systemInstruction: sys,
-        onChunk,
-        onDone,
-      });
-
-      req.session.chatHistory.push({ role: 'assistant', content: responseText });
-      const followUpPayload = req.session.chatPhase === 'conversion'
-        ? { text: responseText, downloadable: true, detectedFormat: req.session.conversionFormat || 'docx' }
-        : { text: responseText };
-      sendEvent('done', followUpPayload);
-      return res.end();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -498,9 +518,9 @@ router.post('/chat', requireAuth, async (req, res) => {
     }
 
     // ════════════════════════════════════════════════════════════
-    // PHASE: init — first message → send mode question
+    // PHASE: init — first message OR build escape-hatch reset → send mode question
     // ════════════════════════════════════════════════════════════
-    if (isFirstMessage) {
+    if (req.session.chatPhase === 'init') {
       req.session.originalRequest = trimmedMessage;
       req.session.chatPhase       = 'mode';
 
