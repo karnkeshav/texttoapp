@@ -552,6 +552,59 @@ body {
   border-radius: 9px;
 }
 
+/* ── Google Sign-In buttons ────────────────── */
+.btn-google-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 9px;
+  background: #fff;
+  color: #3c4043;
+  border: 1.5px solid #dadce0;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(60,64,67,0.15);
+}
+.btn-google-nav:hover {
+  background: #f8f9fa;
+  box-shadow: 0 2px 8px rgba(60,64,67,0.25);
+  transform: translateY(-1px);
+}
+.btn-google-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 14px;
+  background: #fff;
+  color: #3c4043;
+  border: 1.5px solid #dadce0;
+  cursor: pointer;
+  transition: all 0.25s;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(60,64,67,0.2);
+}
+.btn-google-hero:hover {
+  background: #f8f9fa;
+  box-shadow: 0 8px 32px rgba(60,64,67,0.3);
+  transform: translateY(-3px);
+}
+
+/* ── GitHub-required cap badge ─────────────── */
+.cap-badge-github {
+  background: rgba(36,41,47,0.12);
+  color: #24292f;
+  border: 1px solid rgba(36,41,47,0.2);
+}
+
 /* ── Hero trust strip ─────────────────────── */
 .hero-trust {
   display: flex;
@@ -714,6 +767,153 @@ body {
 }
 .routing-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
 .routing-note strong { color: var(--cyan); }
+
+/* ── Hosting plan cards ──────────────────── */
+.hosting-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 64px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .hosting-grid { grid-template-columns: 1fr; max-width: 480px; margin-left: auto; margin-right: auto; }
+}
+
+.hosting-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.hosting-card:hover {
+  border-color: rgba(124,58,237,0.4);
+  box-shadow: 0 8px 40px rgba(124,58,237,0.12);
+}
+.hosting-card-featured {
+  border-color: var(--purple);
+  box-shadow: 0 8px 40px rgba(124,58,237,0.18);
+  background: linear-gradient(160deg, rgba(124,58,237,0.06) 0%, var(--surface) 60%);
+}
+.hosting-featured-ribbon {
+  background: var(--grad-main);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 7px 16px;
+}
+.hosting-card-top {
+  padding: 28px 28px 20px;
+  text-align: center;
+}
+.hosting-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(36,41,47,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: #24292f;
+}
+.hosting-icon-new { background: rgba(52,168,83,0.1); color: #34a853; }
+.hosting-icon-managed { background: rgba(124,58,237,0.12); color: var(--purple-light); }
+.hosting-plan-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+.hosting-price {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+.price-currency { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.5; }
+.price-amount { font-size: 42px; font-weight: 900; color: var(--text); line-height: 1; }
+.price-period { font-size: 14px; color: var(--text-3); line-height: 1.8; }
+.hosting-price-note {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 0;
+  line-height: 1.5;
+  padding: 0 8px;
+}
+.hosting-features {
+  list-style: none;
+  padding: 20px 28px;
+  margin: 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.hosting-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.hf-check {
+  color: #34a853;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.hosting-cta {
+  display: block;
+  margin: 0 20px 20px;
+  padding: 13px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.hosting-cta-free {
+  background: rgba(36,41,47,0.08);
+  color: var(--text);
+  border: 1.5px solid rgba(36,41,47,0.2);
+}
+.hosting-cta-free:hover { background: rgba(36,41,47,0.15); transform: translateY(-1px); }
+.hosting-cta-guide {
+  background: rgba(52,168,83,0.1);
+  color: #2d8f50;
+  border: 1.5px solid rgba(52,168,83,0.25);
+  font-family: var(--font);
+}
+.hosting-cta-guide:hover { background: rgba(52,168,83,0.18); transform: translateY(-1px); }
+.hosting-cta-managed {
+  background: var(--grad-main);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(124,58,237,0.35);
+}
+.hosting-cta-managed:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,58,237,0.5); }
+
+/* ── GitHub setup guide (below cards) ───── */
+.setup-guide-wrap {
+  border-top: 1px solid var(--border);
+  padding-top: 56px;
+}
+.setup-guide-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
 
 /* ═══════════════════════════════════════════
    APP PAGE — Chat interface

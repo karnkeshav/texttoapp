@@ -16,7 +16,8 @@ const router = express.Router();
 const ALLOWED_FORMATS = new Set(['docx', 'xlsx', 'pptx', 'pdf', 'csv', 'json']);
 
 function requireAuth(req, res, next) {
-  if (!req.session.githubToken) return res.status(401).json({ error: 'Not authenticated' });
+  if (!req.session.githubToken && !req.session.googleUser)
+    return res.status(401).json({ error: 'Not authenticated' });
   next();
 }
 

@@ -221,7 +221,8 @@ Or just describe your own — colours, a brand you like, any mood words. Anythin
 }
 
 function requireAuth(req, res, next) {
-  if (!req.session.githubToken) return res.status(401).json({ error: 'Not authenticated' });
+  if (!req.session.githubToken && !req.session.googleUser)
+    return res.status(401).json({ error: 'Not authenticated' });
   next();
 }
 

@@ -178,20 +178,32 @@ function updateChecklist() {
   if (readySection) readySection.style.display = allChecked ? 'block' : 'none';
 }
 
+// ── Scroll to GitHub setup guide ─────────────────────────────────
+function scrollToGuide() {
+  const guide = document.getElementById('github-setup-guide');
+  if (!guide) return;
+  guide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Auto-open Step 1 so the user can start reading immediately
+  const firstStep = guide.querySelector('.setup-step[data-step="1"]');
+  if (firstStep && !firstStep.classList.contains('open')) firstStep.classList.add('open');
+}
+
 // ── Auth status ──────────────────────────────────────────────────
 async function checkAuthStatus() {
   try {
     const res = await fetch('/auth/status');
     const data = await res.json();
     if (data.authenticated) {
-      // Update ALL sign-in buttons on the page to "Go to app"
-      document.querySelectorAll('a[href="/auth/github"]').forEach(btn => {
+      // Replace all auth entry-point links with "Open app" button
+      const openAppHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Open Ready4Launch →`;
+      const openAppStyle = 'background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:transparent;';
+
+      document.querySelectorAll('a[href="/auth/google"], a[href="/auth/github"]').forEach(btn => {
         btn.href = '/app';
-        btn.textContent = '';
-        btn.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-          Open Ready4Launch →`;
-        btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+        btn.innerHTML = openAppHTML;
+        btn.style.cssText += openAppStyle;
       });
     }
   } catch (_) {}

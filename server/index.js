@@ -123,7 +123,8 @@ app.get('/', (req, res) => {
 });
 
 app.get('/app', (req, res) => {
-  if (!req.session.githubToken) return res.redirect('/?error=not_authenticated');
+  if (!req.session.githubToken && !req.session.googleUser)
+    return res.redirect('/?error=not_authenticated');
   res.sendFile(path.join(__dirname, '..', 'public', 'app.html'));
 });
 
