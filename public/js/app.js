@@ -1,4 +1,4 @@
-/* ── Ready4Launch chat interface ──────────────────────────────────── */
+﻿/* ── Ready4Launch chat interface ──────────────────────────────────── */
 
 let isStreaming = false;
 let isNewConversation = true;
@@ -109,37 +109,40 @@ async function loadUser() {
     const data = await res.json();
 
     if (!data.authenticated) {
-      // Guest / Cloudflare mode — no GitHub session
+      // No session — guest user
       if (avatarEl) avatarEl.textContent = '⚡';
-      if (nameEl)   nameEl.textContent   = deployMode === 'cloudflare' ? 'Instant Deploy' : 'Ready4Launch';
-      if (subEl)    subEl.textContent    = deployMode === 'cloudflare'
-        ? 'Live link ready in seconds'
-        : 'Connect GitHub to deploy apps';
-
-      // Cloudflare mode: hide repo panel; also hide "Connect GitHub" banner
-      if (ghBanner)    ghBanner.style.display    = (deployMode !== 'cloudflare') ? 'block' : 'none';
+      if (nameEl)   nameEl.textContent   = 'Ready4Launch';
+      if (subEl)    subEl.textContent    = 'Connect GitHub to deploy apps';
+      if (ghBanner)    ghBanner.style.display    = deployMode === 'cloudflare' ? 'none' : 'block';
       if (repoSection) repoSection.style.display = 'none';
-
-      // If no explicit mode, default to Cloudflare so the build still works
       if (!deployMode) deployMode = 'cloudflare';
       return;
     }
 
-    // GitHub session active
     const { login, name, avatarUrl } = data.user;
-    deployMode = deployMode || 'github'; // default when arriving via /auth/github
+    const hasGitHub = !!data.hasGitHub;
+    const hasGoogle = !!data.hasGoogle;
 
     if (avatarUrl) {
-      avatarEl.innerHTML = `<img src="${avatarUrl}" alt="${escapeHtml(name || login)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
+      if (avatarEl) avatarEl.innerHTML = `<img src="${avatarUrl}" alt="${escapeHtml(name || login)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
     } else if (avatarEl) {
-      avatarEl.textContent = (name || login)[0].toUpperCase();
+      avatarEl.textContent = (name || login || '?')[0].toUpperCase();
     }
-    if (nameEl) nameEl.textContent = name || `@${login}`;
-    if (subEl)  subEl.textContent  = 'GitHub connected';
+    if (nameEl) nameEl.textContent = name || (hasGitHub ? `@${login}` : login);
 
-    if (ghBanner)    ghBanner.style.display    = 'none';
-    if (repoSection) repoSection.style.display = 'flex';
-    loadUserRepos();
+    if (hasGitHub) {
+      deployMode = deployMode || 'github';
+      if (subEl)       subEl.textContent          = hasGoogle ? 'Google + GitHub connected' : 'GitHub connected';
+      if (ghBanner)    ghBanner.style.display    = 'none';
+      if (repoSection) repoSection.style.display = 'flex';
+      loadUserRepos();
+    } else {
+      if (deployMode === 'github') deployMode = 'cloudflare';
+      if (!deployMode) deployMode = 'cloudflare';
+      if (subEl)       subEl.textContent          = 'Connect GitHub to deploy to Pages';
+      if (ghBanner)    ghBanner.style.display    = 'block';
+      if (repoSection) repoSection.style.display = 'none';
+    }
 
   } catch {
     // Fail silently — app still usable without auth info
@@ -794,6 +797,20 @@ async function deployToGitHub(fileId, btn) {
     const data = await res.json();
     const card = btn.closest('div[style]');
 
+    if (res.status === 401) {
+      // GitHub session expired — prompt reconnect
+      card.innerHTML = `
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:20px;">
+          <p style="margin:0 0 12px;font-weight:600;">⚠️ GitHub session expired</p>
+          <p style="margin:0 0 16px;font-size:14px;color:var(--text-2);">Please reconnect your GitHub account to deploy.</p>
+          <a href="/auth/github" style="display:inline-flex;align-items:center;gap:8px;background:var(--grad-main);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
+            🔗 Reconnect GitHub
+          </a>
+        </div>
+      `;
+      return;
+    }
+
     if (data.success) {
       card.innerHTML = `
         <div class="push-success">
@@ -814,11 +831,12 @@ async function deployToGitHub(fileId, btn) {
     } else {
       btn.disabled = false;
       btn.textContent = 'Retry deployment';
-      card.querySelector('p').textContent = `Error: ${data.error}`;
+      card.querySelector('p').textContent = `Error: ${data.error || 'Deployment failed'}`;
     }
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Retry deployment';
+    console.error('[Deploy] GitHub deploy error:', err);
   }
   scrollToBottom();
 }
