@@ -56,20 +56,20 @@
   // Each entry: [user prompt, AI reply, delay before showing AI reply]
   const demos = [
     {
-      user: 'Build me a photographer portfolio with gallery, contact form, dark theme.',
-      ai:   'Perfect! A few quick questions:\n1. Gallery style — masonry grid or clean 3-column?\n2. Portraits, landscapes, or events?\n3. Want a "Book a session" button?\n\nI\'ll build and deploy it to GitHub Pages automatically! 🚀',
+      user: 'Build a bank branch performance dashboard for our AGM meeting — regions, metrics, and a red/amber/green status.',
+      ai:   'Excellent! A few quick questions:\n1. How many regions? (e.g. North, South, East, West)\n2. Key metrics — NPA ratio, CASA, advances, or custom?\n3. Should the dashboard auto-calculate RAG status?\n\nI\'ll build and deploy your live dashboard now. 🚀',
     },
     {
-      user: 'Generate a cyberpunk cityscape at sunset, neon lights, ultra-detailed.',
-      ai:   'Generating with Google Imagen 3... ✨\n\nHere\'s your image! You can refine it — try "make it more vibrant" or "change to oil painting style".',
+      user: 'Create a booking system for my plumbing business — slots, customer details, and an SMS confirmation.',
+      ai:   'Building your booking system now! Setting up:\n• Time-slot calendar with availability\n• Customer form (name, address, job type)\n• Confirmation page with booking ID\n• Export to your daily schedule\n\nLive link ready in seconds ⚡',
     },
     {
-      user: 'Convert this quarterly report to Word, Excel and a PowerPoint deck.',
-      ai:   'I\'ll create all three formats for you! The Excel version will have regional data in separate sheets, and the PPT will have one slide per section.\n\n📝 Word · 📊 Excel · 📑 PowerPoint — download buttons below.',
+      user: 'Write my Q3 board report and convert it to a McKinsey-style PowerPoint, a Word document, and an Excel summary.',
+      ai:   'Creating all three premium formats now:\n📑 PowerPoint — story-arc slides, consultant layout\n📝 Word — board-ready with proper headings\n📊 Excel — structured data with regional breakdowns\n\nDownload buttons ready below.',
     },
     {
-      user: 'What\'s the compound interest on $10,000 at 7% for 20 years?',
-      ai:   'After 20 years:\n• Final value: $38,696.84\n• Interest earned: $28,696.84\n• Effective multiplier: 3.87×\n\nYear 10 checkpoint: $19,671.51 (nearly doubled!) 📈',
+      user: 'Build me a flashcard app for my MBBS pharmacology exam — spaced repetition, progress tracking.',
+      ai:   'Perfect study tool incoming! Building:\n• Flashcard flip interface (drug → mechanism → side effects)\n• Spaced repetition algorithm\n• Progress tracker by subject\n• Quiz mode with score history\n\nYour live study app is ready 🎓',
     },
   ];
 
@@ -196,9 +196,10 @@ async function checkAuthStatus() {
     const res = await fetch('/auth/status');
     const data = await res.json();
     if (data.authenticated) {
-      const openAppHTML  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Open Ready4Launch →`;
-      const openAppStyle = 'background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:transparent;';
-      document.querySelectorAll('a[href="/auth/github"]').forEach(btn => {
+      const openAppHTML  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Open AppBuilder →`;
+      const openAppStyle = 'background:linear-gradient(135deg,#10b981,#059669) !important;color:#fff !important;border-color:transparent !important;';
+      // Replace all sign-in links with "Open app"
+      document.querySelectorAll('a[href="/auth/google"], a[href="/auth/github"]').forEach(btn => {
         btn.href = '/app';
         btn.innerHTML = openAppHTML;
         btn.style.cssText += openAppStyle;
