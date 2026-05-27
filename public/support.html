@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support — Ready4Launch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0f0f13;
+      --surface-1: #18181f;
+      --surface-2: #1e1e28;
+      --border:    rgba(255,255,255,0.08);
+      --text-1:    #f0f0f5;
+      --text-2:    #9999aa;
+      --text-3:    #66667a;
+      --purple:    #6366f1;
+      --purple-light: #818cf8;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text-1); font-family: var(--font); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--border); }
+    .nav-logo { font-size:18px; font-weight:800; background:linear-gradient(135deg,#818cf8,#6366f1); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-decoration:none; }
+    .nav-links { display:flex; gap:16px; align-items:center; }
+    .nav-links a { color:var(--text-2); text-decoration:none; font-size:14px; transition:color .2s; }
+    .nav-links a:hover { color:var(--text-1); }
+    .nav-links a.active { color:var(--purple-light); font-weight:600; }
+    .btn-primary { background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff !important; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none !important; display:inline-block; }
+
+    /* ── Layout ── */
+    .page { max-width:840px; margin:0 auto; padding:48px 24px; }
+
+    /* ── Page header ── */
+    .page-header { text-align:center; margin-bottom:40px; }
+    .page-header h1 { font-size:32px; font-weight:800; margin-bottom:10px; }
+    .page-header p  { color:var(--text-2); font-size:16px; line-height:1.6; }
+
+    /* ── Cards ── */
+    .card { background:var(--surface-1); border:1px solid var(--border); border-radius:16px; padding:32px; }
+
+    /* ── FAQ section ── */
+    .faq-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:40px; }
+    @media(max-width:600px) { .faq-grid { grid-template-columns:1fr; } }
+    .faq-card { background:var(--surface-1); border:1px solid var(--border); border-radius:14px; padding:20px; }
+    .faq-card h3 { font-size:14px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+    .faq-card p  { font-size:13px; color:var(--text-2); line-height:1.6; }
+
+    /* ── Form ── */
+    .form-section-title { font-size:20px; font-weight:700; margin-bottom:6px; }
+    .form-section-sub   { font-size:14px; color:var(--text-2); margin-bottom:28px; }
+    .form-row   { margin-bottom:20px; }
+    .form-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+    @media(max-width:560px) { .form-row-2 { grid-template-columns:1fr; } }
+    label { display:block; font-size:13px; font-weight:600; color:var(--text-2); margin-bottom:7px; }
+    input, select, textarea {
+      width:100%; background:var(--surface-2); border:1px solid var(--border);
+      border-radius:10px; padding:11px 14px; font-size:14px; color:var(--text-1);
+      font-family:var(--font); outline:none; transition:border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color:var(--purple-light); }
+    select option { background:var(--surface-2); }
+    textarea { resize:vertical; min-height:140px; line-height:1.6; }
+    .submit-btn {
+      width:100%; padding:14px; background:linear-gradient(135deg,#6366f1,#4f46e5);
+      color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700;
+      cursor:pointer; font-family:var(--font); transition:opacity .2s;
+    }
+    .submit-btn:hover { opacity:.9; }
+    .submit-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* ── Success state ── */
+    .success-box { display:none; text-align:center; padding:40px 32px; }
+    .success-box .s-icon { font-size:52px; margin-bottom:16px; }
+    .success-box h2 { font-size:22px; font-weight:700; margin-bottom:10px; }
+    .success-box p  { font-size:15px; color:var(--text-2); margin-bottom:24px; }
+
+    /* ── Contact info ── */
+    .contact-info { display:flex; align-items:center; gap:12px; padding:16px 20px; background:rgba(99,102,241,0.07); border:1px solid rgba(99,102,241,0.2); border-radius:12px; margin-top:28px; }
+    .contact-info p { font-size:13px; color:var(--text-2); }
+    .contact-info a { color:var(--purple-light); text-decoration:none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ Ready4Launch</a>
+  <div class="nav-links">
+    <a href="/app">App</a>
+    <a href="/profile">My Account</a>
+    <a href="/support" class="active">Support</a>
+    <a href="/auth/logout" style="color:var(--text-3);">Sign out</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="page-header">
+    <h1>Help &amp; Support</h1>
+    <p>Find quick answers below, or raise a ticket and we'll get back to you.</p>
+  </div>
+
+  <!-- ── FAQ cards ── -->
+  <div class="faq-grid">
+    <div class="faq-card">
+      <h3>🏗️ App not building?</h3>
+      <p>Check your prompt is descriptive enough. Try starting with "Build me a..." and include the purpose, audience, and any style preferences.</p>
+    </div>
+    <div class="faq-card">
+      <h3>🌐 Deployed site not loading?</h3>
+      <p>Cloudflare sites can take 60–90 seconds to propagate after first deploy. GitHub Pages sites can take 2–5 minutes. Refresh and try again.</p>
+    </div>
+    <div class="faq-card">
+      <h3>📦 Package / billing question?</h3>
+      <p>Visit <a href="/profile" style="color:var(--purple-light);">My Account</a> to see your current plan, usage, and expiry. Raise a ticket below if you need a refund or have a billing issue.</p>
+    </div>
+    <div class="faq-card">
+      <h3>🔗 GitHub connect issue?</h3>
+      <p>If your GitHub repos aren't loading, try signing out and signing back in via GitHub. Make sure you authorised Ready4Launch in your GitHub settings.</p>
+    </div>
+    <div class="faq-card">
+      <h3>📄 Document conversion failing?</h3>
+      <p>Make sure your message clearly states the format (e.g. "convert to Word" or "export as Excel"). Attachments must be under 10 MB.</p>
+    </div>
+    <div class="faq-card">
+      <h3>🖼️ Image analysis not working?</h3>
+      <p>Use the paperclip (📎) button to attach your image, then describe what you want to know. Supported: JPG, PNG, GIF, WEBP up to 10 MB.</p>
+    </div>
+  </div>
+
+  <!-- ── Ticket form ── -->
+  <div class="card" id="ticketCard">
+
+    <div id="formContent">
+      <div class="form-section-title">Raise a Support Ticket</div>
+      <div class="form-section-sub">Couldn't find your answer above? Fill in the form and we'll reply within 24 hours.</div>
+
+      <div class="form-row-2">
+        <div>
+          <label for="f-name">Your Name</label>
+          <input type="text" id="f-name" placeholder="e.g. Priya Sharma" />
+        </div>
+        <div>
+          <label for="f-email">Email Address</label>
+          <input type="email" id="f-email" placeholder="you@example.com" />
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div>
+          <label for="f-category">Issue Category</label>
+          <select id="f-category">
+            <option value="">Select a category…</option>
+            <option>App Building</option>
+            <option>Document Conversion</option>
+            <option>Image Analysis</option>
+            <option>Chat &amp; Reasoning</option>
+            <option>Account &amp; Billing</option>
+            <option>Technical Error</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="f-subject">Subject</label>
+          <input type="text" id="f-subject" placeholder="Brief summary of your issue" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="f-description">Description</label>
+        <textarea id="f-description" placeholder="Describe the issue in detail. Include what you tried, what you expected, and what happened. Any error messages are helpful too."></textarea>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="submitTicket()">Submit Ticket</button>
+
+      <div class="contact-info">
+        <span style="font-size:20px;">📧</span>
+        <p>You can also email us directly at <a href="mailto:keshav.karn@gmail.com">keshav.karn@gmail.com</a></p>
+      </div>
+    </div>
+
+    <!-- Success screen -->
+    <div class="success-box" id="successBox">
+      <div class="s-icon">✅</div>
+      <h2>Ticket Submitted!</h2>
+      <p>Thanks for reaching out. We'll review your issue and reply to your email within 24 hours.</p>
+      <a href="/app" class="btn-primary">Back to App</a>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// Pre-fill name/email from session
+(async () => {
+  try {
+    const r = await fetch('/auth/status');
+    const d = await r.json();
+    if (d.authenticated && d.user) {
+      const nameEl  = document.getElementById('f-name');
+      const emailEl = document.getElementById('f-email');
+      if (nameEl  && d.user.name  && !nameEl.value)  nameEl.value  = d.user.name;
+      if (emailEl && d.user.email && !emailEl.value) emailEl.value = d.user.email;
+    }
+  } catch (_) {}
+})();
+
+async function submitTicket() {
+  const btn  = document.getElementById('submitBtn');
+  const name = document.getElementById('f-name').value.trim();
+  const email     = document.getElementById('f-email').value.trim();
+  const category  = document.getElementById('f-category').value;
+  const subject   = document.getElementById('f-subject').value.trim();
+  const description = document.getElementById('f-description').value.trim();
+
+  if (!subject) { alert('Please enter a subject for your ticket.'); return; }
+  if (!description) { alert('Please describe your issue.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  try {
+    const res = await fetch('/api/support/ticket', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, category, subject, description }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      document.getElementById('formContent').style.display = 'none';
+      document.getElementById('successBox').style.display  = 'block';
+    } else {
+      alert(data.error || 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Submit Ticket';
+    }
+  } catch (_) {
+    alert('Network error — please check your connection and try again.');
+    btn.disabled = false;
+    btn.textContent = 'Submit Ticket';
+  }
+}
+</script>
+</body>
+</html>

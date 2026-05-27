@@ -9,6 +9,7 @@ const githubRoutes     = require('./routes/github');
 const convertRoutes    = require('./routes/convert');
 const cloudflareRoutes = require('./routes/cloudflare');
 const userRoutes       = require('./routes/user');
+const supportRoutes    = require('./routes/support');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +48,7 @@ app.use('/api', convertRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api', cloudflareRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/support', supportRoutes);
 
 // ── Telemetry receiver — in-memory deduplication cache ───────────
 // Prevents identical runtime errors from being processed multiple times.
@@ -126,15 +128,23 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// /app is open to all visitors — no auth gate.
-// GitHub auth is only required at the moment of deploying to GitHub Pages.
+// /app requires a session (Google or GitHub) — redirect guests to the landing page.
 app.get('/app', (req, res) => {
+  const authed =
+    !!req.session?.googleUser?.uid ||
+    !!(req.session?.githubToken && req.session?.user?.login);
+  if (!authed) return res.redirect('/');
   res.sendFile(path.join(__dirname, '..', 'public', 'app.html'));
 });
 
 // /profile — member area (served as static HTML; JS fetches /api/user/profile)
 app.get('/profile', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'profile.html'));
+});
+
+// /support — help & ticket submission page
+app.get('/support', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'support.html'));
 });
 
 // ── Start ─────────────────────────────────────────────────────────

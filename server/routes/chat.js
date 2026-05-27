@@ -261,9 +261,9 @@ router.post('/chat', requireAuth, async (req, res) => {
 
   const history = req.session.chatHistory;
   const isFirstMessage = history.length === 0;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const primaryKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey) {
+  if (!primaryKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
   }
 
@@ -276,6 +276,12 @@ router.post('/chat', requireAuth, async (req, res) => {
   );
   const gate = await checkGate(req, section, isNewConv);
   if (!gate.ok) return res.status(gate.status).json(gate);
+
+  // Test Drive users get their own API key (GEMINI_API_KEY_C) to isolate quota.
+  // Owner bypass and all paid plans use the primary key.
+  const apiKey = (gate.package === 'test_drive' && !gate.owner && process.env.GEMINI_API_KEY_C)
+    ? process.env.GEMINI_API_KEY_C
+    : primaryKey;
 
   // Record session start (non-blocking) — only on new conversations
   if (isNewConv && gate.uid) {

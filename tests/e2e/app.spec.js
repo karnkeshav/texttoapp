@@ -44,6 +44,28 @@ async function testLogin(page) {
   expect(res.status()).toBe(200);
 }
 
+/**
+ * After signing in and navigating to /app, the welcome cards are shown
+ * and the prompt bar is hidden until the user selects a mode.
+ * This helper clicks through Build App → Instant Publish to reveal the input.
+ */
+async function activateInputBar(page) {
+  // Wait for the welcome cards to appear (rendered after loadUser() resolves)
+  const firstCard = page.locator('.welcome-card').first();
+  await firstCard.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Click "Build an App"
+  await page.locator('.welcome-card', { hasText: 'Build an App' }).click();
+
+  // Sub-options: choose Instant Publish (no GitHub required in test env)
+  const instantCard = page.locator('.welcome-card', { hasText: 'Instant Publish' });
+  await instantCard.waitFor({ state: 'visible', timeout: 3000 });
+  await instantCard.click();
+
+  // Wait until the prompt bar is visible
+  await page.locator('#chatInput').waitFor({ state: 'visible', timeout: 3000 });
+}
+
 // ── Auth bypass ───────────────────────────────────────────────────────────────
 
 test.describe('Test auth bypass (NODE_ENV=test)', () => {
@@ -68,6 +90,7 @@ test.describe('App interface', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page);
     await page.goto('/app');
+    await activateInputBar(page);
   });
 
   test('shows the welcome screen on first load', async ({ page }) => {
@@ -117,6 +140,7 @@ test.describe('Chat — style question flow', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page);
     await page.goto('/app');
+    await activateInputBar(page);
   });
 
   test('welcome screen disappears after first message', async ({ page }) => {
@@ -190,6 +214,7 @@ test.describe('Deploy button', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page);
     await page.goto('/app');
+    await activateInputBar(page);
   });
 
   test('deploy button appears when AI returns REPO_NAME + html block', async ({ page }) => {
@@ -331,6 +356,7 @@ test.describe('Error handling', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page);
     await page.goto('/app');
+    await activateInputBar(page);
   });
 
   test('shows error message when server returns error event', async ({ page }) => {
@@ -381,6 +407,7 @@ test.describe('New conversation', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page);
     await page.goto('/app');
+    await activateInputBar(page);
   });
 
   test('clicking "New conversation" resets the chat UI', async ({ page }) => {
