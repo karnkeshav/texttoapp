@@ -101,9 +101,10 @@ const CONVERSION_RE = /\b(convert|export|save|turn|transform|put)\b.{0,40}\b(wor
 
 const REASONING_RE  = /\b(calculate|compute|solve|formula|equation|integral|derivative|proof|logic\s*puzzle|what\s+is\s+\d|how\s+many|percentage|convert\s+\d)\b|\d[\d\s]*[\+\-\*\/\^][\d\s\(\)]+=/i;
 
-// Image generation — "generate/create/draw/... an image/picture/photo/..."
+// Image generation — "generate/create/draw/... [any words] image/picture/..."
+// Allows adjectives/descriptors between the verb and the image noun.
 // Must NOT match when paired with a build-target noun (app, website, etc.)
-const IMAGE_GEN_RE = /\b(generate|create|draw|make|produce|render|paint|illustrate)\s+(?:a\s+|an\s+|me\s+a\s+|me\s+an\s+|some\s+)?(?:image|picture|photo(?:graph)?|illustration|artwork|drawing|painting|portrait|landscape|logo|icon|wallpaper|banner|thumbnail|visual|render|artwork)\b/i;
+const IMAGE_GEN_RE = /\b(generate|create|draw|make|produce|render|paint|illustrate)\b.{0,80}\b(image|picture|photo(?:graph)?|illustration|artwork|drawing|painting|portrait|landscape|logo|icon|wallpaper|banner|thumbnail|visual)\b/i;
 
 // Words that strongly signal the user wants to BUILD something (not just chat)
 const BUILD_SIGNAL_RE = /\b(build|create|make|generate|develop|design|i want (an?|the)|give me (an?|the)|i need (an?|the))\b.{0,50}\b(app|website|site|page|tool|dashboard|tracker|calculator|game|quiz|platform|portal|landing|shop|store)\b/i;
