@@ -17,8 +17,9 @@ test.describe('Landing page', () => {
 
   test('shows a "Sign in with GitHub" button', async ({ page }) => {
     await page.goto('/');
-    // Look for a link/button pointing to the GitHub OAuth route
-    const githubBtn = page.locator('a[href="/auth/github"]');
+    // There are multiple /auth/github links on the page (nav, hero, cards, footer).
+    // Use .first() so the assertion targets the nav button without strict-mode violation.
+    const githubBtn = page.locator('a[href="/auth/github"]').first();
     await expect(githubBtn).toBeVisible();
   });
 
