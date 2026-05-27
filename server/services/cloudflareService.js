@@ -165,9 +165,12 @@ async function deployToCloudflare(files, projectNameHint) {
   }
 
   const deployment = res.data?.result || {};
-  const liveUrl    = deployment.url || `https://${projectName}.pages.dev`;
+  // Always use the canonical project URL — deployment.url is an internal
+  // hash-prefixed preview URL (e.g. de308211.project.pages.dev) that Chrome
+  // refuses to navigate to and that doesn't represent the live site.
+  const liveUrl = `https://${projectName}.pages.dev`;
 
-  console.log(`[CF] Deployed → ${liveUrl}  (deployId: ${deployment.id})`);
+  console.log(`[CF] Deployed → ${liveUrl}  (deployId: ${deployment.id}, rawUrl: ${deployment.url})`);
   return {
     url:          liveUrl,
     projectName,

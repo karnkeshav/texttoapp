@@ -889,7 +889,9 @@ async function deployToCloudflarePages(fileId, btn) {
         <div class="push-success">
           <h4>🎉 Your app is live!</h4>
           <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-            Published and live instantly — share the link below with anyone.
+            Your site has been published. Click the link below to open it —
+            if it shows "not found" for the first few seconds, wait 30–60 seconds and refresh.
+            New deployments take a moment to go live globally.
           </p>
           <p style="margin-bottom:8px;">
             🔗 <strong>Live URL:</strong>
