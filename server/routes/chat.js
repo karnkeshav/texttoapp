@@ -257,8 +257,9 @@ Be helpful and concise. Do NOT output REPO_NAME or HTML code blocks unless the u
         contents:          [{ role: 'user', parts }],
         config:            { temperature: 0.5, maxOutputTokens: 8192 },
         apiKey,
-        systemInstruction: SYS_VISION,
+        tier:              'build',            // build-tier = best vision/reasoning models
         multimodal:        isImageAttachment,  // new-SDK-only slots for inlineData
+        systemInstruction: SYS_VISION,
         onChunk: (t) => sendEvent('chunk', { text: t }),
         onDone:  (t) => { responseText = t; },
       });
@@ -301,6 +302,7 @@ Be helpful and concise. Do NOT output REPO_NAME or HTML code blocks unless the u
           contents:          [{ role: 'user', parts: [{ text: trimmedMessage }] }],
           config:            { temperature: 0.5, maxOutputTokens: 8192 },
           apiKey,
+          tier:              'chat',           // chat-tier: lite models + Gemma
           systemInstruction: sysMap[intent],
           onChunk,
           onDone,
@@ -333,6 +335,7 @@ Be helpful and concise. Do NOT output REPO_NAME or HTML code blocks unless the u
         })),
         config:            { temperature: 0.5, maxOutputTokens: 8192 },
         apiKey,
+        tier:              'chat',             // chat-tier: lite models + Gemma
         systemInstruction: sys,
         onChunk,
         onDone,

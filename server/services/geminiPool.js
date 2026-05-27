@@ -2,82 +2,111 @@
 /**
  * geminiPool.js — Multi-SDK, multi-model Gemini fallback pool
  *
- * Discovery results (scripts/discover-models.js — run to refresh):
- *   ✅ Free-tier, both SDKs:  gemini-3.5-flash, gemini-2.5-flash, gemini-3.1-flash-lite,
- *                              gemini-3-flash-preview, gemini-2.5-flash-lite,
- *                              gemini-flash-latest, gemini-flash-lite-latest
- *   ✅ Legacy SDK only:       gemma-4-31b-it, gemma-4-26b-a4b-it  (BAD_REQUEST on new SDK)
- *   ❌ Needs billing:         gemini-2.5-pro, gemini-2.0-*, gemini-3-pro-*, gemini-3.1-pro-*
- *   ❌ Not found:             gemini-3.1-flash-lite-preview
+ * Confirmed free-tier model status (last tested 2026-05-27):
+ *   ✅ new + legacy : gemini-2.5-flash, gemini-2.5-flash-lite, gemini-3.1-flash-lite,
+ *                     gemini-flash-lite-latest
+ *   ✅ new only     : gemini-3-flash-preview  (legacy gives GoogleGenerativeAI error)
+ *   ✅ legacy only  : gemma-4-31b-it, gemma-4-26b-a4b-it  (BAD_REQUEST on new SDK)
+ *   ⏳ rate-limited : gemini-3.5-flash, gemini-flash-latest  (429 under load, still usable)
+ *   ❌ needs billing: gemini-2.5-pro, gemini-2.0-*, gemini-3-pro-*, gemini-3.1-pro-*,
+ *                     antigravity-preview-05-2026
+ *   ❌ not found    : gemini-3.1-flash-lite-preview
+ *
+ * TWO-TIER POOL — every slot has a `tier` property:
+ *
+ *   tier: 'build'  → highest-quality models; used for app generation, plan analysis,
+ *                    code repair, edit mode, and vision/multimodal.
+ *                    Models: gemini-2.5-flash, gemini-3.5-flash, gemini-3-flash-preview,
+ *                            gemini-flash-latest
+ *
+ *   tier: 'chat'   → lighter/faster models; used for conversational intents
+ *                    (chat, reasoning, conversion). Gemma included here.
+ *                    Falls back to build-tier models when all chat slots are exhausted.
+ *                    Models: gemini-2.5-flash-lite, gemini-3.1-flash-lite,
+ *                            gemini-flash-lite-latest, gemma-4-31b-it, gemma-4-26b-a4b-it
+ *
+ * Callers pass `tier: 'build'` (default) or `tier: 'chat'` to pooledStream/pooledGenerate.
+ * Vision/multimodal callers also pass `multimodal: true` which restricts to new-SDK slots
+ * (legacy SDK cannot handle inlineData parts).
  *
  * Pool behaviour:
- *   - Tries slots in order on every call (first = highest priority)
+ *   - Tries slots in order on every call (first = highest priority within tier)
  *   - On 429 / quota error: marks that slot cooling for COOLDOWN_MS, tries next slot
  *   - On 404 / permanent error: marks slot dead for this process lifetime
- *   - On full exhaustion: waits out shortest cooldown and retries once
- *   - Each model has its OWN per-minute quota — 9 working models = 9× the capacity
- *
- * To add billing-enabled models: uncomment entries in the BILLING section below.
+ *   - On full primary exhaustion: chat falls back to build tier; build waits cooldown
+ *   - Billing-enabled models: uncomment entries in the BILLING section below
  */
 
 const { GoogleGenAI }        = require('@google/genai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // ── Pool configuration ────────────────────────────────────────────────────────
-// Order = priority. Earlier = tried first. Each model has independent quota.
-// generate = one-shot (plan phase, code repair)   stream = SSE chat
+// tier: 'build' → app generation, plan analysis, code repair, vision
+// tier: 'chat'  → conversational intents (lightweight, fast)
+// mode: 'generate' | 'stream'
 const POOL_CONFIG = [
 
-  // ── Tier 1: Newest / highest-capability flash models ─────────────────────
-  { sdk: 'new',    model: 'gemini-3.5-flash',       mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-3.5-flash',       mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-3.5-flash',       mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-3.5-flash',       mode: 'stream'   },
+  // ════════════════════════════════════════════════════════════════════════════
+  // BUILD TIER — highest-quality models for code generation + reasoning
+  // Priority: gemini-2.5-flash first (stable), then 3.5/preview (higher per-minute quota)
+  // ════════════════════════════════════════════════════════════════════════════
 
-  { sdk: 'new',    model: 'gemini-2.5-flash',       mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-2.5-flash',       mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-2.5-flash',       mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-2.5-flash',       mode: 'stream'   },
+  { sdk: 'new',    model: 'gemini-2.5-flash',         mode: 'generate', tier: 'build' },
+  { sdk: 'new',    model: 'gemini-2.5-flash',         mode: 'stream',   tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-2.5-flash',         mode: 'generate', tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-2.5-flash',         mode: 'stream',   tier: 'build' },
 
-  { sdk: 'new',    model: 'gemini-3.1-flash-lite',  mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-3.1-flash-lite',  mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-3.1-flash-lite',  mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-3.1-flash-lite',  mode: 'stream'   },
+  // gemini-3.5-flash — newest model; gets 429 under load but still usable
+  { sdk: 'new',    model: 'gemini-3.5-flash',         mode: 'generate', tier: 'build' },
+  { sdk: 'new',    model: 'gemini-3.5-flash',         mode: 'stream',   tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-3.5-flash',         mode: 'generate', tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-3.5-flash',         mode: 'stream',   tier: 'build' },
 
-  { sdk: 'new',    model: 'gemini-3-flash-preview',  mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-3-flash-preview',  mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-3-flash-preview',  mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-3-flash-preview',  mode: 'stream'   },
+  // gemini-3-flash-preview — new SDK only (legacy gives error, skip those entries)
+  { sdk: 'new',    model: 'gemini-3-flash-preview',   mode: 'generate', tier: 'build' },
+  { sdk: 'new',    model: 'gemini-3-flash-preview',   mode: 'stream',   tier: 'build' },
 
-  // ── Tier 2: Lighter / alias models ───────────────────────────────────────
-  { sdk: 'new',    model: 'gemini-2.5-flash-lite',  mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-2.5-flash-lite',  mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',  mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',  mode: 'stream'   },
+  // gemini-flash-latest — alias model; rate-limited but adds capacity
+  { sdk: 'new',    model: 'gemini-flash-latest',      mode: 'generate', tier: 'build' },
+  { sdk: 'new',    model: 'gemini-flash-latest',      mode: 'stream',   tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-flash-latest',      mode: 'generate', tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-flash-latest',      mode: 'stream',   tier: 'build' },
 
-  { sdk: 'new',    model: 'gemini-flash-latest',    mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-flash-latest',    mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-flash-latest',    mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-flash-latest',    mode: 'stream'   },
+  // ════════════════════════════════════════════════════════════════════════════
+  // CHAT TIER — lightweight models for conversational / reasoning / conversion
+  // All lite models confirmed working. Gemma legacy-only (new SDK: BAD_REQUEST).
+  // When all chat slots are exhausted, pooledStream/pooledGenerate auto-fall back
+  // to build-tier models (handled in the loop logic below).
+  // ════════════════════════════════════════════════════════════════════════════
 
-  { sdk: 'new',    model: 'gemini-flash-lite-latest', mode: 'generate' },
-  { sdk: 'new',    model: 'gemini-flash-lite-latest', mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemini-flash-lite-latest', mode: 'generate' },
-  { sdk: 'legacy', model: 'gemini-flash-lite-latest', mode: 'stream'   },
+  { sdk: 'new',    model: 'gemini-2.5-flash-lite',    mode: 'generate', tier: 'chat' },
+  { sdk: 'new',    model: 'gemini-2.5-flash-lite',    mode: 'stream',   tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',    mode: 'generate', tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',    mode: 'stream',   tier: 'chat' },
 
-  // ── Tier 3: Gemma open-source (legacy SDK only — new SDK returns BAD_REQUEST)
-  { sdk: 'legacy', model: 'gemma-4-31b-it',          mode: 'generate' },
-  { sdk: 'legacy', model: 'gemma-4-31b-it',          mode: 'stream'   },
-  { sdk: 'legacy', model: 'gemma-4-26b-a4b-it',      mode: 'generate' },
-  { sdk: 'legacy', model: 'gemma-4-26b-a4b-it',      mode: 'stream'   },
+  { sdk: 'new',    model: 'gemini-3.1-flash-lite',    mode: 'generate', tier: 'chat' },
+  { sdk: 'new',    model: 'gemini-3.1-flash-lite',    mode: 'stream',   tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-3.1-flash-lite',    mode: 'generate', tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-3.1-flash-lite',    mode: 'stream',   tier: 'chat' },
 
-  // ── Billing-enabled (uncomment when you add a payment method) ────────────
-  // { sdk: 'new',    model: 'gemini-2.5-pro',          mode: 'generate' },
-  // { sdk: 'new',    model: 'gemini-2.5-pro',          mode: 'stream'   },
-  // { sdk: 'new',    model: 'gemini-2.0-flash',        mode: 'generate' },
-  // { sdk: 'new',    model: 'gemini-2.0-flash',        mode: 'stream'   },
-  // { sdk: 'new',    model: 'gemini-3.1-pro-preview',  mode: 'generate' },
-  // { sdk: 'new',    model: 'gemini-3.1-pro-preview',  mode: 'stream'   },
+  { sdk: 'new',    model: 'gemini-flash-lite-latest', mode: 'generate', tier: 'chat' },
+  { sdk: 'new',    model: 'gemini-flash-lite-latest', mode: 'stream',   tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-flash-lite-latest', mode: 'generate', tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-flash-lite-latest', mode: 'stream',   tier: 'chat' },
+
+  // Gemma — open-source; legacy SDK only
+  { sdk: 'legacy', model: 'gemma-4-31b-it',           mode: 'generate', tier: 'chat' },
+  { sdk: 'legacy', model: 'gemma-4-31b-it',           mode: 'stream',   tier: 'chat' },
+  { sdk: 'legacy', model: 'gemma-4-26b-a4b-it',       mode: 'generate', tier: 'chat' },
+  { sdk: 'legacy', model: 'gemma-4-26b-a4b-it',       mode: 'stream',   tier: 'chat' },
+
+  // ── Billing-enabled (uncomment when a payment method is added) ────────────
+  // { sdk: 'new',    model: 'gemini-2.5-pro',           mode: 'generate', tier: 'build' },
+  // { sdk: 'new',    model: 'gemini-2.5-pro',           mode: 'stream',   tier: 'build' },
+  // { sdk: 'new',    model: 'gemini-2.0-flash',         mode: 'generate', tier: 'build' },
+  // { sdk: 'new',    model: 'gemini-2.0-flash',         mode: 'stream',   tier: 'build' },
+  // { sdk: 'new',    model: 'gemini-3.1-pro-preview',   mode: 'generate', tier: 'build' },
+  // { sdk: 'new',    model: 'gemini-3.1-pro-preview',   mode: 'stream',   tier: 'build' },
 ];
 
 const COOLDOWN_MS = 60_000; // 1 min cooldown after 429
@@ -200,6 +229,27 @@ async function legacySDKStream(model, contents, config, apiKey, systemInstructio
   };
 }
 
+// ── Slot selector ─────────────────────────────────────────────────
+/**
+ * Returns the ordered slot list for a given (mode, tier, multimodal) combination.
+ * Chat tier: primary chat slots first, then build slots as automatic fallback.
+ * Build tier: build slots only (no chat fallback — build needs best quality).
+ * multimodal: restricts to new-SDK slots (legacy wrapper drops inlineData).
+ */
+function selectSlots(mode, tier, multimodal) {
+  const all = POOL_CONFIG.map((slot, i) => ({ slot, i }));
+  const matches = (t) => (s) =>
+    s.slot.mode === mode &&
+    s.slot.tier === t &&
+    (!multimodal || s.slot.sdk === 'new');
+
+  if (tier === 'chat') {
+    // Try chat-tier slots first, then fall back to build-tier
+    return [...all.filter(matches('chat')), ...all.filter(matches('build'))];
+  }
+  return all.filter(matches('build'));
+}
+
 // ── Public: one-shot generation (plan phase, repair pass, diagnose) ─
 /**
  * Tries generate slots in order, falls back on quota errors.
@@ -207,12 +257,11 @@ async function legacySDKStream(model, contents, config, apiKey, systemInstructio
  * @param {Array}  opts.contents   - [{role, parts:[{text}]}]
  * @param {object} opts.config     - {temperature, maxOutputTokens, ...}
  * @param {string} opts.apiKey
+ * @param {string} [opts.tier]     - 'build' (default) | 'chat'
  * @returns {Promise<string>}      - extracted text
  */
-async function pooledGenerate({ contents, config, apiKey }) {
-  const generateSlots = POOL_CONFIG
-    .map((slot, i) => ({ slot, i }))
-    .filter(({ slot }) => slot.mode === 'generate');
+async function pooledGenerate({ contents, config, apiKey, tier = 'build' }) {
+  const generateSlots = selectSlots('generate', tier, false);
 
   // First pass — try available slots
   for (const { slot, i } of generateSlots) {
@@ -222,7 +271,7 @@ async function pooledGenerate({ contents, config, apiKey }) {
         ? await newSDKGenerate(slot.model, contents, config, apiKey)
         : await legacySDKGenerate(slot.model, contents, config, apiKey);
       const text = extractText(raw, slot.sdk);
-      console.log(`[GeminiPool] generate ✅ slot ${i} (${slot.sdk}/${slot.model})`);
+      console.log(`[GeminiPool] generate ✅ slot ${i} (${slot.sdk}/${slot.model}) [${slot.tier}]`);
       return text;
     } catch (err) {
       if (isQuotaError(err))  { markCooling(i); continue; }
@@ -240,7 +289,7 @@ async function pooledGenerate({ contents, config, apiKey }) {
   if (cooling.length > 0) {
     const { slot, i } = cooling[0];
     const wait = Math.max(0, slotState[i].coolUntil - Date.now());
-    console.warn(`[GeminiPool] All slots cooling — waiting ${Math.ceil(wait / 1000)}s for slot ${i}`);
+    console.warn(`[GeminiPool] All generate slots cooling — waiting ${Math.ceil(wait / 1000)}s for slot ${i} [${slot.tier}]`);
     await new Promise(r => setTimeout(r, wait + 500));
     try {
       const raw = slot.sdk === 'new'
@@ -262,19 +311,18 @@ async function pooledGenerate({ contents, config, apiKey }) {
 // ── Public: streaming generation (main chat) ─────────────────────
 /**
  * Streams through pool slots. Falls back to next slot on quota error.
- * @param {object} opts
- * @param {Array}  opts.contents
- * @param {object} opts.config
- * @param {string} opts.apiKey
- * @param {string} opts.systemInstruction
- * @param {Function} opts.onChunk     - (text: string) => void
- * @param {Function} opts.onDone      - (fullText: string) => void
- * @param {boolean}  opts.multimodal  - when true, only use new-SDK slots (inlineData support)
+ * @param {object}   opts
+ * @param {Array}    opts.contents
+ * @param {object}   opts.config
+ * @param {string}   opts.apiKey
+ * @param {string}   opts.systemInstruction
+ * @param {Function} opts.onChunk      - (text: string) => void
+ * @param {Function} opts.onDone       - (fullText: string) => void
+ * @param {string}   [opts.tier]       - 'build' (default) | 'chat'
+ * @param {boolean}  [opts.multimodal] - true = new-SDK slots only (inlineData support)
  */
-async function pooledStream({ contents, config, apiKey, systemInstruction, onChunk, onDone, multimodal = false }) {
-  const streamSlots = POOL_CONFIG
-    .map((slot, i) => ({ slot, i }))
-    .filter(({ slot }) => slot.mode === 'stream' && (!multimodal || slot.sdk === 'new'));
+async function pooledStream({ contents, config, apiKey, systemInstruction, onChunk, onDone, tier = 'build', multimodal = false }) {
+  const streamSlots = selectSlots('stream', tier, multimodal);
 
   for (const { slot, i } of streamSlots) {
     if (!isAvailable(i)) continue;
@@ -288,7 +336,7 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
         const text = chunk.text || '';
         if (text) { fullText += text; onChunk(text); }
       }
-      console.log(`[GeminiPool] stream ✅ slot ${i} (${slot.sdk}/${slot.model})`);
+      console.log(`[GeminiPool] stream ✅ slot ${i} (${slot.sdk}/${slot.model}) [${slot.tier}]`);
       onDone(fullText);
       return;
     } catch (err) {
@@ -299,7 +347,7 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
     }
   }
 
-  // Cooldown wait fallback (same as generate)
+  // Cooldown wait fallback — wait out the shortest cooldown across all selected slots
   const cooling = streamSlots
     .filter(({ i }) => !slotState[i].dead && slotState[i].coolUntil > 0)
     .sort((a, b) => slotState[a.i].coolUntil - slotState[b.i].coolUntil);
@@ -307,7 +355,7 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
   if (cooling.length > 0) {
     const { slot, i } = cooling[0];
     const wait = Math.max(0, slotState[i].coolUntil - Date.now());
-    console.warn(`[GeminiPool] All stream slots cooling — waiting ${Math.ceil(wait / 1000)}s for slot ${i}`);
+    console.warn(`[GeminiPool] All stream slots cooling — waiting ${Math.ceil(wait / 1000)}s for slot ${i} [${slot.tier}]`);
     await new Promise(r => setTimeout(r, wait + 500));
     try {
       const stream = slot.sdk === 'new'
@@ -335,9 +383,10 @@ async function pooledStream({ contents, config, apiKey, systemInstruction, onChu
 function poolStatus() {
   return POOL_CONFIG.map((slot, i) => ({
     slot: i,
-    sdk:  slot.sdk,
+    sdk:   slot.sdk,
     model: slot.model,
-    mode: slot.mode,
+    mode:  slot.mode,
+    tier:  slot.tier,
     available: isAvailable(i),
     dead: slotState[i].dead,
     coolUntil: slotState[i].coolUntil > Date.now()
