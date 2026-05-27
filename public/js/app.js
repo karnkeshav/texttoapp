@@ -5,6 +5,15 @@ let isNewConversation = true;
 const pendingFiles = new Map(); // fileId → { repoName, files }
 let fileIdCounter = 0;
 
+// ── Deploy mode — set from URL param ?mode=cloudflare ────────────
+// 'github'     → user arrived via /auth/github, deploy to GitHub Pages
+// 'cloudflare' → user arrived via ?mode=cloudflare, deploy to CF Pages
+// null         → direct access; deploy buttons show both options
+const _urlMode = new URLSearchParams(window.location.search).get('mode');
+let deployMode = (_urlMode === 'cloudflare') ? 'cloudflare'
+               : (_urlMode === 'github')     ? 'github'
+               : null; // will be resolved after auth check
+
 // ── Edit mode state ───────────────────────────────────────────────
 let editModeActive = null; // null | { owner, repo }
 
@@ -84,49 +93,74 @@ function clearAttachment() {
 window.addEventListener('DOMContentLoaded', async () => {
   await loadUser();
   autoResize(document.getElementById('chatInput'));
+  updateWelcomeForMode();
 });
 
-// ── User profile ─────────────────────────────────────────────────
+// ── User profile — never redirects; app is open to all ───────────
 async function loadUser() {
-  try {
-    const res = await fetch('/auth/status');
-    const data = await res.json();
-    if (!data.authenticated) { window.location.href = '/'; return; }
-    const { login, name, avatarUrl } = data.user;
-    const hasGitHub = !!data.hasGitHub;
-    const hasGoogle = !!data.hasGoogle;
+  const ghBanner   = document.getElementById('connectGithubBanner');
+  const repoSection = document.getElementById('repoSection');
+  const subEl      = document.getElementById('userSub');
+  const avatarEl   = document.getElementById('userAvatar');
+  const nameEl     = document.getElementById('userName');
 
-    // Avatar
-    const avatarEl = document.getElementById('userAvatar');
+  try {
+    const res  = await fetch('/auth/status');
+    const data = await res.json();
+
+    if (!data.authenticated) {
+      // Guest / Cloudflare mode — no GitHub session
+      if (avatarEl) avatarEl.textContent = '⚡';
+      if (nameEl)   nameEl.textContent   = deployMode === 'cloudflare' ? 'Cloudflare mode' : 'Ready4Launch';
+      if (subEl)    subEl.textContent    = deployMode === 'cloudflare'
+        ? 'Deploys to Cloudflare Pages'
+        : 'Connect GitHub to deploy apps';
+
+      // Cloudflare mode: hide repo panel; also hide "Connect GitHub" banner
+      if (ghBanner)    ghBanner.style.display    = (deployMode !== 'cloudflare') ? 'block' : 'none';
+      if (repoSection) repoSection.style.display = 'none';
+
+      // If no explicit mode, default to Cloudflare so the build still works
+      if (!deployMode) deployMode = 'cloudflare';
+      return;
+    }
+
+    // GitHub session active
+    const { login, name, avatarUrl } = data.user;
+    deployMode = deployMode || 'github'; // default when arriving via /auth/github
+
     if (avatarUrl) {
       avatarEl.innerHTML = `<img src="${avatarUrl}" alt="${escapeHtml(name || login)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
-    } else {
+    } else if (avatarEl) {
       avatarEl.textContent = (name || login)[0].toUpperCase();
     }
+    if (nameEl) nameEl.textContent = name || `@${login}`;
+    if (subEl)  subEl.textContent  = 'GitHub connected';
 
-    // Name
-    document.getElementById('userName').textContent = name || `@${login}`;
-
-    // Sub-text — shows which accounts are connected
-    const subEl = document.getElementById('userSub');
-    if (subEl) {
-      if (hasGoogle && hasGitHub) subEl.textContent = 'Google + GitHub connected';
-      else if (hasGoogle)         subEl.textContent = 'Signed in with Google';
-      else if (hasGitHub)         subEl.textContent = 'GitHub connected';
-      else                        subEl.textContent = 'Signed in';
-    }
-
-    // Show "Connect GitHub" banner only if Google-only (no GitHub)
-    const ghBanner = document.getElementById('connectGithubBanner');
-    const repoSection = document.getElementById('repoSection');
-    if (ghBanner)    ghBanner.style.display    = (hasGoogle && !hasGitHub) ? 'block' : 'none';
-    if (repoSection) repoSection.style.display = hasGitHub ? 'flex' : 'none';
-
-    // Load repos only when GitHub is available
-    if (hasGitHub) loadUserRepos();
+    if (ghBanner)    ghBanner.style.display    = 'none';
+    if (repoSection) repoSection.style.display = 'flex';
+    loadUserRepos();
 
   } catch {
-    window.location.href = '/';
+    // Fail silently — app still usable without auth info
+    if (deployMode === null) deployMode = 'cloudflare';
+  }
+}
+
+// ── Adapt welcome screen copy to deploy mode ──────────────────────
+function updateWelcomeForMode() {
+  const titleEl  = document.getElementById('welcomeTitle');
+  const subEl2   = document.getElementById('welcomeSub');
+  const inputEl  = document.getElementById('chatInput');
+  const topbarEl = document.getElementById('topbarSub');
+
+  if (deployMode === 'cloudflare') {
+    if (titleEl)  titleEl.textContent  = 'What do you want to build?';
+    if (subEl2)   subEl2.textContent   = 'Describe your app in plain English. Ready4Launch will ask a few questions, build it, and deploy to Cloudflare Pages — no GitHub account needed.';
+    if (inputEl)  inputEl.placeholder  = 'Describe the app you want to build… (deploys to Cloudflare Pages)';
+    if (topbarEl) topbarEl.textContent = 'Cloudflare Pages mode — no GitHub needed';
+  } else if (deployMode === 'github') {
+    if (topbarEl) topbarEl.textContent = 'GitHub Pages mode — deploy to your repo';
   }
 }
 
@@ -506,7 +540,12 @@ function checkForCode(text) {
   if (cssMatch) files.push({ path: 'style.css',  content: cssMatch[1].trim() });
   if (jsMatch)  files.push({ path: 'script.js',  content: jsMatch[1].trim() });
 
-  showDeployPrompt(repoName, files);
+  // Route to the correct deploy prompt based on mode
+  if (deployMode === 'cloudflare') {
+    showCloudflareDeployPrompt(repoName, files);
+  } else {
+    showDeployPrompt(repoName, files);
+  }
 }
 
 // ── Download options card (conversion mode) ──────────────────────
@@ -780,6 +819,83 @@ async function deployToGitHub(fileId, btn) {
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'Retry deployment';
+  }
+  scrollToBottom();
+}
+
+// ── Cloudflare Pages deploy ───────────────────────────────────────
+function showCloudflareDeployPrompt(projectName, files) {
+  const fileId = `fid-${++fileIdCounter}`;
+  pendingFiles.set(fileId, { projectName, files });
+
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
+  div.innerHTML = `
+    <div style="background:rgba(246,130,31,0.08);border:1px solid rgba(246,130,31,0.3);border-radius:14px;padding:24px;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🌐 Your app is ready to deploy!</div>
+      <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
+        Ready4Launch will deploy <strong style="color:#f6821f;">${escapeHtml(projectName)}</strong> to
+        <strong>Cloudflare Pages</strong> — no GitHub account needed. Your live URL will appear below.
+      </p>
+      <button data-fileid="${fileId}" onclick="deployToCloudflarePages(this.dataset.fileid, this)"
+              style="background:linear-gradient(135deg,#f6821f,#d96a0b);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
+        <svg viewBox="0 0 32 20" fill="none" width="22" height="14"><path d="M22.3 6.6c-.1-.5-.4-1-.8-1.4A5.8 5.8 0 0 0 10.8 7c-.1.5-.1 1 0 1.4a4 4 0 1 0 .6 8H22a4 4 0 0 0 .3-8.4z" fill="#F6821F"/><path d="M22 9.8a4 4 0 0 0-.4-.1l-.2-.7a5.7 5.7 0 0 0-10.8-.3 4 4 0 1 0 .5 7.9H22a4 4 0 0 0 0-7.8z" fill="#FBAD41"/></svg>
+        Deploy to Cloudflare Pages
+      </button>
+    </div>`;
+  container.appendChild(div);
+  scrollToBottom();
+}
+
+async function deployToCloudflarePages(fileId, btn) {
+  const pending = pendingFiles.get(fileId);
+  if (!pending) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span style="opacity:0.7">Deploying to Cloudflare…</span>';
+
+  const { projectName, files } = pending;
+  const card = btn.closest('div[style*="border-radius:14px"]');
+
+  try {
+    const res  = await fetch('/api/cloudflare/deploy', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ projectName, files }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      card.innerHTML = `
+        <div class="push-success">
+          <h4>🎉 Your site is live on Cloudflare!</h4>
+          <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
+            Deployed to Cloudflare Pages. The URL below is live immediately — no waiting.
+          </p>
+          <p style="margin-bottom:8px;">
+            🔗 <strong>Live URL:</strong>
+            <a href="${data.url}" target="_blank" rel="noopener" style="color:#f6821f;">${data.url}</a>
+          </p>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:0;">
+            Project: ${escapeHtml(data.projectName)}
+          </p>
+        </div>`;
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Retry deployment';
+      const errEl = document.createElement('p');
+      errEl.style.cssText = 'color:#f87171;font-size:13px;margin-top:10px;margin-bottom:0;';
+      errEl.textContent = `⚠️ ${data.error || 'Deployment failed. Please try again.'}`;
+      btn.insertAdjacentElement('afterend', errEl);
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Retry deployment';
+    const errEl = document.createElement('p');
+    errEl.style.cssText = 'color:#f87171;font-size:13px;margin-top:10px;margin-bottom:0;';
+    errEl.textContent = '⚠️ Network error — please check your connection and retry.';
+    btn.insertAdjacentElement('afterend', errEl);
   }
   scrollToBottom();
 }

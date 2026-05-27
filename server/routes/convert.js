@@ -15,11 +15,8 @@ const router = express.Router();
 
 const ALLOWED_FORMATS = new Set(['docx', 'xlsx', 'pptx', 'pdf', 'csv', 'json']);
 
-function requireAuth(req, res, next) {
-  if (!req.session.githubToken && !req.session.googleUser)
-    return res.status(401).json({ error: 'Not authenticated' });
-  next();
-}
+// Convert is open to all visitors — no auth required.
+function requireAuth(_req, _res, next) { next(); }
 
 router.post('/convert-file', requireAuth, async (req, res) => {
   const { content, format, filename = 'document' } = req.body;

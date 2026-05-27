@@ -3,10 +3,11 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 
-const authRoutes    = require('./routes/auth');
-const chatRoutes    = require('./routes/chat');
-const githubRoutes  = require('./routes/github');
-const convertRoutes = require('./routes/convert');
+const authRoutes       = require('./routes/auth');
+const chatRoutes       = require('./routes/chat');
+const githubRoutes     = require('./routes/github');
+const convertRoutes    = require('./routes/convert');
+const cloudflareRoutes = require('./routes/cloudflare');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,7 @@ app.use('/auth', authRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', convertRoutes);
 app.use('/api/github', githubRoutes);
+app.use('/api', cloudflareRoutes);
 
 // ── Telemetry receiver — in-memory deduplication cache ───────────
 // Prevents identical runtime errors from being processed multiple times.
@@ -122,9 +124,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// /app is open to all visitors — no auth gate.
+// GitHub auth is only required at the moment of deploying to GitHub Pages.
 app.get('/app', (req, res) => {
-  if (!req.session.githubToken && !req.session.googleUser)
-    return res.redirect('/?error=not_authenticated');
   res.sendFile(path.join(__dirname, '..', 'public', 'app.html'));
 });
 

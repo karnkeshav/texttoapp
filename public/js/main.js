@@ -189,18 +189,16 @@ function scrollToGuide() {
 }
 
 // ── Auth status ──────────────────────────────────────────────────
+// If the visitor already has a GitHub session, replace the "Connect GitHub"
+// landing-page buttons with a direct "Open app" link.
 async function checkAuthStatus() {
   try {
     const res = await fetch('/auth/status');
     const data = await res.json();
     if (data.authenticated) {
-      // Replace all auth entry-point links with "Open app" button
-      const openAppHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        Open Ready4Launch →`;
+      const openAppHTML  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Open Ready4Launch →`;
       const openAppStyle = 'background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-color:transparent;';
-
-      document.querySelectorAll('a[href="/auth/google"], a[href="/auth/github"]').forEach(btn => {
+      document.querySelectorAll('a[href="/auth/github"]').forEach(btn => {
         btn.href = '/app';
         btn.innerHTML = openAppHTML;
         btn.style.cssText += openAppStyle;

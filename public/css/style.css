@@ -598,6 +598,43 @@ body {
   transform: translateY(-3px);
 }
 
+/* ── Build card — two deploy option buttons ── */
+.build-deploy-options {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.build-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 140px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.build-opt strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.build-opt small  { display: block; font-size: 11px; color: var(--text-3); font-weight: 400; }
+.build-opt-github:hover {
+  border-color: rgba(36,41,47,0.5);
+  background: rgba(36,41,47,0.06);
+  transform: translateY(-1px);
+}
+.build-opt-cf:hover {
+  border-color: rgba(246,130,31,0.5);
+  background: rgba(246,130,31,0.06);
+  transform: translateY(-1px);
+}
+
 /* ── GitHub-required cap badge ─────────────── */
 .cap-badge-github {
   background: rgba(36,41,47,0.12);

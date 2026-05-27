@@ -220,11 +220,9 @@ function defaultStyleQuestion() {
 Or just describe your own — colours, a brand you like, any mood words. Anything helps!`;
 }
 
-function requireAuth(req, res, next) {
-  if (!req.session.githubToken && !req.session.googleUser)
-    return res.status(401).json({ error: 'Not authenticated' });
-  next();
-}
+// No authentication required — chat, analyse, and convert are open to all visitors.
+// GitHub session is only checked during deploy (in the github routes).
+function requireAuth(_req, _res, next) { next(); }
 
 // ── Route ─────────────────────────────────────────────────────────
 router.post('/chat', requireAuth, async (req, res) => {
