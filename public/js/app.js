@@ -504,43 +504,56 @@ function showDownloadOptions(aiMsgId, content, detectedFormat) {
   const bubble = document.getElementById(`${aiMsgId}-bubble`);
   if (!bubble) return;
 
-  // Build format buttons — detected format first and highlighted
+  // Build card structure with DOM (never embed content in onclick attributes —
+  // JSON.stringify produces double-quoted strings that break HTML attribute parsing)
+  const card = document.createElement('div');
+  card.className = 'download-card';
+
+  const label = document.createElement('div');
+  label.className = 'download-card-label';
+  label.textContent = '⬇️ Download as';
+
+  const row = document.createElement('div');
+  row.className = 'download-format-row';
+
+  const statusDiv = document.createElement('div');
+  statusDiv.className = 'download-card-status';
+  statusDiv.id = `dl-status-${aiMsgId}`;
+
+  // Detected format goes first and gets the filled-purple style
   const allFormats = Object.entries(FORMAT_LABELS);
   const ordered = [
     ...allFormats.filter(([k]) => k === detectedFormat),
     ...allFormats.filter(([k]) => k !== detectedFormat),
   ];
 
-  const buttons = ordered.map(([fmt, { label, icon }]) => {
-    const isDefault = fmt === detectedFormat;
-    return `<button
-      class="dl-format-btn${isDefault ? ' dl-format-btn--primary' : ''}"
-      onclick="downloadAs(this, ${JSON.stringify(fmt)}, ${JSON.stringify(content)})"
-      title="Download as ${label}"
-    >${icon} ${label}</button>`;
-  }).join('');
+  ordered.forEach(([fmt, { label: fmtLabel, icon }]) => {
+    const btn = document.createElement('button');
+    btn.className = `dl-format-btn${fmt === detectedFormat ? ' dl-format-btn--primary' : ''}`;
+    btn.title = `Download as ${fmtLabel}`;
+    btn.textContent = `${icon} ${fmtLabel}`;
+    // Use addEventListener so the full content string is captured in a closure,
+    // never serialised into an HTML attribute where quotes would break parsing.
+    btn.addEventListener('click', () => downloadAs(btn, fmt, content, aiMsgId));
+    row.appendChild(btn);
+  });
 
-  const card = document.createElement('div');
-  card.className = 'download-card';
-  card.innerHTML = `
-    <div class="download-card-label">⬇️ Download as</div>
-    <div class="download-format-row">${buttons}</div>
-    <div class="download-card-status" id="dl-status-${aiMsgId}"></div>
-  `;
-
+  card.appendChild(label);
+  card.appendChild(row);
+  card.appendChild(statusDiv);
   bubble.appendChild(card);
   scrollToBottom();
 }
 
-async function downloadAs(btn, format, content) {
-  const aiMsgId = btn.closest('.msg-bubble')?.closest('.msg-body')?.previousElementSibling
-    ? btn.closest('[id$="-bubble"]')?.id?.replace('-bubble', '')
-    : null;
+// aiMsgId is passed directly from showDownloadOptions — no fragile DOM traversal needed.
+async function downloadAs(btn, format, content, aiMsgId) {
   const statusEl = aiMsgId ? document.getElementById(`dl-status-${aiMsgId}`) : null;
 
-  // Generate a filename from the first heading or "document"
+  // Derive a filename from the first Markdown heading, fall back to "document"
   const headingMatch = content.match(/^#+ (.+)$/m);
-  const filename = headingMatch ? headingMatch[1].replace(/[^a-zA-Z0-9 _-]/g, '').trim().slice(0, 60) : 'document';
+  const filename = headingMatch
+    ? headingMatch[1].replace(/[^a-zA-Z0-9 _-]/g, '').trim().slice(0, 60)
+    : 'document';
 
   btn.disabled = true;
   if (statusEl) statusEl.textContent = `Generating ${FORMAT_LABELS[format]?.label || format} file…`;
@@ -558,9 +571,9 @@ async function downloadAs(btn, format, content) {
     }
 
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
     a.download = `${filename}.${format}`;
     document.body.appendChild(a);
     a.click();
