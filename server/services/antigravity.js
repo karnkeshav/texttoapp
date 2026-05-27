@@ -317,12 +317,12 @@ function extractText(event) {
 }
 
 // ── Fallback trigger conditions ───────────────────────────────────
-// Fallback to Gemini on ANY HTTP error from Antigravity (quota, agent config,
-// server errors, bad request, deprecated endpoint — everything).
-// Only re-throw for true network-level failures where no HTTP response arrived
-// (ECONNREFUSED, ETIMEDOUT, DNS failure) — Gemini would fail for the same reason.
-function shouldFallback(err) {
-  return err.response != null; // HTTP response received (any status) → fallback
+// Always fall back to Gemini pool when Antigravity fails for any reason.
+// Antigravity and Gemini pool are on different infrastructure paths, so a
+// network-level failure on Antigravity does not mean Gemini is also down.
+// The only non-fallback case is a missing API key (caught before this point).
+function shouldFallback(_err) {
+  return true; // always fall back — Gemini pool handles its own retry logic
 }
 
 // ── PRIMARY: Antigravity Interactions API ─────────────────────────
@@ -407,21 +407,16 @@ async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDon
     await streamFromAntigravity(newUserMessage, history, apiKey, agentId, onChunk, onDone, enrichedNotes);
     console.log('[AI] Antigravity ✅');
   } catch (err) {
-    if (shouldFallback(err)) {
-      // Trip the breaker specifically on 429 (quota exhausted).
-      // Other HTTP errors (500, 503, 400) fall back once without tripping the breaker
-      // — they're transient and shouldn't lock out Antigravity for 5 minutes.
-      if (err.response?.status === 429) {
-        antigravityBreaker.trip();
-      } else {
-        console.warn(`[AI] Antigravity ${err.response?.status} — one-shot fallback (breaker not tripped)`);
-      }
-      await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes);
-      console.log('[AI] Gemini pool ✅');
+    // Trip the breaker on 429; log all other errors with enough detail for diagnosis
+    if (err.response?.status === 429) {
+      antigravityBreaker.trip();
     } else {
-      console.error('[AI] Antigravity network error (no fallback):', err.message);
-      throw err;
+      const statusLabel = err.response?.status ?? 'network';
+      console.warn(`[AI] Antigravity ${statusLabel} (${err.message}) — falling back to Gemini pool`);
     }
+    // Always fall back — Gemini pool has its own retry logic across many models
+    await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes);
+    console.log('[AI] Gemini pool ✅');
   }
 }
 
