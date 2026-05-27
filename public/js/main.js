@@ -49,37 +49,82 @@
 // ── Demo typing animation ────────────────────────────────────────
 (function initDemoTyping() {
   const cursor = document.getElementById('typingCursor');
+  const aiMsg  = document.getElementById('demoAiMsg');
+  const aiBubble = document.getElementById('demoAiBubble');
   if (!cursor) return;
-  const msgs = [
-    'Great idea! Before I start building, let me ask a few questions:\n\n1. What pages do you want — just the gallery, or also an "About" and "Contact" page?\n2. What style of photography? (landscapes, portraits, events...)\n3. Any color preferences for the theme?\n4. Do you want a "Book a session" button or just an enquiry form?',
-    'Perfect! One more question — do you want the gallery to show images in a masonry grid, or a clean 3-column layout?',
-    'Excellent! I have everything I need. Let me now build your complete photographer portfolio...',
+
+  // Each entry: [user prompt, AI reply, delay before showing AI reply]
+  const demos = [
+    {
+      user: 'Build me a photographer portfolio with gallery, contact form, dark theme.',
+      ai:   'Perfect! A few quick questions:\n1. Gallery style — masonry grid or clean 3-column?\n2. Portraits, landscapes, or events?\n3. Want a "Book a session" button?\n\nI\'ll build and deploy it to GitHub Pages automatically! 🚀',
+    },
+    {
+      user: 'Generate a cyberpunk cityscape at sunset, neon lights, ultra-detailed.',
+      ai:   'Generating with Google Imagen 3... ✨\n\nHere\'s your image! You can refine it — try "make it more vibrant" or "change to oil painting style".',
+    },
+    {
+      user: 'Convert this quarterly report to Word, Excel and a PowerPoint deck.',
+      ai:   'I\'ll create all three formats for you! The Excel version will have regional data in separate sheets, and the PPT will have one slide per section.\n\n📝 Word · 📊 Excel · 📑 PowerPoint — download buttons below.',
+    },
+    {
+      user: 'What\'s the compound interest on $10,000 at 7% for 20 years?',
+      ai:   'After 20 years:\n• Final value: $38,696.84\n• Interest earned: $28,696.84\n• Effective multiplier: 3.87×\n\nYear 10 checkpoint: $19,671.51 (nearly doubled!) 📈',
+    },
   ];
-  let msgIdx = 0;
-  let charIdx = 0;
+
+  let demoIdx = 0;
+  let charIdx  = 0;
+  let phase    = 'user'; // 'user' | 'wait' | 'ai' | 'pause'
   let currentText = '';
-  let waiting = false;
 
   function typeNext() {
-    if (waiting) return;
-    const target = msgs[msgIdx];
-    if (charIdx < target.length) {
-      currentText += target[charIdx++];
-      cursor.textContent = currentText;
-      setTimeout(typeNext, charIdx < target.length ? 18 : 0);
-    } else {
-      waiting = true;
-      setTimeout(() => {
-        msgIdx = (msgIdx + 1) % msgs.length;
+    const demo = demos[demoIdx];
+
+    if (phase === 'user') {
+      const target = demo.user;
+      if (charIdx < target.length) {
+        currentText += target[charIdx++];
+        cursor.textContent = currentText;
+        setTimeout(typeNext, 22);
+      } else {
+        phase = 'wait';
         charIdx = 0;
         currentText = '';
-        cursor.textContent = '';
-        waiting = false;
-        typeNext();
-      }, 3500);
+        setTimeout(typeNext, 700);
+      }
+
+    } else if (phase === 'wait') {
+      if (aiMsg) aiMsg.style.display = '';
+      if (aiBubble) aiBubble.textContent = '';
+      phase = 'ai';
+      setTimeout(typeNext, 100);
+
+    } else if (phase === 'ai') {
+      const target = demo.ai;
+      if (charIdx < target.length) {
+        currentText += target[charIdx++];
+        if (aiBubble) aiBubble.textContent = currentText;
+        setTimeout(typeNext, 16);
+      } else {
+        phase = 'pause';
+        setTimeout(typeNext, 3800);
+      }
+
+    } else if (phase === 'pause') {
+      // Reset for next demo
+      demoIdx = (demoIdx + 1) % demos.length;
+      charIdx  = 0;
+      currentText = '';
+      phase = 'user';
+      cursor.textContent = '';
+      if (aiMsg) aiMsg.style.display = 'none';
+      if (aiBubble) aiBubble.textContent = '';
+      setTimeout(typeNext, 500);
     }
   }
-  setTimeout(typeNext, 1200);
+
+  setTimeout(typeNext, 1400);
 })();
 
 // ── Nav scroll effect ────────────────────────────────────────────
@@ -139,15 +184,15 @@ async function checkAuthStatus() {
     const res = await fetch('/auth/status');
     const data = await res.json();
     if (data.authenticated) {
-      const btn = document.getElementById('connectGithubBtn');
-      if (btn) {
-        btn.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-          Connected as @${data.user.login} — Go to Ready4Launch
-        `;
+      // Update ALL sign-in buttons on the page to "Go to app"
+      document.querySelectorAll('a[href="/auth/github"]').forEach(btn => {
         btn.href = '/app';
+        btn.textContent = '';
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Open Ready4Launch →`;
         btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
-      }
+      });
     }
   } catch (_) {}
 }
@@ -168,7 +213,7 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 
 window.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.step-card, .feature-card, .setup-step').forEach(el => {
+  document.querySelectorAll('.step-card, .cap-card, .feature-card, .setup-step').forEach(el => {
     el.style.opacity = '0';
     el.style.transform = 'translateY(20px)';
     el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
