@@ -58,6 +58,36 @@ const PACKAGES = {
 let _admin = null;
 let _db    = null;
 
+/**
+ * Normalise the FIREBASE_PRIVATE_KEY value regardless of how it was pasted
+ * into Render's environment variable editor.
+ *
+ * Common broken formats we defend against:
+ *  1. Outer double-quotes included:  "-----BEGIN … KEY-----\n…"
+ *  2. Outer single-quotes included:  '-----BEGIN … KEY-----\n…'
+ *  3. Literal \n instead of newlines (most common Render issue)
+ *  4. Double-escaped \\n  (copy-paste through JSON editor)
+ *  5. Windows \r\n line endings
+ */
+function normalisePrivateKey(raw) {
+  if (!raw) return raw;
+  let key = raw.trim();
+
+  // Strip accidental surrounding quotes (single or double)
+  if ((key.startsWith('"') && key.endsWith('"')) ||
+      (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+
+  // Replace double-escaped \\n → \n first, then literal \n → real newline
+  key = key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
+
+  // Collapse any \r\n to \n
+  key = key.replace(/\r\n/g, '\n');
+
+  return key;
+}
+
 function getAdmin() {
   if (_admin) return _admin;
 
@@ -68,6 +98,17 @@ function getAdmin() {
     return null;
   }
 
+  const privateKey = normalisePrivateKey(FIREBASE_PRIVATE_KEY);
+
+  // Sanity-check the key looks like a PEM block before handing to OpenSSL
+  if (!privateKey.includes('-----BEGIN') || !privateKey.includes('-----END')) {
+    console.error('[Firestore] FIREBASE_PRIVATE_KEY does not look like a valid PEM key.');
+    console.error('[Firestore] Make sure you copied the value from your service-account JSON');
+    console.error('[Firestore] WITHOUT the surrounding double-quotes, e.g.:');
+    console.error('[Firestore]   -----BEGIN RSA PRIVATE KEY-----\\nMIIE...\\n-----END RSA PRIVATE KEY-----\\n');
+    return null;
+  }
+
   try {
     const admin = require('firebase-admin');
     if (!admin.apps.length) {
@@ -75,17 +116,18 @@ function getAdmin() {
         credential: admin.credential.cert({
           projectId:   FIREBASE_PROJECT_ID,
           clientEmail: FIREBASE_CLIENT_EMAIL,
-          // Render stores multiline values with literal \n — replace them
-          privateKey:  FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          privateKey,
         }),
       });
     }
     _admin = admin;
     _db    = admin.firestore();
-    console.log('[Firestore] Connected to project:', FIREBASE_PROJECT_ID);
+    console.log('[Firestore] ✅ Connected to project:', FIREBASE_PROJECT_ID);
     return admin;
   } catch (err) {
     console.error('[Firestore] Init error:', err.message);
+    console.error('[Firestore] Hint: The private key format is wrong in your Render env var.');
+    console.error('[Firestore] Key preview (first 80 chars):', privateKey.slice(0, 80));
     return null;
   }
 }
