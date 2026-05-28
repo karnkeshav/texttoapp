@@ -999,6 +999,17 @@ router.post('/chat', requireAuth, async (req, res) => {
       donePayload.editMode  = true;
       donePayload.editOwner = req.session.editMode.owner;
       donePayload.editRepo  = req.session.editMode.repo;
+    } else {
+      // Flag the frontend explicitly when this is a build response.
+      // This lets the client show the deploy button even if its own
+      // regex-parsing of the large HTML payload fails.
+      const hasBuildOutput = /REPO_NAME\s*:/i.test(finalText) || /```html/i.test(finalText);
+      if (hasBuildOutput) {
+        donePayload.build = true;
+        // Also extract REPO_NAME server-side as a reliable fallback
+        const rn = finalText.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
+        if (rn) donePayload.repoName = rn[1].toLowerCase();
+      }
     }
     sendEvent('done', donePayload);
     res.end();

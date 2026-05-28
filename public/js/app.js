@@ -149,6 +149,13 @@ async function loadUser() {
     _userAuthenticated = true;
     showWelcomeCards();
 
+    // ── Check for an unsaved build from a previous session ─────────
+    // If the user built something but never deployed it, offer to resume.
+    const pendingBuild = loadPendingBuild();
+    if (pendingBuild) {
+      showResumeBuildBanner(pendingBuild);
+    }
+
   } catch {
     // Fail silently — app still usable without auth info
   }
@@ -277,6 +284,58 @@ function startWithMode(mode) {
   }
 
   if (mode === 'vision') openAttachPicker();
+}
+
+// ── Resume last build banner ──────────────────────────────────────
+// Shown on the welcome screen when an unsaved build is detected in localStorage.
+function showResumeBuildBanner({ repoName, files, savedAt }) {
+  const welcomeScreen = document.getElementById('welcomeScreen');
+  if (!welcomeScreen) return;
+
+  const ageMin = Math.round((Date.now() - savedAt) / 60000);
+  const ageStr = ageMin < 60
+    ? `${ageMin}m ago`
+    : `${Math.round(ageMin / 60)}h ago`;
+
+  const banner = document.createElement('div');
+  banner.id = 'resumeBuildBanner';
+  banner.style.cssText = `
+    margin-top:16px;background:rgba(124,58,237,0.10);
+    border:1px solid rgba(124,58,237,0.30);border-radius:12px;
+    padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;`;
+  banner.innerHTML = `
+    <div style="flex:1;min-width:200px;">
+      <div style="font-size:13px;font-weight:700;color:var(--purple-light);margin-bottom:3px;">
+        🏗️ Unsaved build found — <em>${escapeHtml(repoName)}</em>
+        <span style="font-weight:400;color:var(--text-3);font-size:12px;margin-left:6px;">${ageStr}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-2);">
+        Your app was built but not deployed. Resume to push it to GitHub Pages.
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="resumeDeployBtn"
+        style="background:var(--grad-main);color:#fff;border:none;border-radius:8px;
+               padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">
+        🚀 Deploy it
+      </button>
+      <button id="resumeDismissBtn"
+        style="background:none;border:1px solid var(--border);color:var(--text-3);
+               border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:var(--font);">
+        Discard
+      </button>
+    </div>`;
+
+  welcomeScreen.appendChild(banner);
+
+  banner.querySelector('#resumeDeployBtn').addEventListener('click', () => {
+    banner.remove();
+    showDeployPrompt(repoName, files);
+  });
+  banner.querySelector('#resumeDismissBtn').addEventListener('click', () => {
+    clearPendingBuild();
+    banner.remove();
+  });
 }
 
 // ── New conversation ─────────────────────────────────────────────
@@ -545,6 +604,9 @@ async function sendMessage() {
               finalText = { text: aiText, editMode: true, editOwner: event.editOwner, editRepo: event.editRepo, editBranch: event.editBranch || 'main' };
             } else if (event.downloadable) {
               finalText = { text: aiText, downloadable: true, detectedFormat: event.detectedFormat || 'docx', pptPurpose: event.pptPurpose || null };
+            } else if (event.build) {
+              // Backend confirmed this is a build response — carry the pre-parsed repoName
+              finalText = { text: aiText, build: true, repoName: event.repoName || null };
             } else {
               finalText = aiText;
             }
@@ -556,11 +618,18 @@ async function sendMessage() {
     }
 
     // Post-stream: deploy button / push-update / download options / generated image
+    // Fallback: if the 'done' event was never parsed (JSON error on large payload),
+    // use the accumulated chunk text so the deploy button still appears.
+    if (finalText === null && aiText) finalText = aiText;
+
     if (finalText !== null) {
       if (finalText && typeof finalText === 'object' && finalText.editMode) {
         showPushUpdatePrompt(finalText.text, finalText.editOwner, finalText.editRepo, finalText.editBranch);
       } else if (finalText && typeof finalText === 'object' && finalText.downloadable) {
         showDownloadOptions(aiMsgId, finalText.text, finalText.detectedFormat, finalText.pptPurpose);
+      } else if (finalText && typeof finalText === 'object' && finalText.build) {
+        // Backend confirmed build — pass server-side repoName hint to checkForCode
+        checkForCode(finalText.text, finalText.repoName);
       } else {
         checkForCode(typeof finalText === 'string' ? finalText : finalText.text || '');
       }
@@ -651,7 +720,8 @@ function setStatus(text, thinking = false) {
 }
 
 // ── Code detection & auto-deploy ─────────────────────────────────
-function checkForCode(text) {
+// hintRepoName — optional pre-parsed value from the backend done event (more reliable)
+function checkForCode(text, hintRepoName) {
   if (!text) return;
 
   // 1. Try a complete ```html … ``` block (normal case)
@@ -673,11 +743,11 @@ function checkForCode(text) {
 
   if (!htmlContent || htmlContent.length < 50) return; // nothing useful to deploy
 
-  // Extract REPO_NAME (e.g. "REPO_NAME: portfolio-site")
+  // Extract REPO_NAME — prefer the server-side hint (more reliable than regex on large text)
   const repoMatch = text.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
-  const repoName  = repoMatch
-    ? repoMatch[1].toLowerCase()
-    : `r4l-${Date.now().toString(36)}`;
+  const repoName  = hintRepoName
+    || (repoMatch ? repoMatch[1].toLowerCase() : null)
+    || `r4l-${Date.now().toString(36)}`;
 
   const files = [{ path: 'index.html', content: htmlContent }];
 
@@ -892,7 +962,41 @@ async function pushUpdate(fileId, btn) {
   scrollToBottom();
 }
 
+// ── Unsaved build persistence ─────────────────────────────────────
+// Saves the most-recently built (but not-yet-deployed) app to localStorage
+// so it survives page reloads and server restarts without re-generating.
+const PENDING_BUILD_KEY = 'r4l_pending_build';
+
+function savePendingBuild(repoName, files) {
+  try {
+    localStorage.setItem(PENDING_BUILD_KEY, JSON.stringify({
+      repoName, files, savedAt: Date.now(),
+    }));
+  } catch (_) {}
+}
+
+function clearPendingBuild() {
+  try { localStorage.removeItem(PENDING_BUILD_KEY); } catch (_) {}
+}
+
+function loadPendingBuild() {
+  try {
+    const raw = localStorage.getItem(PENDING_BUILD_KEY);
+    if (!raw) return null;
+    const build = JSON.parse(raw);
+    // Discard builds older than 24 hours
+    if (!build.repoName || !build.files || Date.now() - build.savedAt > 86_400_000) {
+      clearPendingBuild();
+      return null;
+    }
+    return build;
+  } catch (_) { return null; }
+}
+
 function showDeployPrompt(repoName, files) {
+  // Persist so the user doesn't lose their build on refresh / server restart
+  savePendingBuild(repoName, files);
+
   const fileId = `fid-${++fileIdCounter}`;
   pendingFiles.set(fileId, { repoName, files });
 
@@ -951,6 +1055,7 @@ async function deployToGitHub(fileId, btn) {
     }
 
     if (data.success) {
+      clearPendingBuild(); // successfully deployed — no need to resume this build later
       card.innerHTML = `
         <div class="push-success">
           <h4>🎉 Deployed to GitHub Pages!</h4>
