@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Connect GitHub — Ready4Launch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0f0f13;
+      --surface-1: #18181f;
+      --surface-2: #1e1e28;
+      --border:    rgba(255,255,255,0.08);
+      --text-1:    #f0f0f5;
+      --text-2:    #9999aa;
+      --text-3:    #66667a;
+      --purple:    #6366f1;
+      --purple-light: #818cf8;
+      --green:     #22c55e;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text-1); font-family: var(--font); min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav { display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--border); }
+    .nav-logo { font-size:18px; font-weight:800; background:linear-gradient(135deg,#818cf8,#6366f1); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-decoration:none; }
+    .nav-links { display:flex; gap:16px; align-items:center; }
+    .nav-links a { color:var(--text-2); text-decoration:none; font-size:14px; transition:color .2s; }
+    .nav-links a:hover { color:var(--text-1); }
+    .btn-primary { background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff !important; border:none; border-radius:8px; padding:8px 18px; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none !important; display:inline-block; }
+
+    /* ── Layout ── */
+    .page { max-width:760px; margin:0 auto; padding:48px 24px; }
+
+    /* ── Header ── */
+    .page-header { text-align:center; margin-bottom:48px; }
+    .page-header .hero-icon { font-size:52px; margin-bottom:16px; }
+    .page-header h1 { font-size:30px; font-weight:800; margin-bottom:10px; }
+    .page-header p  { color:var(--text-2); font-size:16px; line-height:1.7; max-width:540px; margin:0 auto; }
+
+    /* ── Progress bar ── */
+    .progress-bar { display:flex; justify-content:center; gap:0; margin-bottom:48px; }
+    .progress-step { display:flex; align-items:center; }
+    .progress-dot  { width:32px; height:32px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--text-3); flex-shrink:0; position:relative; z-index:1; background:var(--bg); }
+    .progress-dot.done   { border-color:var(--green); color:var(--green); }
+    .progress-dot.active { border-color:var(--purple); color:var(--purple-light); background:rgba(99,102,241,0.12); }
+    .progress-line { width:48px; height:2px; background:var(--border); }
+    @media(max-width:500px) { .progress-line { width:24px; } }
+
+    /* ── Steps ── */
+    .step { background:var(--surface-1); border:1px solid var(--border); border-radius:20px; padding:32px; margin-bottom:20px; position:relative; }
+    .step-badge { position:absolute; top:-14px; left:28px; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; font-size:12px; font-weight:700; padding:4px 14px; border-radius:20px; letter-spacing:.04em; }
+    .step h2 { font-size:20px; font-weight:700; margin-bottom:8px; margin-top:6px; }
+    .step p  { color:var(--text-2); font-size:15px; line-height:1.7; margin-bottom:0; }
+    .step p + p { margin-top:10px; }
+
+    /* ── Screen mock ── */
+    .screen-mock { background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:20px 24px; margin-top:20px; position:relative; overflow:hidden; }
+    .screen-mock-bar { display:flex; gap:6px; margin-bottom:14px; }
+    .screen-mock-bar span { width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.15); }
+    .screen-mock-url { background:rgba(255,255,255,0.06); border-radius:6px; padding:5px 12px; font-size:12px; color:var(--text-3); margin-bottom:14px; font-family:monospace; }
+    .mock-form-label { font-size:11px; font-weight:600; color:var(--text-3); margin-bottom:5px; display:block; }
+    .mock-input { background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:7px; padding:8px 12px; font-size:13px; color:var(--text-2); width:100%; margin-bottom:12px; font-family:var(--font); }
+    .mock-input.highlight { border-color:rgba(99,102,241,0.5); background:rgba(99,102,241,0.06); }
+    .mock-btn { display:inline-block; padding:9px 22px; border-radius:8px; font-size:13px; font-weight:700; cursor:default; }
+    .mock-btn-green { background:#22c55e; color:#fff; }
+    .mock-btn-dark  { background:#21262d; color:#f0f0f5; border:1px solid rgba(255,255,255,0.12); }
+    .mock-btn-purple{ background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; }
+    .mock-gh-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .mock-gh-logo { font-size:22px; }
+    .mock-gh-title { font-size:15px; font-weight:700; }
+    .mock-perm-box { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:12px; font-size:12px; color:var(--text-2); line-height:1.6; }
+    .mock-perm-box strong { color:var(--text-1); }
+    .mock-note { font-size:12px; color:var(--text-3); display:flex; align-items:flex-start; gap:6px; margin-top:14px; }
+    .mock-note svg { flex-shrink:0; margin-top:1px; }
+
+    /* ── Tip box ── */
+    .tip { display:flex; gap:12px; background:rgba(99,102,241,0.07); border:1px solid rgba(99,102,241,0.2); border-radius:12px; padding:14px 18px; margin-top:16px; }
+    .tip-icon { font-size:18px; flex-shrink:0; }
+    .tip p { font-size:13px; color:var(--text-2); line-height:1.65; }
+    .tip p strong { color:var(--text-1); }
+    .tip a { color:var(--purple-light); text-decoration:none; }
+
+    /* ── Success card ── */
+    .success-card { background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.25); border-radius:20px; padding:36px 32px; text-align:center; margin-top:8px; }
+    .success-card .s-icon { font-size:52px; margin-bottom:16px; }
+    .success-card h2 { font-size:22px; font-weight:700; margin-bottom:8px; }
+    .success-card p  { color:var(--text-2); font-size:15px; margin-bottom:24px; line-height:1.6; }
+
+    /* ── Divider ── */
+    .divider { height:1px; background:var(--border); margin:32px 0; }
+
+    /* ── FAQ ── */
+    .faq h3 { font-size:15px; font-weight:700; margin-bottom:6px; }
+    .faq p  { font-size:14px; color:var(--text-2); line-height:1.65; margin-bottom:20px; }
+    .faq a  { color:var(--purple-light); text-decoration:none; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">⚡ Ready4Launch</a>
+  <div class="nav-links">
+    <a href="/app">App</a>
+    <a href="/support">Support</a>
+    <a href="/auth/logout" style="color:var(--text-3);">Sign out</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="hero-icon">🐙</div>
+    <h1>How to Connect GitHub to Ready4Launch</h1>
+    <p>A simple step-by-step guide for anyone — no technical knowledge required.
+       Your apps will be deployed to GitHub Pages: <strong>free, permanent, and owned by you.</strong></p>
+  </div>
+
+  <!-- Progress indicator -->
+  <div class="progress-bar">
+    <div class="progress-step"><div class="progress-dot active">1</div></div>
+    <div class="progress-step"><div class="progress-line"></div><div class="progress-dot">2</div></div>
+    <div class="progress-step"><div class="progress-line"></div><div class="progress-dot">3</div></div>
+    <div class="progress-step"><div class="progress-line"></div><div class="progress-dot">4</div></div>
+    <div class="progress-step"><div class="progress-line"></div><div class="progress-dot">5</div></div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="step">
+    <div class="step-badge">STEP 1</div>
+    <h2>Create a free GitHub account (if you don't have one)</h2>
+    <p>GitHub is a free platform for storing code and hosting websites. If you already have a GitHub account, skip to Step 2.</p>
+    <p>👉 Open a new browser tab and go to <strong style="color:var(--purple-light);">github.com</strong>, then click <strong>"Sign up"</strong> in the top-right corner.</p>
+
+    <div class="screen-mock">
+      <div class="screen-mock-bar"><span></span><span></span><span></span></div>
+      <div class="screen-mock-url">🔒 github.com</div>
+      <div style="text-align:center;padding:8px 0;">
+        <div style="font-size:22px;margin-bottom:12px;">🐙 GitHub</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:16px;">Create your account</div>
+        <label class="mock-form-label">Enter your email address</label>
+        <div class="mock-input highlight" style="color:var(--text-1);">yourname@gmail.com&nbsp;✓</div>
+        <label class="mock-form-label">Create a password</label>
+        <div class="mock-input">••••••••••••</div>
+        <label class="mock-form-label">Enter a username</label>
+        <div class="mock-input highlight" style="color:var(--text-1);">yourname</div>
+        <div class="mock-btn mock-btn-green" style="margin-top:4px;">Continue →</div>
+      </div>
+    </div>
+
+    <div class="tip" style="margin-top:20px;">
+      <span class="tip-icon">💡</span>
+      <p><strong>Tip:</strong> Use your Gmail address to sign up — it links everything together. Choose a simple username like your first name or initials. You'll use this username in your app's live URL (e.g. <em>yourname.github.io/my-app</em>).</p>
+    </div>
+
+    <p style="margin-top:16px;font-size:14px;color:var(--text-2);">
+      GitHub will send a verification email. Open it and click the link to confirm your email address. Then you're in!
+    </p>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step">
+    <div class="step-badge">STEP 2</div>
+    <h2>Come back to Ready4Launch and sign in with Google</h2>
+    <p>If you haven't already, sign into Ready4Launch using your Google account. This is your main account — GitHub is only needed for deploying apps.</p>
+
+    <div class="screen-mock" style="margin-top:20px;">
+      <div class="screen-mock-bar"><span></span><span></span><span></span></div>
+      <div class="screen-mock-url">🔒 ready4launch.onrender.com</div>
+      <div style="text-align:center;padding:8px 0;">
+        <div style="font-size:26px;margin-bottom:10px;">⚡</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Sign in to Ready4Launch</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:18px;">Build and deploy apps in seconds</div>
+        <div class="mock-btn" style="background:#fff;color:#333;border:1px solid #ddd;display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;font-weight:600;font-size:14px;">
+          <span style="font-size:16px;">G</span> Continue with Google
+        </div>
+      </div>
+    </div>
+
+    <div class="tip" style="margin-top:20px;">
+      <span class="tip-icon">✅</span>
+      <p>Once you sign in with Google, you'll see the main app with 4 cards: Build an App, Convert a Document, Chat &amp; Analyse, and Analyse an Image.</p>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step">
+    <div class="step-badge">STEP 3</div>
+    <h2>Click "Connect GitHub" in the left sidebar</h2>
+    <p>After signing in, look at the <strong>left sidebar</strong> on the app screen. You'll see a banner that says <strong>"Connect GitHub to deploy to Pages"</strong> with a button. Click it.</p>
+    <p>Or, when you click <strong>"Build an App"</strong>, Ready4Launch will show you a prompt to connect GitHub with a direct button.</p>
+
+    <div class="screen-mock" style="margin-top:20px;">
+      <div style="display:flex;gap:12px;">
+        <!-- Sidebar mock -->
+        <div style="width:200px;flex-shrink:0;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">G</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;">Your Name</div>
+              <div style="font-size:10px;color:var(--text-3);">Google connected</div>
+            </div>
+          </div>
+          <div style="background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);border-radius:8px;padding:10px 12px;font-size:11px;color:#818cf8;line-height:1.5;">
+            🐙 <strong>Connect GitHub</strong> to deploy to Pages
+            <div style="margin-top:8px;">
+              <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;text-align:center;cursor:pointer;">Connect GitHub →</div>
+            </div>
+          </div>
+        </div>
+        <!-- Main area mock -->
+        <div style="flex:1;opacity:0.5;font-size:12px;color:var(--text-3);display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:10px;padding:14px;text-align:center;">
+          App content area
+        </div>
+      </div>
+    </div>
+
+    <div class="tip" style="margin-top:20px;">
+      <span class="tip-icon">📍</span>
+      <p><strong>Can't find the sidebar?</strong> On mobile, tap the <strong>☰ menu icon</strong> in the top-left corner to open the sidebar.</p>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step">
+    <div class="step-badge">STEP 4</div>
+    <h2>Authorise Ready4Launch on GitHub</h2>
+    <p>You'll be taken to GitHub's website and asked to authorise the Ready4Launch app. This screen is from GitHub — it's completely safe.</p>
+    <p>GitHub will show you a list of permissions the app is requesting. These allow Ready4Launch to create repositories and deploy your apps on your behalf.</p>
+
+    <div class="screen-mock" style="margin-top:20px;">
+      <div class="screen-mock-bar"><span></span><span></span><span></span></div>
+      <div class="screen-mock-url">🔒 github.com/login/oauth/authorize</div>
+      <div class="mock-gh-header">
+        <span class="mock-gh-logo">🐙</span>
+        <div>
+          <div class="mock-gh-title">Authorise Ready4Launch</div>
+          <div style="font-size:11px;color:var(--text-3);">ready4launch is requesting access to your account</div>
+        </div>
+      </div>
+      <div class="mock-perm-box">
+        <strong>✅ Read and write access to your repositories</strong><br/>
+        Ready4Launch will create a new repository for each app you build, then deploy it to GitHub Pages.
+      </div>
+      <div class="mock-perm-box">
+        <strong>✅ Read access to your profile</strong><br/>
+        Lets Ready4Launch show your username and list your repositories in the sidebar.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+        <div class="mock-btn mock-btn-dark">Cancel</div>
+        <div class="mock-btn mock-btn-green">Authorise Ready4Launch ✓</div>
+      </div>
+      <div class="mock-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>You can revoke this access any time from your GitHub Settings &rarr; Applications.</span>
+      </div>
+    </div>
+
+    <div class="tip" style="margin-top:20px;">
+      <span class="tip-icon">🔒</span>
+      <p><strong>Is this safe?</strong> Yes. Ready4Launch only creates repositories for apps you choose to build. It cannot read your private repos, access your email passwords, or do anything else outside of what's listed above. You stay in full control.</p>
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step">
+    <div class="step-badge">STEP 5</div>
+    <h2>You're connected! Start building your app</h2>
+    <p>After clicking "Authorise", GitHub redirects you back to Ready4Launch automatically. The sidebar will update to show <strong style="color:#22c55e;">✓ GitHub connected</strong> and your repositories will appear.</p>
+    <p>Now click <strong>"Build an App"</strong>, describe what you want, and Ready4Launch will build and deploy it live to GitHub Pages — your own free website!</p>
+
+    <div class="screen-mock" style="margin-top:20px;">
+      <div style="display:flex;gap:12px;">
+        <div style="width:200px;flex-shrink:0;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;justify-content:center;font-size:14px;">🐙</div>
+            <div>
+              <div style="font-size:12px;font-weight:700;">Your Name</div>
+              <div style="font-size:10px;color:#22c55e;">✓ GitHub connected</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--text-3);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Your repositories</div>
+          <div style="font-size:11px;color:var(--text-2);padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;">📁 my-portfolio</div>
+          <div style="font-size:11px;color:var(--text-2);padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:6px;">📁 calculator-app</div>
+        </div>
+        <div style="flex:1;font-size:12px;color:var(--text-3);display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;flex-direction:column;gap:8px;">
+          <div style="font-size:22px;">⚡</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-2);">What do you want to build?</div>
+          <div style="font-size:11px;">Describe your app below…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div class="success-card">
+    <div class="s-icon">🎉</div>
+    <h2>You're all set!</h2>
+    <p>Your GitHub account is connected. Every app you build will be deployed to your own GitHub Pages URL — completely free, no ads, and you own it forever.</p>
+    <a href="/app" class="btn-primary" style="font-size:15px;padding:12px 32px;">Start Building →</a>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- FAQ -->
+  <div class="faq">
+    <h3>❓ Do I need to pay for GitHub?</h3>
+    <p>No. The free GitHub plan is all you need. GitHub Pages (which hosts your apps) is completely free on a free account.</p>
+
+    <h3>❓ What if I already have a GitHub account?</h3>
+    <p>Perfect — just skip Step 1 and click "Connect GitHub" from the sidebar. You'll be taken to the authorise screen (Step 4) and connected in seconds.</p>
+
+    <h3>❓ What will my app's URL look like?</h3>
+    <p>Your apps will be at <strong style="color:var(--purple-light);">yourusername.github.io/app-name</strong>. For example, if your GitHub username is <em>priya</em> and you build a portfolio, your URL might be <em>priya.github.io/my-portfolio</em>.</p>
+
+    <h3>❓ Can I disconnect GitHub later?</h3>
+    <p>Yes. Go to <a href="https://github.com/settings/applications" target="_blank">github.com/settings/applications</a>, find "Ready4Launch" and click Revoke. Your previously deployed apps will continue to work.</p>
+
+    <h3>❓ Something went wrong — what do I do?</h3>
+    <p>Try signing out and signing back in. If the problem persists, <a href="/support">raise a support ticket</a> and we'll help you within 24 hours.</p>
+  </div>
+
+</div>
+</body>
+</html>

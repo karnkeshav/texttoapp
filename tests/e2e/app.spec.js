@@ -47,42 +47,23 @@ async function testLogin(page) {
 /**
  * After signing in and navigating to /app, the welcome cards are shown
  * and the prompt bar is hidden until the user selects a mode.
- * This helper clicks through Build App → Instant Publish to reveal the input.
+ * Cloudflare removed — "Build an App" now goes directly to the prompt bar
+ * when GitHub is connected (test-login provides a GitHub session).
  */
 async function activateInputBar(page) {
   // Wait for the welcome cards to appear (rendered after loadUser() resolves)
   const firstCard = page.locator('.welcome-card').first();
   await firstCard.waitFor({ state: 'visible', timeout: 5000 });
 
-  // Click "Build an App"
+  // Click "Build an App" — goes straight to prompt bar (GitHub session is active)
   await page.locator('.welcome-card', { hasText: 'Build an App' }).click();
-
-  // Sub-options: choose Instant Publish (no GitHub required in test env)
-  const instantCard = page.locator('.welcome-card', { hasText: 'Instant Publish' });
-  await instantCard.waitFor({ state: 'visible', timeout: 3000 });
-  await instantCard.click();
 
   // Wait until the prompt bar is visible
   await page.locator('#chatInput').waitFor({ state: 'visible', timeout: 3000 });
 }
 
-/**
- * Same as activateInputBar but selects "GitHub Pages" so deployMode='github'
- * and the "Deploy to GitHub Pages" button is rendered after code generation.
- * test-login sets a GitHub session so the GitHub Pages card doesn't redirect.
- */
-async function activateInputBarGitHub(page) {
-  const firstCard = page.locator('.welcome-card').first();
-  await firstCard.waitFor({ state: 'visible', timeout: 5000 });
-
-  await page.locator('.welcome-card', { hasText: 'Build an App' }).click();
-
-  const ghCard = page.locator('.welcome-card', { hasText: 'GitHub Pages' });
-  await ghCard.waitFor({ state: 'visible', timeout: 3000 });
-  await ghCard.click();
-
-  await page.locator('#chatInput').waitFor({ state: 'visible', timeout: 3000 });
-}
+// activateInputBarGitHub is now identical to activateInputBar (both use GitHub Pages)
+const activateInputBarGitHub = activateInputBar;
 
 // ── Auth bypass ───────────────────────────────────────────────────────────────
 

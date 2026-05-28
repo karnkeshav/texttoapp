@@ -3,13 +3,12 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 
-const authRoutes       = require('./routes/auth');
-const chatRoutes       = require('./routes/chat');
-const githubRoutes     = require('./routes/github');
-const convertRoutes    = require('./routes/convert');
-const cloudflareRoutes = require('./routes/cloudflare');
-const userRoutes       = require('./routes/user');
-const supportRoutes    = require('./routes/support');
+const authRoutes    = require('./routes/auth');
+const chatRoutes    = require('./routes/chat');
+const githubRoutes  = require('./routes/github');
+const convertRoutes = require('./routes/convert');
+const userRoutes    = require('./routes/user');
+const supportRoutes = require('./routes/support');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,7 +45,6 @@ app.use('/auth', authRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', convertRoutes);
 app.use('/api/github', githubRoutes);
-app.use('/api', cloudflareRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/support', supportRoutes);
 
@@ -145,6 +143,11 @@ app.get('/profile', (req, res) => {
 // /support — help & ticket submission page
 app.get('/support', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'support.html'));
+});
+
+// /github-guide — step-by-step guide to connecting GitHub
+app.get('/github-guide', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'github-guide.html'));
 });
 
 // ── Start ─────────────────────────────────────────────────────────

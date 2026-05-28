@@ -123,6 +123,96 @@ function classifyTopLevelIntent(message) {
   return 'build';
 }
 
+// ── PPT purpose question (asked before generating any presentation) ──
+const PPT_PURPOSE_QUESTION = `Before I build your presentation, one quick question — **what is the purpose of this presentation?**
+
+Please pick the option that best matches:
+
+1️⃣  **Explain ideas, strategies, or business plans** — presenting a concept, proposal, or strategy to an audience
+2️⃣  **Teach or train people** — school, college, workshop, or corporate training session
+3️⃣  **Present reports, research, or data** — findings, project updates, or data-driven insights to a team/management
+4️⃣  **Pitch a product, startup, or proposal** — selling your idea to clients, investors, or decision-makers
+5️⃣  **Marketing, seminar, webinar, or public speaking** — engaging a broader audience with visual storytelling
+
+6️⃣  **Other** — describe your purpose briefly and I'll tailor the presentation for you.
+
+Just reply with the number (1–6) or describe it in your own words.`;
+
+// Purpose → slide design & flow guide (injected into the generation prompt)
+const PPT_PURPOSE_GUIDES = {
+  '1': {
+    label: 'Business / Strategy',
+    flow: 'Start with the problem → current situation → proposed strategy → expected outcome → roadmap → conclusion. Keep the story logical so the audience feels "this makes sense step by step."',
+    look: 'Clean corporate theme with minimal clutter. Use white/light backgrounds with 1–2 brand accent colors. Fonts: Montserrat or Poppins for headings, Calibri/Arial for body. Clean icons and data charts.',
+    tone: 'Professional, structured, evidence-based.',
+  },
+  '2': {
+    label: 'Teaching / Training',
+    flow: 'Begin with basics → explain concepts visually → give examples → activity/demo → recap → Q&A. Guide the audience — never overload a single slide.',
+    look: 'Friendly, readable layouts with larger fonts and illustrations. Fonts: Poppins or Open Sans. Soft backgrounds, high contrast text, diagrams, minimal text per slide.',
+    tone: 'Approachable, clear, encouraging.',
+  },
+  '3': {
+    label: 'Report / Research / Data',
+    flow: 'Start with objective → methodology/data → findings → insights → risks/issues → recommendations → next steps. Data-driven storytelling — no raw number dumps.',
+    look: 'Professional structured layout with charts and tables. Fonts: Aptos, Calibri, Arial. Neutral backgrounds (white / light grey / navy). Highlight key metrics with color accents only.',
+    tone: 'Factual, precise, analytical.',
+  },
+  '4': {
+    label: 'Pitch / Proposal',
+    flow: 'Start with the pain/problem → market opportunity → your solution → uniqueness → business model → traction/results → ask/next step. The audience must quickly understand value and potential.',
+    look: 'Modern premium visuals with bold headlines and minimal text. Fonts: Montserrat or Poppins for headings, Helvetica for body. Dark/light contrast themes, product screenshots, strong branding.',
+    tone: 'Confident, persuasive, bold.',
+  },
+  '5': {
+    label: 'Marketing / Public Speaking',
+    flow: 'Start with a hook/story/question → emotional connection → core message → examples → audience engagement → memorable ending/call to action. Focus on energy and attention retention.',
+    look: 'Visually rich slides with large images and bold typography. Fonts: Bebas Neue or Montserrat for titles, Poppins for body. Vibrant backgrounds or gradients, cinematic visuals, minimal text.',
+    tone: 'Energetic, inspiring, memorable.',
+  },
+};
+
+function buildPPTSystemPrompt(purpose) {
+  const guide = PPT_PURPOSE_GUIDES[purpose] || null;
+
+  const baseRules = `You are Ready4Launch's presentation specialist. Generate a professional, complete PowerPoint presentation.
+
+ABSOLUTE RULES — follow exactly:
+- Maximum 10 slides total (including title slide). Never exceed 10.
+- Every slide must have substantial, real content — not placeholders or "add content here".
+- Each content slide must have at least 4–6 detailed bullet points or a rich table.
+- Use Markdown tables for comparisons, before/after, data breakdowns.
+- Never write long paragraphs on slides — insights as bullet points only.
+
+FORMAT — EXACT STRUCTURE:
+- First line: # [Presentation Title]  (title slide)
+- Use ## for each individual slide headline (write as an insight statement, not a label)
+  e.g.  ## Revenue growth is constrained by three structural bottlenecks
+- Use ### for sub-headings within a slide (use sparingly)
+- Bullet points use - (hyphen)
+- Each ## slide: 4–6 substantive bullet points OR 1 Markdown table
+
+Do NOT output REPO_NAME or \`\`\`html blocks.`;
+
+  if (!guide) {
+    return baseRules + '\n\nBuild a professional, well-structured presentation that best matches the user\'s request.';
+  }
+
+  return `${baseRules}
+
+PRESENTATION TYPE: ${guide.label}
+
+STORY FLOW — follow this narrative arc:
+${guide.flow}
+
+VISUAL STYLE — apply these design guidelines:
+${guide.look}
+
+TONE: ${guide.tone}
+
+Produce exactly 8–10 slides of real, substantive content. Make each slide feel professionally crafted.`;
+}
+
 // ── System instructions for non-build intents ─────────────────────
 const SYS_CONVERSION = `You are Ready4Launch's document assistant. Generate rich, complete content for the user's requested file format.
 
@@ -257,6 +347,8 @@ router.post('/chat', requireAuth, async (req, res) => {
     req.session.originalRequest  = '';
     req.session.compiledSpec     = '';
     req.session.editMode         = null;
+    req.session.pptOriginalMsg   = '';     // PPT ask-back: user's original request
+    req.session.pptPurpose       = '';     // PPT ask-back: chosen purpose key (1-6)
   }
 
   const history = req.session.chatHistory;
@@ -351,6 +443,19 @@ router.post('/chat', requireAuth, async (req, res) => {
 
       // ── Text-response intents ────────────────────────────────────────
       if (intent === 'conversion' || intent === 'reasoning' || intent === 'chat') {
+
+        // ── PPT special case: ask purpose before generating ──────────
+        const format = detectConversionFormat(trimmedMessage);
+        if (intent === 'conversion' && format === 'pptx') {
+          req.session.chatPhase      = 'ppt_purpose';
+          req.session.pptOriginalMsg = trimmedMessage;
+          req.session.chatHistory.push({ role: 'user',      content: trimmedMessage });
+          req.session.chatHistory.push({ role: 'assistant', content: PPT_PURPOSE_QUESTION });
+          sendEvent('chunk', { text: PPT_PURPOSE_QUESTION });
+          sendEvent('done',  { text: PPT_PURPOSE_QUESTION });
+          return res.end();
+        }
+
         const sysMap = {
           conversion: SYS_CONVERSION,
           reasoning:  SYS_REASONING,
@@ -405,6 +510,45 @@ router.post('/chat', requireAuth, async (req, res) => {
     //   • Any phase can freely re-route to any other non-build phase
     //   • If user asks to BUILD an app, session resets and falls through to the state machine
     //   • Conversion format is updated when the user asks for a different format
+    // ── PPT purpose answer — generate the presentation now ──────────────
+    if (!isFirstMessage && req.session.chatPhase === 'ppt_purpose') {
+      // Parse the user's purpose choice (1–6 or free text)
+      const purposeKey = trimmedMessage.trim().match(/^[1-6]/)?.[0] || null;
+      req.session.pptPurpose = purposeKey || 'other';
+
+      const sysPrompt = buildPPTSystemPrompt(purposeKey);
+      const originalReq = req.session.pptOriginalMsg || trimmedMessage;
+      const purposeLabel = purposeKey
+        ? (PPT_PURPOSE_GUIDES[purposeKey]?.label || 'Custom')
+        : `Other: ${trimmedMessage.slice(0, 80)}`;
+
+      // Inject the purpose into the generation request
+      const generationMsg =
+        `${originalReq}\n\n[Presentation purpose chosen by user: ${purposeLabel}]` +
+        (purposeKey ? '' : `\nUser's custom purpose: ${trimmedMessage}`);
+
+      req.session.chatPhase        = 'conversion';
+      req.session.conversionFormat = 'pptx';
+      req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
+
+      sendEvent('status', { message: 'Building your presentation…' });
+
+      let responseText = '';
+      await pooledStream({
+        contents:          [{ role: 'user', parts: [{ text: generationMsg }] }],
+        config:            { temperature: 0.6, maxOutputTokens: 8192 },
+        apiKey,
+        tier:              'build',   // use build tier for best quality PPT
+        systemInstruction: sysPrompt,
+        onChunk: (t) => sendEvent('chunk', { text: t }),
+        onDone:  (t) => { responseText = t; },
+      });
+
+      req.session.chatHistory.push({ role: 'assistant', content: responseText });
+      sendEvent('done', { text: responseText, downloadable: true, detectedFormat: 'pptx' });
+      return res.end();
+    }
+
     if (!isFirstMessage && ['conversion', 'reasoning', 'chat', 'vision'].includes(req.session.chatPhase)) {
 
       // ── Build escape hatch — user wants to start a fresh app ─────────────
@@ -422,6 +566,8 @@ router.post('/chat', requireAuth, async (req, res) => {
         req.session.compiledSpec     = '';
         req.session.editMode         = null;
         req.session.conversionFormat = null;
+        req.session.pptOriginalMsg   = '';
+        req.session.pptPurpose       = '';
         console.log('[Chat] Build escape hatch — resetting session and entering state machine');
         // Fall through to the state machine below (do NOT return here)
       } else {

@@ -101,6 +101,9 @@
           <div class="profile-name" id="nameEl"></div>
           <div class="profile-email" id="emailEl"></div>
 
+          <div id="firestoreNotice" style="display:none;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:10px 14px;font-size:12px;color:#fbbf24;margin-bottom:16px;">
+            ⚠️ Usage data is temporarily unavailable. Your account and builds still work normally.
+          </div>
           <div class="card-title">Current Plan</div>
           <div id="pkgBadge" class="pkg-badge pkg-none">No plan</div>
           <div id="expiryNote"></div>
@@ -175,6 +178,10 @@ async function loadProfile() {
 function renderProfile(p) {
   document.getElementById('loadingState').style.display  = 'none';
   document.getElementById('profileContent').style.display = 'block';
+
+  if (p._firestoreUnavailable) {
+    document.getElementById('firestoreNotice').style.display = 'block';
+  }
 
   // Avatar
   const avatarEl = document.getElementById('avatarEl');

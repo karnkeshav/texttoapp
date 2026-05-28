@@ -24,8 +24,36 @@ function requireAnyAuth(req, res, next) {
 router.get('/profile', requireAnyAuth, async (req, res) => {
   try {
     const profile = await getUserProfile(req.uid);
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
-    res.json(profile);
+    if (profile) return res.json(profile);
+
+    // Firestore not configured or user doc not yet created — return a
+    // session-based stub so the profile page renders instead of showing
+    // a "Sign in" error loop.
+    const sess       = req.session;
+    const googleUser = sess.googleUser;
+    const githubUser = sess.githubUser;
+    const sessionUser = sess.user || {};
+
+    return res.json({
+      uid:              req.uid,
+      email:            googleUser?.email || githubUser?.email || sessionUser.login || null,
+      name:             sessionUser.name  || googleUser?.name  || githubUser?.name  || null,
+      picture:          sessionUser.avatarUrl || googleUser?.picture || null,
+      provider:         sessionUser.provider  || 'unknown',
+      githubLogin:      githubUser?.login || sessionUser.githubLogin || null,
+      createdAt:        null,
+      lastLogin:        null,
+      package:          null,
+      packageName:      null,
+      packageBoughtAt:  null,
+      packageExpiresAt: null,
+      packageExpired:   false,
+      limit:            null,
+      unlimited:        false,
+      todayUsage:       { build: 0, chat: 0, convert: 0, vision: 0 },
+      sessions:         [],
+      _firestoreUnavailable: true,  // lets frontend show a soft notice
+    });
   } catch (err) {
     console.error('[User] profile error:', err.message);
     res.status(500).json({ error: err.message });
@@ -47,8 +75,7 @@ router.get('/packages', (req, res) => {
         '2 chat sessions per day',
         '2 document conversions per day',
         '2 image analyses per day',
-        'Instant publish (live link)',
-        'GitHub Pages deploy',
+        'Deploy to GitHub Pages',
         'Full activity history',
       ],
       highlight:   false,
@@ -65,8 +92,7 @@ router.get('/packages', (req, res) => {
         '20 chat sessions per day',
         '20 document conversions per day',
         '20 image analyses per day',
-        'Instant publish (live link)',
-        'GitHub Pages deploy',
+        'Deploy to GitHub Pages',
         'Full activity history',
         'Priority support',
       ],
@@ -84,8 +110,7 @@ router.get('/packages', (req, res) => {
         'Unlimited chat sessions',
         'Unlimited document conversions',
         'Unlimited image analyses',
-        'Instant publish (live link)',
-        'GitHub Pages deploy',
+        'Deploy to GitHub Pages',
         'Full activity history',
         'Priority AI access',
         'Dedicated support',

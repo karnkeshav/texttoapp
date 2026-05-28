@@ -6,14 +6,9 @@ const pendingFiles = new Map(); // fileId → { repoName, files }
 let fileIdCounter = 0;
 let _userAuthenticated = false; // set by loadUser(); controls welcome card visibility
 
-// ── Deploy mode — set from URL param ?mode=cloudflare ────────────
-// 'github'     → user arrived via /auth/github, deploy to GitHub Pages
-// 'cloudflare' → user arrived via ?mode=cloudflare, instant managed deploy
-// null         → direct access; deploy buttons show both options
-const _urlMode = new URLSearchParams(window.location.search).get('mode');
-let deployMode = (_urlMode === 'cloudflare') ? 'cloudflare'
-               : (_urlMode === 'github')     ? 'github'
-               : null; // will be resolved after auth check
+// ── Deploy mode — always GitHub Pages ────────────────────────────
+// All deployment goes through GitHub Pages. Cloudflare has been removed.
+let deployMode = 'github';
 
 // ── Edit mode state ───────────────────────────────────────────────
 let editModeActive = null; // null | { owner, repo }
@@ -114,9 +109,8 @@ async function loadUser() {
       if (avatarEl) avatarEl.textContent = '⚡';
       if (nameEl)   nameEl.textContent   = 'Ready4Launch';
       if (subEl)    subEl.textContent    = 'Connect GitHub to deploy apps';
-      if (ghBanner)    ghBanner.style.display    = deployMode === 'cloudflare' ? 'none' : 'block';
+      if (ghBanner)    ghBanner.style.display    = 'block';
       if (repoSection) repoSection.style.display = 'none';
-      if (!deployMode) deployMode = 'cloudflare';
       return;
     }
 
@@ -132,14 +126,11 @@ async function loadUser() {
     if (nameEl) nameEl.textContent = name || (hasGitHub ? `@${login}` : login);
 
     if (hasGitHub) {
-      deployMode = deployMode || 'github';
       if (subEl)       subEl.textContent          = hasGoogle ? 'Google + GitHub connected' : 'GitHub connected';
       if (ghBanner)    ghBanner.style.display    = 'none';
       if (repoSection) repoSection.style.display = 'flex';
       loadUserRepos();
     } else {
-      if (deployMode === 'github') deployMode = 'cloudflare';
-      if (!deployMode) deployMode = 'cloudflare';
       if (subEl)       subEl.textContent          = 'Connect GitHub to deploy to Pages';
       if (ghBanner)    ghBanner.style.display    = 'block';
       if (repoSection) repoSection.style.display = 'none';
@@ -151,25 +142,13 @@ async function loadUser() {
 
   } catch {
     // Fail silently — app still usable without auth info
-    if (deployMode === null) deployMode = 'cloudflare';
   }
 }
 
 // ── Adapt welcome screen copy to deploy mode ──────────────────────
 function updateWelcomeForMode() {
-  const titleEl  = document.getElementById('welcomeTitle');
-  const subEl2   = document.getElementById('welcomeSub');
-  const inputEl  = document.getElementById('chatInput');
   const topbarEl = document.getElementById('topbarSub');
-
-  if (deployMode === 'cloudflare') {
-    if (titleEl)  titleEl.textContent  = 'What do you want to build?';
-    if (subEl2)   subEl2.textContent   = 'Describe your app in plain English. Ready4Launch will ask a few questions, build it, and publish it live — no GitHub account needed.';
-    if (inputEl)  inputEl.placeholder  = 'Describe the app you want to build…';
-    if (topbarEl) topbarEl.textContent = 'Instant Deploy — live link, no account needed';
-  } else if (deployMode === 'github') {
-    if (topbarEl) topbarEl.textContent = 'GitHub Pages mode — deploy to your repo';
-  }
+  if (topbarEl) topbarEl.textContent = 'GitHub Pages — deploy to your own repo for free';
 }
 
 
@@ -220,22 +199,63 @@ function showWelcomeCards() {
 
 /**
  * Called when a mode card is tapped.
- * 'build' → show deploy-method sub-options first.
+ * 'build' → check GitHub is connected, then show prompt bar.
  * Others   → reveal prompt bar immediately with an appropriate placeholder.
  */
 function startWithMode(mode) {
+  const cards = document.getElementById('welcomeCards');
+
   if (mode === 'build') {
-    _showBuildDeployOptions();
+    // Check if GitHub is connected (deployMode stays 'github' but
+    // hasGitHub drives the banner; check if the banner is hidden as proxy)
+    const ghBanner = document.getElementById('connectGithubBanner');
+    const ghConnected = ghBanner && ghBanner.style.display === 'none';
+
+    if (!ghConnected) {
+      // Not connected — show inline connect prompt instead of full redirect
+      if (cards) {
+        cards.innerHTML = `
+          <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:2px;">
+            <button onclick="showWelcomeCards()" style="background:none;border:none;color:var(--text-3);font-size:13px;cursor:pointer;padding:2px 0;font-family:var(--font);display:flex;align-items:center;gap:4px;">&#8592; Back</button>
+          </div>
+          <div style="grid-column:1/-1;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:16px;padding:28px 24px;text-align:center;">
+            <div style="font-size:36px;margin-bottom:14px;">🐙</div>
+            <h3 style="font-size:17px;font-weight:700;margin-bottom:8px;">Connect GitHub to Build &amp; Deploy</h3>
+            <p style="font-size:14px;color:var(--text-2);margin-bottom:6px;line-height:1.6;">
+              Ready4Launch deploys your apps directly to GitHub Pages — free, permanent, and owned by you.
+              You need a GitHub account to continue.
+            </p>
+            <p style="font-size:13px;color:var(--text-3);margin-bottom:20px;">
+              Don't have GitHub yet? It's free and takes 2 minutes to set up.
+              <a href="/github-guide" target="_blank" style="color:var(--purple-light);text-decoration:none;">Step-by-step guide →</a>
+            </p>
+            <a href="/auth/github" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:700;text-decoration:none;">
+              Connect GitHub
+            </a>
+          </div>`;
+      }
+      return;
+    }
+
+    // GitHub connected — go straight to prompt bar
+    if (cards) cards.style.display = 'none';
+    showPromptBar();
+    const input = document.getElementById('chatInput');
+    if (input) {
+      input.placeholder = "Describe the app you want to build… (e.g. 'A recipe website with search and dark theme')";
+      input.value = '';
+      input.focus();
+      autoResize(input);
+    }
     return;
   }
 
-  // Hide the cards, show the input bar
-  const cards = document.getElementById('welcomeCards');
+  // Non-build modes — hide cards, show prompt bar
   if (cards) cards.style.display = 'none';
   showPromptBar();
 
   const placeholders = {
-    convert: "Describe what to create — e.g. 'Convert my notes to a Word doc' or 'Make an Excel sales sheet'",
+    convert: "Describe what to create — e.g. 'Make a PowerPoint about our Q1 results' or 'Convert this to a Word doc'",
     chat:    'Ask me anything — a question, analysis, research, or expert advice…',
     vision:  "What would you like to know about the image? (attach it with the 📎 button)",
   };
@@ -249,59 +269,6 @@ function startWithMode(mode) {
   }
 
   if (mode === 'vision') openAttachPicker();
-}
-
-/**
- * Sub-options shown when the user picks "Build an App".
- * Lets them choose Instant Publish (Cloudflare) or GitHub Pages.
- */
-function _showBuildDeployOptions() {
-  const cards = document.getElementById('welcomeCards');
-  if (!cards) return;
-
-  const ghConnected = (deployMode === 'github');
-
-  cards.innerHTML = `
-    <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:2px;">
-      <button onclick="showWelcomeCards()" style="background:none;border:none;color:var(--text-3);font-size:13px;cursor:pointer;padding:2px 0;font-family:var(--font);display:flex;align-items:center;gap:4px;transition:color 0.2s;" onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--text-3)'">&#8592; Back</button>
-      <span style="font-size:13px;font-weight:600;color:var(--text-2);">How do you want to deploy?</span>
-    </div>
-    <div class="welcome-card" onclick="selectBuildDeploy('cloudflare')">
-      <div class="welcome-card-icon">⚡</div>
-      <div class="welcome-card-title">Instant Publish</div>
-      <div class="welcome-card-desc">No GitHub needed — your app goes live in seconds on our managed hosting</div>
-    </div>
-    <div class="welcome-card" onclick="selectBuildDeploy('github')">
-      <div class="welcome-card-icon">🐙</div>
-      <div class="welcome-card-title">GitHub Pages</div>
-      <div class="welcome-card-desc">${ghConnected
-        ? 'Deploy to your own GitHub repo — free forever, full control'
-        : 'Connect GitHub to deploy your app to GitHub Pages for free'}</div>
-    </div>`;
-}
-
-/**
- * User picked a deploy method from the Build App sub-screen.
- */
-function selectBuildDeploy(mode) {
-  if (mode === 'github' && deployMode !== 'github') {
-    // GitHub not connected yet — redirect to connect flow
-    window.location.href = '/auth/github';
-    return;
-  }
-
-  deployMode = mode;
-  const cards = document.getElementById('welcomeCards');
-  if (cards) cards.style.display = 'none';
-  showPromptBar();
-
-  const input = document.getElementById('chatInput');
-  if (input) {
-    input.placeholder = "Describe the app you want to build… (e.g. 'A recipe website with search and dark theme')";
-    input.value = '';
-    input.focus();
-    autoResize(input);
-  }
 }
 
 // ── New conversation ─────────────────────────────────────────────
@@ -712,12 +679,7 @@ function checkForCode(text) {
   if (cssMatch) files.push({ path: 'style.css',  content: cssMatch[1].trim() });
   if (jsMatch)  files.push({ path: 'script.js',  content: jsMatch[1].trim() });
 
-  // Route to the correct deploy prompt based on mode
-  if (deployMode === 'cloudflare') {
-    showCloudflareDeployPrompt(repoName, files);
-  } else {
-    showDeployPrompt(repoName, files);
-  }
+  showDeployPrompt(repoName, files);
 }
 
 // ── Download options card (conversion mode) ──────────────────────
@@ -1008,85 +970,6 @@ async function deployToGitHub(fileId, btn) {
     btn.disabled = false;
     btn.textContent = 'Retry deployment';
     console.error('[Deploy] GitHub deploy error:', err);
-  }
-  scrollToBottom();
-}
-
-// ── Instant Deploy (managed cloud) ───────────────────────────────
-function showCloudflareDeployPrompt(projectName, files) {
-  const fileId = `fid-${++fileIdCounter}`;
-  pendingFiles.set(fileId, { projectName, files });
-
-  const container = document.getElementById('chatMessages');
-  const div = document.createElement('div');
-  div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
-  div.innerHTML = `
-    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:14px;padding:24px;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🚀 Your app is ready — publish it live!</div>
-      <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-        <strong style="color:#818cf8;">${escapeHtml(projectName)}</strong> is built and ready.
-        One click and it's live on the internet — no account needed.
-      </p>
-      <button data-fileid="${fileId}" onclick="deployToCloudflarePages(this.dataset.fileid, this)"
-              style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-        Publish Live ⚡
-      </button>
-    </div>`;
-  container.appendChild(div);
-  scrollToBottom();
-}
-
-async function deployToCloudflarePages(fileId, btn) {
-  const pending = pendingFiles.get(fileId);
-  if (!pending) return;
-
-  btn.disabled = true;
-  btn.innerHTML = '<span style="opacity:0.7">Publishing your app…</span>';
-
-  const { projectName, files } = pending;
-  const card = btn.closest('div[style*="border-radius:14px"]');
-
-  try {
-    const res  = await fetch('/api/cloudflare/deploy', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ projectName, files }),
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      card.innerHTML = `
-        <div class="push-success">
-          <h4>🎉 Your app is live!</h4>
-          <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-            Your site has been published. Click the link below to open it —
-            if it shows "not found" for the first few seconds, wait 30–60 seconds and refresh.
-            New deployments take a moment to go live globally.
-          </p>
-          <p style="margin-bottom:8px;">
-            🔗 <strong>Live URL:</strong>
-            <a href="${data.url}" target="_blank" rel="noopener" style="color:#818cf8;">${data.url}</a>
-          </p>
-          <p style="font-size:12px;color:var(--text-3);margin-bottom:0;">
-            App ID: ${escapeHtml(data.projectName)}
-          </p>
-        </div>`;
-    } else {
-      btn.disabled = false;
-      btn.textContent = 'Retry deployment';
-      const errEl = document.createElement('p');
-      errEl.style.cssText = 'color:#f87171;font-size:13px;margin-top:10px;margin-bottom:0;';
-      errEl.textContent = `⚠️ ${data.error || 'Deployment failed. Please try again.'}`;
-      btn.insertAdjacentElement('afterend', errEl);
-    }
-  } catch (err) {
-    btn.disabled = false;
-    btn.textContent = 'Retry deployment';
-    const errEl = document.createElement('p');
-    errEl.style.cssText = 'color:#f87171;font-size:13px;margin-top:10px;margin-bottom:0;';
-    errEl.textContent = '⚠️ Network error — please check your connection and retry.';
-    btn.insertAdjacentElement('afterend', errEl);
   }
   scrollToBottom();
 }
