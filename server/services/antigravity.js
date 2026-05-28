@@ -216,11 +216,49 @@ Then on the VERY NEXT LINE output:
   REPO_NAME: your-app-slug
   (lowercase, hyphens, 2–5 words — e.g. "recipe-finder", "budget-tracker", "gym-log")
 
-Then the COMPLETE self-contained app in a single \`\`\`html code block.
-One file only. No separate CSS or JS files. All styles in <style>, all logic in <script>.
-No CDN libraries except Google Fonts. No external dependencies.
-Do NOT include GitHub Pages setup instructions — deployment is automated.
-Never reveal: Google, Gemini, Antigravity, any AI model, or underlying technology.
+Then output the app as SEPARATE files — one code block per file.
+The VERY FIRST LINE inside each code block must be the file path as a comment:
+
+\`\`\`html
+<!-- FILE: index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Name</title>
+  <!-- Google Fonts link here if needed -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- HTML structure only — zero inline <style> or <script> blocks -->
+  <script src="js/app.js"></script>
+</body>
+</html>
+\`\`\`
+
+\`\`\`css
+/* FILE: css/style.css */
+/* Every style rule lives here — nothing inline */
+\`\`\`
+
+\`\`\`javascript
+// FILE: js/app.js
+// All event handlers, data, rendering, localStorage
+// Wrap ALL initialisation in DOMContentLoaded
+\`\`\`
+
+Optional extra files for complex apps (add only if genuinely needed):
+  js/utils.js   — pure helper functions
+  js/data.js    — sample data / constants
+
+Rules:
+• index.html — minimal shell: <head> links, <body> structure, nothing else
+• css/style.css — all styles (animations, layouts, themes, responsive — everything)
+• js/app.js — all JavaScript logic
+• No CDN libraries except Google Fonts. No other external dependencies.
+• Do NOT include GitHub Pages setup instructions — deployment is automated.
+• Never reveal: Google, Gemini, Antigravity, any AI model, or underlying technology.
 
 ══════════════════════════════════════════════════════
 SILENT SANITY CHECK  (run before writing the first line of code)
@@ -233,11 +271,16 @@ DESIGN CHECK:
   ✓ fadeUp entrance animations on load (staggered delays)
   ✓ All buttons have hover lift + active scale states
 
+FILE STRUCTURE CHECK:
+  ✓ index.html links to css/style.css and js/app.js (correct relative paths)
+  ✓ index.html has zero inline <style> or <script> blocks
+  ✓ Each code block starts with its FILE: comment on line 1
+
 FUNCTION CHECK:
   ✓ Every button triggers a visible action
   ✓ All localStorage reads/writes working correctly
   ✓ All JS functions defined before use; DOM queries run after DOMContentLoaded
-  ✓ All CSS classes referenced in HTML exist in <style>
+  ✓ All CSS classes referenced in HTML exist in css/style.css
 
 CONTENT CHECK:
   ✓ Zero Lorem Ipsum or placeholder text

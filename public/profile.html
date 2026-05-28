@@ -145,6 +145,86 @@
 const SECTION_ICONS = { build: '🏗️', chat: '💬', convert: '📄', vision: '🖼️', research: '🔍' };
 const SECTION_LABELS = { build: 'Build', chat: 'Chat', convert: 'Convert', vision: 'Vision', research: 'Research' };
 
+// ── Shared helpers ────────────────────────────────────────────────
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Pending build (localStorage) ─────────────────────────────────
+const PENDING_BUILD_KEY = 'r4l_pending_build';
+
+function loadPendingBuildForProfile() {
+  try {
+    const raw = localStorage.getItem(PENDING_BUILD_KEY);
+    if (!raw) return null;
+    const build = JSON.parse(raw);
+    // Discard builds older than 24 hours
+    if (!build.repoName || !build.files || Date.now() - build.savedAt > 86_400_000) {
+      localStorage.removeItem(PENDING_BUILD_KEY);
+      return null;
+    }
+    return build;
+  } catch (_) { return null; }
+}
+
+function renderPendingBuildCard(build) {
+  const sessionList = document.getElementById('sessionList');
+  const activityCard = sessionList ? sessionList.parentElement : null;
+  if (!activityCard) return;
+
+  const ageMin = Math.round((Date.now() - build.savedAt) / 60000);
+  const ageStr = ageMin < 60 ? `${ageMin}m ago` : `${Math.round(ageMin / 60)}h ago`;
+
+  const card = document.createElement('div');
+  card.id = 'pendingBuildCard';
+  card.style.cssText = [
+    'background:rgba(124,58,237,0.08)',
+    'border:1px solid rgba(124,58,237,0.28)',
+    'border-radius:12px',
+    'padding:16px 18px',
+    'margin-bottom:16px',
+    'display:flex',
+    'align-items:flex-start',
+    'gap:12px',
+    'flex-wrap:wrap',
+  ].join(';');
+
+  card.innerHTML = `
+    <div style="font-size:22px;line-height:1;">🏗️</div>
+    <div style="flex:1;min-width:160px;">
+      <div style="font-size:12px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">
+        Unsaved Build
+      </div>
+      <div style="font-size:14px;font-weight:600;color:var(--text-1);margin-bottom:2px;">
+        ${escapeHtml(build.repoName)}
+      </div>
+      <div style="font-size:12px;color:var(--text-3);">
+        Built ${ageStr} — not yet deployed to GitHub Pages
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+      <a href="/app" id="resumeBuildLink"
+        style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6366f1,#4f46e5);
+               color:#fff;border-radius:8px;padding:7px 16px;font-size:13px;font-weight:600;text-decoration:none;">
+        🚀 Resume &amp; Deploy
+      </a>
+      <button id="discardBuildBtn"
+        style="background:transparent;border:1px solid var(--border);color:var(--text-3);
+               border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:var(--font);">
+        Discard
+      </button>
+    </div>`;
+
+  // Insert before the session list (at the top of the activity card content)
+  activityCard.insertBefore(card, sessionList);
+
+  card.querySelector('#discardBuildBtn').addEventListener('click', () => {
+    localStorage.removeItem(PENDING_BUILD_KEY);
+    card.remove();
+  });
+}
+
 function timeAgo(iso) {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
@@ -249,6 +329,12 @@ function renderProfile(p) {
         </div>
       </div>`).join('');
   }
+
+  // ── Pending build from localStorage ──────────────────────────────
+  // Show at the top of the activity history so the user can resume without
+  // wasting API quota on a rebuild.
+  const pendingBuild = loadPendingBuildForProfile();
+  if (pendingBuild) renderPendingBuildCard(pendingBuild);
 }
 
 async function showUpgradeModal() {

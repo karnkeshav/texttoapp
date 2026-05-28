@@ -326,6 +326,15 @@ Maximum 5 issues. Keep the entire response under 150 words.`;
  * Returns the full response string (REPO_NAME + intro + ```html...```)
  */
 async function semanticRepair(generatedText, issues, requirements, apiKey) {
+  // Multi-file output: more than one code block (html + css + js).
+  // We can't safely repair and reconstruct without losing the other files,
+  // so skip the repair step and return the original.
+  const codeBlockCount = (generatedText.match(/```(?:html|css|javascript|js)\b/gi) || []).length;
+  if (codeBlockCount > 1) {
+    console.warn('[SemanticRepair] Multi-file output detected — skipping repair to preserve file structure');
+    return generatedText;
+  }
+
   const htmlMatch = generatedText.match(/```html\s*([\s\S]*?)```/i)
                  || generatedText.match(/```html\s*([\s\S]*?<\/html>)/i);
   const currentHtml = htmlMatch ? htmlMatch[1] : generatedText;

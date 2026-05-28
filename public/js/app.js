@@ -149,12 +149,12 @@ async function loadUser() {
     _userAuthenticated = true;
     showWelcomeCards();
 
-    // ── Check for an unsaved build from a previous session ─────────
-    // If the user built something but never deployed it, offer to resume.
+    // ── Restore an unsaved build from a previous session ──────────
+    // Show a non-intrusive resume banner on the welcome screen.
+    // The same build also appears in My Account → Activity History
+    // so the user can resume from either place.
     const pendingBuild = loadPendingBuild();
-    if (pendingBuild) {
-      showResumeBuildBanner(pendingBuild);
-    }
+    if (pendingBuild) showResumeBuildBanner(pendingBuild);
 
   } catch {
     // Fail silently — app still usable without auth info
@@ -724,38 +724,60 @@ function setStatus(text, thinking = false) {
 function checkForCode(text, hintRepoName) {
   if (!text) return;
 
-  // 1. Try a complete ```html … ``` block (normal case)
-  let htmlContent = null;
-  const completeMatch = text.match(/```html\s*([\s\S]*?)```/i);
-  if (completeMatch) {
-    htmlContent = completeMatch[1].trim();
-  }
-
-  // 2. Fallback: response was truncated — no closing ```, but HTML is still present.
-  //    Accept anything from ```html up to the last </html> in the text.
-  if (!htmlContent) {
-    const truncatedMatch = text.match(/```html\s*([\s\S]*?<\/html>)/i);
-    if (truncatedMatch) {
-      htmlContent = truncatedMatch[1].trim();
-      console.warn('[Ready4Launch] HTML block had no closing ``` — used </html> as boundary');
-    }
-  }
-
-  if (!htmlContent || htmlContent.length < 50) return; // nothing useful to deploy
-
   // Extract REPO_NAME — prefer the server-side hint (more reliable than regex on large text)
   const repoMatch = text.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
   const repoName  = hintRepoName
     || (repoMatch ? repoMatch[1].toLowerCase() : null)
     || `r4l-${Date.now().toString(36)}`;
 
-  const files = [{ path: 'index.html', content: htmlContent }];
+  const files = [];
 
-  // Pick up any separate CSS / JS blocks (rare but possible)
-  const cssMatch = text.match(/```css\s*([\s\S]*?)```/i);
-  const jsMatch  = text.match(/```(?:javascript|js)\s*([\s\S]*?)```/i);
-  if (cssMatch) files.push({ path: 'style.css',  content: cssMatch[1].trim() });
-  if (jsMatch)  files.push({ path: 'script.js',  content: jsMatch[1].trim() });
+  // ── Multi-file format: each block starts with a FILE: path comment ──
+  // Matches ```html, ```css, ```javascript, ```js code blocks
+  const BLOCK_RE = /```(html|css|javascript|js)\s*([\s\S]*?)```/gi;
+  const FILE_COMMENT_RE = /^(?:<!--\s*FILE:\s*|\/\*\s*FILE:\s*|\/\/\s*FILE:\s*)([^\s*>]+)/i;
+
+  let blockMatch;
+  while ((blockMatch = BLOCK_RE.exec(text)) !== null) {
+    const lang    = blockMatch[1].toLowerCase();
+    const content = blockMatch[2].trim();
+    if (!content || content.length < 10) continue;
+
+    const firstLine = content.split('\n')[0];
+    const pathMatch = FILE_COMMENT_RE.exec(firstLine);
+
+    if (pathMatch) {
+      // Strip the FILE: comment from the body
+      const body = content.split('\n').slice(1).join('\n').trim();
+      if (body.length >= 10) files.push({ path: pathMatch[1], content: body });
+    } else {
+      // No FILE: marker — fallback: use default path per language (legacy / single-file AI)
+      const defaultPath = lang === 'html' ? 'index.html'
+        : lang === 'css'                  ? 'css/style.css'
+        :                                   'js/app.js';
+      if (!files.find(f => f.path === defaultPath) && content.length >= 50) {
+        files.push({ path: defaultPath, content });
+      }
+    }
+  }
+
+  // ── Fallback: truncated response — no closing ```, but HTML present ──
+  if (!files.length) {
+    const truncatedMatch = text.match(/```html\s*([\s\S]*?<\/html>)/i);
+    if (truncatedMatch) {
+      const content   = truncatedMatch[1].trim();
+      const firstLine = content.split('\n')[0];
+      const pathMatch = FILE_COMMENT_RE.exec(firstLine);
+      if (pathMatch) {
+        files.push({ path: pathMatch[1], content: content.split('\n').slice(1).join('\n').trim() });
+      } else {
+        files.push({ path: 'index.html', content });
+      }
+      console.warn('[Ready4Launch] HTML block had no closing ``` — used </html> as boundary');
+    }
+  }
+
+  if (!files.length) return; // nothing useful to deploy
 
   showDeployPrompt(repoName, files);
 }
@@ -1162,17 +1184,28 @@ function removeModal() {
 
 function showSignInWall() {
   removeModal();
+
+  // Detect whether this is a session expiry (user was signed in this page load)
+  // vs a first-time visitor who was never authenticated.
+  const sessionExpired = _userAuthenticated;
+  const icon    = sessionExpired ? '🔄' : '⚡';
+  const heading = sessionExpired ? 'Session expired' : 'Sign in to continue';
+  const subtext = sessionExpired
+    ? 'Your session has expired — this usually happens after a server restart. Please sign in again to continue.'
+    : 'Create a free account to build and deploy apps with Ready4Launch.';
+  const btnLabel = sessionExpired ? 'Sign in again with Google' : 'Continue with Google';
+
   const overlay = document.createElement('div');
   overlay.id = 'r4l-modal-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
   overlay.innerHTML = `
     <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:20px;padding:40px 36px;max-width:420px;width:100%;text-align:center;">
-      <div style="font-size:40px;margin-bottom:16px;">⚡</div>
-      <h2 style="font-size:22px;font-weight:700;margin-bottom:10px;">Sign in to continue</h2>
-      <p style="color:var(--text-2);font-size:15px;margin-bottom:28px;">Create a free account to build and deploy apps with Ready4Launch.</p>
+      <div style="font-size:40px;margin-bottom:16px;">${icon}</div>
+      <h2 style="font-size:22px;font-weight:700;margin-bottom:10px;">${heading}</h2>
+      <p style="color:var(--text-2);font-size:15px;margin-bottom:28px;">${subtext}</p>
       <a href="/auth/google" style="display:inline-flex;align-items:center;gap:10px;background:#fff;color:#333;border:1px solid #ddd;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;text-decoration:none;margin-bottom:12px;width:100%;justify-content:center;">
         <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        Continue with Google
+        ${btnLabel}
       </a>
       <button onclick="removeModal()" style="background:transparent;border:none;color:var(--text-3);font-size:13px;cursor:pointer;margin-top:4px;">Maybe later</button>
     </div>`;
