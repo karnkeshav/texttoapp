@@ -357,8 +357,115 @@ function getDb() {
   return _db;
 }
 
+// ── Support ticket storage ────────────────────────────────────────
+
+/**
+ * Persist a new support ticket.
+ */
+async function saveTicket({ ticketId, uid, name, email, category, subject, description }) {
+  const admin = getAdmin();
+  if (!admin || !_db) return;
+  try {
+    await _db.collection('support_tickets').doc(ticketId).set({
+      ticketId,
+      uid:         uid         || null,
+      name:        name        || null,
+      email:       email       || null,
+      category:    category    || 'Other',
+      subject:     subject     || '',
+      description: description || '',
+      status:     'open',
+      createdAt:   admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('[Firestore] saveTicket error:', err.message);
+  }
+}
+
+/**
+ * Attach AI triage results to a ticket and update its status.
+ */
+async function updateTicketTriage(ticketId, triage) {
+  const admin = getAdmin();
+  if (!admin || !_db) return;
+  try {
+    const newStatus = triage.accountFixApplied ? 'resolved'
+      : triage.prUrl                           ? 'fix_in_review'
+      : 'triaged';
+    await _db.collection('support_tickets').doc(ticketId).update({
+      triage,
+      status:     newStatus,
+      triagedAt:  admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('[Firestore] updateTicketTriage error:', err.message);
+  }
+}
+
+/**
+ * Count open tickets that share the same bugSignature (for duplicate detection).
+ */
+async function countSimilarBugs(bugSignature) {
+  const admin = getAdmin();
+  if (!admin || !_db || !bugSignature) return 0;
+  try {
+    const snap = await _db.collection('support_tickets')
+      .where('triage.type', '==', 'bug')
+      .where('triage.bugSignature', '==', bugSignature)
+      .get();
+    return snap.size;
+  } catch (err) {
+    console.error('[Firestore] countSimilarBugs error:', err.message);
+    return 0;
+  }
+}
+
+// ── Account-level fixes (customer-specific) ───────────────────────
+
+/**
+ * Reset today's prompt quota for a specific user.
+ * Deletes the daily usage document so all section counters go back to 0.
+ */
+async function resetUserQuota(uid) {
+  const admin = getAdmin();
+  if (!admin || !_db || !uid) return;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    await _db.collection('users').doc(uid).collection('usage').doc(today).delete();
+    console.log(`[Firestore] Quota reset for uid: ${uid}`);
+  } catch (err) {
+    console.error('[Firestore] resetUserQuota error:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Extend a user's plan expiry by N days (extends from today if already expired).
+ */
+async function extendUserPlan(uid, days = 7) {
+  const admin = getAdmin();
+  if (!admin || !_db || !uid) return;
+  try {
+    const snap = await _db.collection('users').doc(uid).get();
+    if (!snap.exists) return;
+    const d      = snap.data();
+    const current = d.packageExpiresAt?.toDate() || new Date();
+    const base    = current > new Date() ? current : new Date();
+    const newExp  = new Date(base.getTime() + days * 86_400_000);
+    await _db.collection('users').doc(uid).update({
+      packageExpiresAt: admin.firestore.Timestamp.fromDate(newExp),
+    });
+    console.log(`[Firestore] Plan extended +${days}d for uid: ${uid}`);
+  } catch (err) {
+    console.error('[Firestore] extendUserPlan error:', err.message);
+    throw err;
+  }
+}
+
 module.exports = {
   upsertUser, linkGitHub, getDb,
   setPackage, getPackageStatus, checkAndIncrementUsage, recordSession, getUserProfile,
+  saveTicket, updateTicketTriage, countSimilarBugs,
+  resetUserQuota, extendUserPlan,
   PACKAGES, OWNER_EMAILS,
 };

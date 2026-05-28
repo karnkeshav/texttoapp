@@ -171,4 +171,70 @@ async function getFileContent(accessToken, owner, repo, path = 'index.html') {
   }
 }
 
-module.exports = { listRepos, getUser, createRepo, pushFiles, enablePages, getFileContent };
+// ── Owner-token operations (used by support auto-fix pipeline) ────
+// These functions use process.env.GITHUB_TOKEN — a Personal Access Token
+// with `repo` scope on the karnkeshav/texttoapp repository.
+// Set this in Render env vars: GITHUB_TOKEN = <your PAT>
+
+const OWNER       = 'karnkeshav';
+const SOURCE_REPO = 'texttoapp';
+
+/**
+ * Read a source file from the texttoapp repo using the owner's PAT.
+ * Returns { path, content, sizeBytes } or null when file not found / token missing.
+ */
+async function readSourceFile(filePath) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return null;
+  const content = await getFileContent(token, OWNER, SOURCE_REPO, filePath);
+  if (content === null) return null;
+  return { path: filePath, content, sizeBytes: Buffer.byteLength(content, 'utf8') };
+}
+
+/**
+ * Create a new branch from main, push fixed files to it, and open a PR.
+ * Returns the PR URL.
+ * Throws if GITHUB_TOKEN is not set.
+ */
+async function createFixPR({ branchName, files, prTitle, prBody }) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error('GITHUB_TOKEN env var not set — cannot create fix PR');
+
+  await pushFiles(token, OWNER, SOURCE_REPO, files, prTitle, branchName);
+
+  const octokit = getOctokit(token);
+  const { data: pr } = await octokit.pulls.create({
+    owner: OWNER,
+    repo:  SOURCE_REPO,
+    title: prTitle,
+    body:  prBody,
+    head:  branchName,
+    base:  'main',
+  });
+  return pr.html_url;
+}
+
+/**
+ * Create a GitHub issue on the texttoapp repo.
+ * Returns the issue URL.
+ * Throws if GITHUB_TOKEN is not set.
+ */
+async function createIssue({ title, body, labels = [] }) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) throw new Error('GITHUB_TOKEN env var not set — cannot create issue');
+
+  const octokit = getOctokit(token);
+  const { data: issue } = await octokit.issues.create({
+    owner:  OWNER,
+    repo:   SOURCE_REPO,
+    title,
+    body,
+    labels,
+  });
+  return issue.html_url;
+}
+
+module.exports = {
+  listRepos, getUser, createRepo, pushFiles, enablePages, getFileContent,
+  readSourceFile, createFixPR, createIssue,
+};

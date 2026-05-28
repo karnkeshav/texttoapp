@@ -114,7 +114,7 @@
     </div>
     <div class="faq-card">
       <h3>🌐 Deployed site not loading?</h3>
-      <p>Cloudflare sites can take 60–90 seconds to propagate after first deploy. GitHub Pages sites can take 2–5 minutes. Refresh and try again.</p>
+      <p>GitHub Pages sites can take 2–5 minutes to go live after the first deploy. Refresh and try again. If it's still not live after 10 minutes, raise a ticket below.</p>
     </div>
     <div class="faq-card">
       <h3>📦 Package / billing question?</h3>
@@ -189,7 +189,8 @@
     <div class="success-box" id="successBox">
       <div class="s-icon">✅</div>
       <h2>Ticket Submitted!</h2>
-      <p>Thanks for reaching out. We'll review your issue and reply to your email within 24 hours.</p>
+      <p id="successMsg">Thanks for reaching out. We'll review your issue and reply to your email within 24 hours.</p>
+      <p id="ticketIdLine" style="font-size:13px;color:var(--text-3);margin-top:-12px;margin-bottom:24px;"></p>
       <a href="/app" class="btn-primary">Back to App</a>
     </div>
 
@@ -236,7 +237,24 @@ async function submitTicket() {
 
     if (data.success) {
       document.getElementById('formContent').style.display = 'none';
-      document.getElementById('successBox').style.display  = 'block';
+      const box = document.getElementById('successBox');
+      box.style.display = 'block';
+
+      // Show ticket ID
+      if (data.ticketId) {
+        document.getElementById('ticketIdLine').textContent = `Ticket ID: ${data.ticketId}`;
+        // Account & Billing or Technical Error: mention auto-heal
+        const cat = document.getElementById('f-category').value;
+        if (cat === 'Account & Billing') {
+          document.getElementById('successMsg').textContent =
+            'Our system has analysed your account issue and may have applied an automatic fix. ' +
+            'Check your email for confirmation, or wait — we\'ll reply within 24 hours if manual action is needed.';
+        } else if (cat === 'Technical Error') {
+          document.getElementById('successMsg').textContent =
+            'Our AI is reviewing the reported issue. If enough users report the same problem, ' +
+            'a fix is automatically generated and queued for deployment. We\'ll reply within 24 hours.';
+        }
+      }
     } else {
       alert(data.error || 'Something went wrong. Please try again.');
       btn.disabled = false;
