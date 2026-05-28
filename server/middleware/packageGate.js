@@ -63,6 +63,10 @@ async function checkGate(req, section, newConv) {
   // ── 1b. Owner accounts — bypass all restrictions ─────────────────
   const userEmail = req.session?.googleUser?.email || req.session?.user?.email || null;
   if (userEmail && OWNER_EMAILS.has(userEmail)) {
+    // Still track usage for analytics (fire-and-forget — never blocks)
+    if (section && newConv) {
+      checkAndIncrementUsage(uid, section, 'professional').catch(() => {});
+    }
     return { ok: true, uid, owner: true };
   }
 
@@ -96,12 +100,13 @@ async function checkGate(req, section, newConv) {
     };
   }
 
-  // ── 5. Demo: per-section daily limit ────────────────────────────
-  // Only count new conversations (not follow-up messages in the same session).
-  if (status.package === 'demo' && newConv) {
-    const usage = await checkAndIncrementUsage(uid, section, 'demo');
+  // ── 5. Usage tracking + per-section daily limit ─────────────────
+  // Always track usage on new conversations (so My Account shows real counts).
+  // Only BLOCK for demo package when the daily cap is reached.
+  if (newConv && section) {
+    const usage = await checkAndIncrementUsage(uid, section, status.package);
 
-    if (!usage.allowed) {
+    if (status.package === 'demo' && !usage.allowed) {
       return {
         ok:      false,
         status:  429,

@@ -91,6 +91,19 @@ function isConversationalIntent(message) {
   );
 }
 
+// ── Code-paste detector ───────────────────────────────────────────
+// Returns true when the message looks like pasted source code rather than
+// a natural-language request. Used to avoid routing code snippets into the
+// prototype/complete app-building state machine.
+const CODE_LINE_RE = /^\s*(?:function\s|class\s|const\s|let\s|var\s|import\s|export\s|def\s|return\s|public\s|private\s|protected\s|async\s|if\s*\(|for\s*\(|while\s*\(|switch\s*\(|try\s*\{|\/\/|\/\*|\*\/|#\s*include|package\s|using\s|<\?php|<!DOCTYPE|<html|<div|<style|<script|\{|\})/i;
+
+function looksLikeCode(message) {
+  const lines = message.split('\n').filter(l => l.trim().length > 0);
+  if (lines.length < 3) return false; // too short to be a code snippet
+  const codeLines = lines.filter(l => CODE_LINE_RE.test(l));
+  return codeLines.length >= 2; // ≥2 code-like lines out of ≥3 total
+}
+
 // ── Top-level intent classifier ───────────────────────────────────
 // Runs on the VERY FIRST message of a new conversation (before the build
 // state machine starts).  Returns one of:
@@ -118,6 +131,10 @@ function classifyTopLevelIntent(message) {
 
   // Conversational question (no repo context) → one-shot chat
   if (isConversationalIntent(message)) return 'chat';
+
+  // Pasted code without an explicit build instruction → route to chat
+  // (prevents the app-building state machine from firing on bare code snippets)
+  if (looksLikeCode(message)) return 'chat';
 
   // Default: treat as a build request (existing behaviour)
   return 'build';
@@ -280,6 +297,24 @@ Be concise. Do NOT output REPO_NAME or \`\`\`html blocks unless explicitly asked
 
 function detectConversionFormat(message) {
   const m = message.toLowerCase();
+
+  // ── Prioritise the TARGET format ────────────────────────────────
+  // "convert word to ppt" → the user wants PPT, not Word.
+  // Look for the format keyword that appears after a direction word.
+  const targetMatch = m.match(
+    /\b(?:to|into|as|in)\s+(?:a\s+|an?\s+)?(word|docx?|excel|xlsx?|spreadsheet|powerpoint|pptx?|presentation|slides?|pdf|csv|json)\b/
+  );
+  if (targetMatch) {
+    const t = targetMatch[1];
+    if (/word|docx?/.test(t))               return 'docx';
+    if (/excel|xlsx?|spreadsheet/.test(t))  return 'xlsx';
+    if (/powerpoint|pptx?|presentation|slides?/.test(t)) return 'pptx';
+    if (/pdf/.test(t))                      return 'pdf';
+    if (/csv/.test(t))                      return 'csv';
+    if (/json/.test(t))                     return 'json';
+  }
+
+  // ── Fallback: first format keyword found ─────────────────────────
   if (/\b(word|docx?)\b/.test(m))                        return 'docx';
   if (/\b(excel|xlsx?|spreadsheet)\b/.test(m))           return 'xlsx';
   if (/\b(powerpoint|pptx?|presentation|slides?)\b/.test(m)) return 'pptx';
