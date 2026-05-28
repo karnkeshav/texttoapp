@@ -66,6 +66,24 @@ async function activateInputBar(page) {
   await page.locator('#chatInput').waitFor({ state: 'visible', timeout: 3000 });
 }
 
+/**
+ * Same as activateInputBar but selects "GitHub Pages" so deployMode='github'
+ * and the "Deploy to GitHub Pages" button is rendered after code generation.
+ * test-login sets a GitHub session so the GitHub Pages card doesn't redirect.
+ */
+async function activateInputBarGitHub(page) {
+  const firstCard = page.locator('.welcome-card').first();
+  await firstCard.waitFor({ state: 'visible', timeout: 5000 });
+
+  await page.locator('.welcome-card', { hasText: 'Build an App' }).click();
+
+  const ghCard = page.locator('.welcome-card', { hasText: 'GitHub Pages' });
+  await ghCard.waitFor({ state: 'visible', timeout: 3000 });
+  await ghCard.click();
+
+  await page.locator('#chatInput').waitFor({ state: 'visible', timeout: 3000 });
+}
+
 // ── Auth bypass ───────────────────────────────────────────────────────────────
 
 test.describe('Test auth bypass (NODE_ENV=test)', () => {
@@ -214,7 +232,8 @@ test.describe('Deploy button', () => {
   test.beforeEach(async ({ page }) => {
     await testLogin(page);
     await page.goto('/app');
-    await activateInputBar(page);
+    // GitHub Pages mode so "Deploy to GitHub Pages" button appears after code generation
+    await activateInputBarGitHub(page);
   });
 
   test('deploy button appears when AI returns REPO_NAME + html block', async ({ page }) => {
