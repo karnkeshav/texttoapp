@@ -348,8 +348,17 @@ async function getUserProfile(uid) {
   }
 }
 
+/**
+ * Return the raw Firestore db reference (triggering init if not done yet).
+ * Returns null when Firestore env vars are not configured.
+ */
+function getDb() {
+  getAdmin(); // triggers init, populates _db
+  return _db;
+}
+
 module.exports = {
-  upsertUser, linkGitHub,
+  upsertUser, linkGitHub, getDb,
   setPackage, getPackageStatus, checkAndIncrementUsage, recordSession, getUserProfile,
   PACKAGES, OWNER_EMAILS,
 };

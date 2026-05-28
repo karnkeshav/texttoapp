@@ -15,12 +15,13 @@ test.describe('Landing page', () => {
     await expect(page).toHaveTitle(/Ready4Launch/i);
   });
 
-  test('shows a "Sign in with GitHub" button', async ({ page }) => {
+  test('shows a "Sign in with Google" button', async ({ page }) => {
     await page.goto('/');
-    // There are multiple /auth/github links on the page (nav, hero, cards, footer).
+    // The landing page uses Google OAuth as its only sign-in entry point.
+    // There are multiple /auth/google links (nav, hero, packages, footer).
     // Use .first() so the assertion targets the nav button without strict-mode violation.
-    const githubBtn = page.locator('a[href="/auth/github"]').first();
-    await expect(githubBtn).toBeVisible();
+    const googleBtn = page.locator('a[href="/auth/google"]').first();
+    await expect(googleBtn).toBeVisible();
   });
 
   test('unauthenticated visit to /app redirects away', async ({ page }) => {

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const { FirestoreSessionStore } = require('./services/firestoreSessionStore');
 
 const authRoutes    = require('./routes/auth');
 const chatRoutes    = require('./routes/chat');
@@ -28,6 +29,9 @@ app.use(
     secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
     resave: false,
     saveUninitialized: false,
+    // Use Firestore-backed store so sessions survive server restarts on Render free tier.
+    // Falls back to MemoryStore behaviour (all ops no-op) when Firestore is not configured.
+    store: new FirestoreSessionStore(),
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
