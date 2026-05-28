@@ -2,14 +2,17 @@
 /**
  * firestoreSessionStore.js
  *
- * A minimal express-session-compatible store backed by Firestore.
- * Survives server restarts — sessions live in /sessions/{sid} in Firestore.
+ * express-session-compatible store with two tiers:
  *
- * Drop-in replacement for MemoryStore when Firestore is configured.
- * Falls back transparently (all operations are no-ops) if Firestore is not set up.
+ *   1. Firestore  — used when FIREBASE_* env vars are set (production on Render).
+ *                   Sessions survive server restarts because they live in Firestore.
  *
- * TTL: sessions expire when their cookie.maxAge elapses (same as MemoryStore).
- * Cleanup: expired docs are checked on read and deleted lazily.
+ *   2. Memory Map — used when Firestore is not configured (local dev, CI tests).
+ *                   Identical behaviour to express-session's built-in MemoryStore.
+ *
+ * The class extends expressSession.Store (not EventEmitter) so that the internal
+ * createSession / generate / regenerate methods are available — express-session
+ * requires them when inflating a session from storage.
  *
  * No new npm dependencies — uses firebase-admin already in package.json.
  */
@@ -17,32 +20,52 @@
 const expressSession = require('express-session');
 const { getDb }      = require('./firestoreService');
 
-// Must extend express-session's Store, not plain EventEmitter.
-// Store provides createSession(), generate(), and the EventEmitter base —
-// all required by the session middleware internals.
 class FirestoreSessionStore extends expressSession.Store {
   constructor() {
     super();
-    // _coll is resolved lazily on first use
+    // In-memory fallback used when Firestore is not configured.
+    // Also used as a write-through cache on Firestore errors so sessions
+    // are never silently dropped.
+    this._mem = new Map(); // sid → { sess: plainObject, expiresAt: number (ms epoch) }
   }
+
+  // ── Internal helpers ───────────────────────────────────────────────
 
   _coll() {
     const db = getDb();
     return db ? db.collection('sessions') : null;
   }
 
-  // ── Required by express-session ────────────────────────────────
+  _serialize(sess) {
+    // Firestore (and the memory fallback) need a plain object.
+    // express-session passes a Session instance (custom prototype) — strip it.
+    return JSON.parse(JSON.stringify(sess));
+  }
+
+  // ── Required by express-session ────────────────────────────────────
+
   get(sid, cb) {
     const coll = this._coll();
-    if (!coll) return cb(null, null); // Firestore not ready → treat as no session
 
+    // ── Memory path (no Firestore) ──────────────────────────────────
+    if (!coll) {
+      const entry = this._mem.get(sid);
+      if (!entry) return cb(null, null);
+      if (Date.now() > entry.expiresAt) {
+        this._mem.delete(sid);
+        return cb(null, null);
+      }
+      return cb(null, entry.sess);
+    }
+
+    // ── Firestore path ──────────────────────────────────────────────
     coll.doc(sid).get()
       .then(snap => {
         if (!snap.exists) return cb(null, null);
 
         const { sess, expiresAt } = snap.data();
 
-        // Lazy TTL check — delete expired docs on first read after expiry
+        // Lazy TTL — delete expired doc on first read after expiry
         if (expiresAt && expiresAt.toDate() < new Date()) {
           snap.ref.delete().catch(() => {});
           return cb(null, null);
@@ -51,51 +74,60 @@ class FirestoreSessionStore extends expressSession.Store {
         cb(null, sess);
       })
       .catch(err => {
-        console.warn('[SessionStore] get error (falling back):', err.message);
-        cb(null, null); // fail-open — don't break the request
+        console.warn('[SessionStore] Firestore get error — trying memory:', err.message);
+        // Fall back to memory on transient Firestore errors
+        const entry = this._mem.get(sid);
+        cb(null, (entry && Date.now() <= entry.expiresAt) ? entry.sess : null);
       });
   }
 
   set(sid, sess, cb) {
-    const coll = this._coll();
-    if (!coll) return cb(null); // Firestore not ready — silently skip
+    // Strip custom Session prototype → plain serialisable object
+    let plainSess;
+    try {
+      plainSess = this._serialize(sess);
+    } catch (err) {
+      console.warn('[SessionStore] serialisation failed — session not persisted:', err.message);
+      return cb(null); // fail-open; request still works, just won't persist
+    }
 
     const maxAge    = sess?.cookie?.maxAge ?? 7 * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + maxAge);
 
-    // Firestore rejects objects with custom prototypes (e.g. express-session's Session class).
-    // JSON round-trip strips the prototype and produces a plain serialisable object.
-    let plainSess;
-    try {
-      plainSess = JSON.parse(JSON.stringify(sess));
-    } catch (err) {
-      console.warn('[SessionStore] session serialisation failed — skipping persist:', err.message);
-      return cb(null); // fail-open
-    }
+    // Always keep memory copy as safety net (used by get() on Firestore errors)
+    this._mem.set(sid, { sess: plainSess, expiresAt: expiresAt.getTime() });
 
+    const coll = this._coll();
+
+    // ── Memory-only path ────────────────────────────────────────────
+    if (!coll) return cb(null);
+
+    // ── Firestore path ──────────────────────────────────────────────
     coll.doc(sid).set({ sess: plainSess, expiresAt, updatedAt: new Date() })
       .then(() => cb(null))
       .catch(err => {
-        console.warn('[SessionStore] set error (session may not persist):', err.message);
-        cb(null); // fail-open
+        // Memory copy already written above — session still works this process lifetime
+        console.warn('[SessionStore] Firestore set error (memory fallback active):', err.message);
+        cb(null);
       });
   }
 
   destroy(sid, cb) {
+    this._mem.delete(sid);
+
     const coll = this._coll();
     if (!coll) return cb(null);
 
     coll.doc(sid).delete()
       .then(() => cb(null))
       .catch(err => {
-        console.warn('[SessionStore] destroy error:', err.message);
+        console.warn('[SessionStore] Firestore destroy error:', err.message);
         cb(null);
       });
   }
 
-  // ── Optional (improves express-session behaviour) ──────────────
+  // ── Optional — improves session TTL renewal ────────────────────────
   touch(sid, sess, cb) {
-    // Reset TTL on active sessions to keep them alive
     this.set(sid, sess, cb);
   }
 }
