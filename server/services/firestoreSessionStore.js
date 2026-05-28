@@ -14,10 +14,13 @@
  * No new npm dependencies — uses firebase-admin already in package.json.
  */
 
-const { EventEmitter } = require('events');
-const { getDb }        = require('./firestoreService');
+const expressSession = require('express-session');
+const { getDb }      = require('./firestoreService');
 
-class FirestoreSessionStore extends EventEmitter {
+// Must extend express-session's Store, not plain EventEmitter.
+// Store provides createSession(), generate(), and the EventEmitter base —
+// all required by the session middleware internals.
+class FirestoreSessionStore extends expressSession.Store {
   constructor() {
     super();
     // _coll is resolved lazily on first use
