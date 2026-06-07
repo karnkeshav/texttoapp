@@ -384,7 +384,17 @@ async function streamFromAntigravity(newUserMessage, history, apiKey, agentId, o
     },
     responseType: 'stream',
     timeout: 320_000,
+    // Axios should throw for non-2xx automatically, but belt-and-suspenders:
+    // returning false here means axios still resolves — we check status below.
+    validateStatus: () => true,
   });
+
+  // Explicitly detect non-2xx (catches quota/auth errors regardless of axios version)
+  if (response.status !== 200) {
+    const err = new Error(`Antigravity HTTP ${response.status}`);
+    err.response = { status: response.status, data: response.data };
+    throw err;
+  }
 
   let fullText = '';
   let buffer   = '';

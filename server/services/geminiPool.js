@@ -218,7 +218,9 @@ async function newSDKStream(model, contents, config, apiKey, systemInstruction) 
   return ai.models.generateContentStream({
     model,
     contents,
-    config: { ...config, systemInstruction },
+    // thinkingBudget:0 keeps parity with newSDKGenerate — disables thinking tokens
+    // so stream chunks are purely response text (no thought-part interleaving).
+    config: { ...config, systemInstruction, thinkingConfig: { thinkingBudget: 0 } },
   });
 }
 
