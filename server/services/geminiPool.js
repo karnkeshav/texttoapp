@@ -2,26 +2,34 @@
 /**
  * geminiPool.js — Multi-SDK, multi-model Gemini fallback pool
  *
- * Confirmed free-tier model status (last tested 2026-05-27):
- *   ✅ new + legacy : gemini-2.5-flash, gemini-2.5-flash-lite, gemini-3.1-flash-lite,
- *                     gemini-flash-lite-latest
- *   ✅ new only     : gemini-3-flash-preview  (legacy gives GoogleGenerativeAI error)
- *   ✅ legacy only  : gemma-4-31b-it, gemma-4-26b-a4b-it  (BAD_REQUEST on new SDK)
- *   ⏳ rate-limited : gemini-3.5-flash, gemini-flash-latest  (429 under load, still usable)
- *   ❌ needs billing: gemini-2.5-pro, gemini-2.0-*, gemini-3-pro-*, gemini-3.1-pro-*,
- *                     antigravity-preview-05-2026
+ * Confirmed free-tier models (1500 req/day each on Gemini free tier):
+ *   Model                   SDK support   Tier
+ *   ──────────────────────  ──────────    ──────
+ *   gemini-2.5-flash        new + legacy  build (primary)
+ *   gemini-3.5-flash        new + legacy  build (primary, 429 under high load)
+ *   gemini-3-flash-preview  new only      build (primary)
+ *   gemini-flash-latest     new + legacy  build (alias, 429 under high load)
+ *   gemini-2.5-flash-lite   new + legacy  chat  (primary lite)
+ *   gemini-3.1-flash-lite   new + legacy  chat  (primary lite)
+ *   gemini-flash-lite-latest new + legacy chat  (alias lite)
+ *
+ *   gemma-4-31b-it          legacy only   chat  (open-source, BAD_REQUEST on new SDK)
+ *   gemma-4-26b-a4b-it      legacy only   chat  (open-source)
+ *
+ *   ❌ needs billing: gemini-2.5-pro, gemini-2.0-*, gemini-3-pro-*, gemini-3.1-pro-*
  *   ❌ not found    : gemini-3.1-flash-lite-preview
  *
  * TWO-TIER POOL — every slot has a `tier` property:
  *
  *   tier: 'build'  → highest-quality models; used for app generation, plan analysis,
  *                    code repair, edit mode, and vision/multimodal.
- *                    Models: gemini-2.5-flash, gemini-3.5-flash, gemini-3-flash-preview,
- *                            gemini-flash-latest
+ *                    Primary: gemini-2.5-flash, gemini-3.5-flash, gemini-3-flash-preview,
+ *                             gemini-flash-latest
+ *                    Fallback: lite models (chat-tier) when ALL primary build slots cooling
  *
  *   tier: 'chat'   → lighter/faster models; used for conversational intents
  *                    (chat, reasoning, conversion). Gemma included here.
- *                    Falls back to build-tier models when all chat slots are exhausted.
+ *                    Falls back to build-tier models when all chat slots exhausted.
  *                    Models: gemini-2.5-flash-lite, gemini-3.1-flash-lite,
  *                            gemini-flash-lite-latest, gemma-4-31b-it, gemma-4-26b-a4b-it
  *
@@ -33,7 +41,8 @@
  *   - Tries slots in order on every call (first = highest priority within tier)
  *   - On 429 / quota error: marks that slot cooling for COOLDOWN_MS, tries next slot
  *   - On 404 / permanent error: marks slot dead for this process lifetime
- *   - On full primary exhaustion: chat falls back to build tier; build waits cooldown
+ *   - Build tier exhausted: falls back to chat-tier lite models (better than failing)
+ *   - Chat tier exhausted: falls back to build-tier models
  *   - Billing-enabled models: uncomment entries in the BILLING section below
  */
 
@@ -252,10 +261,12 @@ function selectSlots(mode, tier, multimodal) {
     (!multimodal || s.slot.sdk === 'new');
 
   if (tier === 'chat') {
-    // Try chat-tier slots first, then fall back to build-tier
+    // Chat: primary chat-tier first, then build-tier as fallback
     return [...all.filter(matches('chat')), ...all.filter(matches('build'))];
   }
-  return all.filter(matches('build'));
+  // Build: primary build-tier first; if all cooling, fall back to chat-tier lite models
+  // so the user gets a (slightly lower quality) response rather than a hard failure.
+  return [...all.filter(matches('build')), ...all.filter(matches('chat'))];
 }
 
 // ── Public: one-shot generation (plan phase, repair pass, diagnose) ─
