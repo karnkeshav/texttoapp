@@ -1015,15 +1015,27 @@ router.post('/chat', requireAuth, async (req, res) => {
       capturedText = fullText;
     };
 
-    sendEvent('status', { message: 'Ready4Launch is building your app…' });
-    await antigravity.streamChat(
-      processedMessage,
-      historyToSend,
-      null,
-      onChunk,
-      onDone,
-      enrichedNotes
-    );
+sendEvent('status', { message: 'Ready4Launch is building your app…' });
+
+// Build the content payload
+const contents = [
+  ...historyToSend.map(h => ({ role: h.role, parts: [{ text: h.content }] })),
+  { role: 'user', parts: [{ text: processedMessage }] }
+];
+
+// Execute direct stream from your pool
+await pooledStream({
+  contents,
+  config: { 
+    temperature: 0.5, 
+    maxOutputTokens: 32768 
+  },
+  apiKey,
+  tier: 'build',
+  systemInstruction: enrichedNotes, // Pass build requirements here
+  onChunk,
+  onDone
+});
 
     // Handle output gate / missing response
     if (outputGateError) {
