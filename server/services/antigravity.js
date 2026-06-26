@@ -193,6 +193,22 @@ No "Lorem ipsum". No "Sample text". No "Coming soon". No "Placeholder".
 Real feature names, real micro-copy, real sample data that fits the domain.
 Sample data should be believable: real-sounding names, realistic numbers, proper dates.
 
+▌ LOCALE & CONTACT DEFAULTS  (apply unless the prompt explicitly says otherwise)
+Default location for all address, contact, and "find us" sections:
+  Nizampet, Hyderabad – 500090, Telangana, India
+  Phone: +91 40-2345-6789  |  Email: hello@[business-name].in
+
+All sample/reference data must be India-specific by default:
+• Names       → Indian names (e.g. Priya Sharma, Rahul Mehta, Ananya Reddy)
+• Currency    → Indian Rupee (₹), format as ₹1,499 or ₹12,999
+• Dates       → DD/MM/YYYY format, IST timezone
+• Phone nos.  → +91 format (10-digit mobile or city STD codes)
+• Addresses   → Indian cities, PIN codes, state names
+• Units       → metric (km, kg, cm, litre)
+• Regulations → GST (18%), PAN, Aadhaar references where relevant
+• Food        → Indian dishes/ingredients as sample data for food apps
+• Brands      → reference Indian brands/platforms where plausible
+
 ▌ IMAGES — STRICT RULES
 Use ONLY these image sources:
 • https://picsum.photos/{width}/{height}  (e.g. https://picsum.photos/600/400) — photographic images
