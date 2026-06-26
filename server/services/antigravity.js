@@ -16,8 +16,11 @@ const { pooledStream } = require('./geminiPool');
 // After cooldown the next request probes Antigravity again; if it 429s
 // again the breaker re-trips automatically.
 const antigravityBreaker = {
-  cooldownUntil: 0,
-  COOLDOWN_MS: 5 * 60 * 1000, // 5 minutes
+  // Pre-open at startup — Antigravity has been at quota (429) persistently.
+  // Every server restart previously wasted the FIRST user request probing Antigravity.
+  // Start with a 24-hour cooldown; if Antigravity recovers, it will be re-probed then.
+  cooldownUntil: Date.now() + 24 * 60 * 60 * 1000,
+  COOLDOWN_MS: 24 * 60 * 60 * 1000, // 24 hours after each 429
 
   isOpen() {
     return Date.now() < this.cooldownUntil;
@@ -190,6 +193,15 @@ No "Lorem ipsum". No "Sample text". No "Coming soon". No "Placeholder".
 Real feature names, real micro-copy, real sample data that fits the domain.
 Sample data should be believable: real-sounding names, realistic numbers, proper dates.
 
+▌ IMAGES — STRICT RULES
+Use ONLY these image sources:
+• https://picsum.photos/{width}/{height}  (e.g. https://picsum.photos/600/400) — photographic images
+• https://placehold.co/{width}x{height}  (e.g. https://placehold.co/600x400) — generic placeholders
+• Inline SVG — for icons, illustrations, and decorative graphics
+NEVER use source.unsplash.com — it was shut down in March 2023 and returns 404.
+NEVER invent specific image URLs (Unsplash photo IDs, Pexels paths, CDN paths) — they will 404.
+Add onerror="this.style.display='none'" to every <img> tag as a safety net.
+
 ══════════════════════════════════════════════════════
 BEHAVIOUR
 ══════════════════════════════════════════════════════
@@ -286,6 +298,10 @@ CONTENT CHECK:
   ✓ Zero Lorem Ipsum or placeholder text
   ✓ 4–6 realistic sample data items pre-loaded
   ✓ Empty states shown when no data exists
+
+IMAGE CHECK:
+  ✓ Every <img> uses picsum.photos, placehold.co, or inline SVG — no other sources
+  ✓ Every <img> has onerror="this.style.display='none'"
 
 LAYOUT CHECK:
   ✓ Renders correctly at 375px (mobile)

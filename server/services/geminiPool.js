@@ -218,9 +218,10 @@ async function newSDKStream(model, contents, config, apiKey, systemInstruction) 
   return ai.models.generateContentStream({
     model,
     contents,
-    // thinkingBudget:0 keeps parity with newSDKGenerate — disables thinking tokens
-    // so stream chunks are purely response text (no thought-part interleaving).
-    config: { ...config, systemInstruction, thinkingConfig: { thinkingBudget: 0 } },
+    // NOTE: do NOT add thinkingConfig here — lite models (2.5-flash-lite etc.) don't
+    // support thinking config and would return BAD_REQUEST, killing those slots.
+    // Only full-size thinking-capable models (2.5-flash, 2.5-pro) support thinkingBudget.
+    config: { ...config, systemInstruction },
   });
 }
 

@@ -94,7 +94,7 @@ app.get('/api/diagnose', async (req, res) => {
   };
 
   if (apiKey) {
-    // ── Gemini pool live ping ─────────────────────────────────────
+    // ── Gemini pool live ping (generate) ─────────────────────────
     try {
       const text = await pooledGenerate({
         contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
@@ -104,6 +104,24 @@ app.get('/api/diagnose', async (req, res) => {
       result.gemini_live_test = { ok: true, response: text.trim().slice(0, 40) };
     } catch (err) {
       result.gemini_live_test = { ok: false, error: err.message };
+    }
+
+    // ── Gemini pool stream ping ───────────────────────────────────
+    try {
+      const { pooledStream } = require('./services/geminiPool');
+      let streamText = '';
+      await pooledStream({
+        contents:          [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
+        config:            { maxOutputTokens: 10, temperature: 0 },
+        apiKey,
+        tier:              'build',
+        systemInstruction: 'You are a test assistant.',
+        onChunk: (t) => { streamText += t; },
+        onDone:  (t) => { streamText = t; },
+      });
+      result.gemini_stream_test = { ok: true, response: streamText.trim().slice(0, 40) };
+    } catch (err) {
+      result.gemini_stream_test = { ok: false, error: err.message };
     }
 
     // ── Antigravity API ping (key-auth, non-streaming) ────────────

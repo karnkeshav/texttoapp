@@ -1077,9 +1077,34 @@ await pooledStream({
       const hasBuildOutput = /REPO_NAME\s*:/i.test(finalText) || /```html/i.test(finalText);
       if (hasBuildOutput) {
         donePayload.build = true;
-        // Also extract REPO_NAME server-side as a reliable fallback
+        // Primary: explicit REPO_NAME line from AI
         const rn = finalText.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
-        if (rn) donePayload.repoName = rn[1].toLowerCase();
+        if (rn) {
+          donePayload.repoName = rn[1].toLowerCase();
+        } else {
+          // Secondary: parse app name from "Here's your [X]! 🚀" title line
+          const titleMatch = finalText.match(/Here['']s your ([^!🚀\n]{2,60})(?:!|🚀)/i);
+          if (titleMatch) {
+            const slug = titleMatch[1].trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
+              .slice(0, 50);
+            if (slug) donePayload.repoName = slug;
+          }
+        }
+        // Tertiary: slug derived from the user's original request (sent to client as fallback)
+        if (req.session.originalRequest) {
+          donePayload.fallbackSlug = req.session.originalRequest
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+            .slice(0, 50) || null;
+        }
       }
     }
     sendEvent('done', donePayload);

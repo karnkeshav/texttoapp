@@ -619,7 +619,7 @@ async function sendMessage() {
               finalText = { text: aiText, downloadable: true, detectedFormat: event.detectedFormat || 'docx', pptPurpose: event.pptPurpose || null };
             } else if (event.build) {
               // Backend confirmed this is a build response — carry the pre-parsed repoName
-              finalText = { text: aiText, build: true, repoName: event.repoName || null };
+              finalText = { text: aiText, build: true, repoName: event.repoName || null, fallbackSlug: event.fallbackSlug || null };
             } else {
               finalText = aiText;
             }
@@ -642,7 +642,7 @@ async function sendMessage() {
         showDownloadOptions(aiMsgId, finalText.text, finalText.detectedFormat, finalText.pptPurpose);
       } else if (finalText && typeof finalText === 'object' && finalText.build) {
         // Backend confirmed build — pass server-side repoName hint to checkForCode
-        checkForCode(finalText.text, finalText.repoName);
+        checkForCode(finalText.text, finalText.repoName, finalText.fallbackSlug);
       } else {
         checkForCode(typeof finalText === 'string' ? finalText : finalText.text || '');
       }
@@ -734,14 +734,16 @@ function setStatus(text, thinking = false) {
 
 // ── Code detection & auto-deploy ─────────────────────────────────
 // hintRepoName — optional pre-parsed value from the backend done event (more reliable)
-function checkForCode(text, hintRepoName) {
+// fallbackSlug — slug derived from the user's original request (server-side tertiary fallback)
+function checkForCode(text, hintRepoName, fallbackSlug) {
   if (!text) return;
 
   // Extract REPO_NAME — prefer the server-side hint (more reliable than regex on large text)
   const repoMatch = text.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
   const repoName  = hintRepoName
     || (repoMatch ? repoMatch[1].toLowerCase() : null)
-    || `r4l-${Date.now().toString(36)}`;
+    || fallbackSlug
+    || 'my-app';
 
   const files = [];
 
