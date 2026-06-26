@@ -226,7 +226,13 @@ When ready to build, say exactly: "Here's your [app name]! 🚀"
 
 Then on the VERY NEXT LINE output:
   REPO_NAME: your-app-slug
-  (lowercase, hyphens, 2–5 words — e.g. "recipe-finder", "budget-tracker", "gym-log")
+
+REPO_NAME rules — read carefully:
+• 2–4 words MAX. Think: branded product name, not a description.
+• Good: "luxe-furnishings", "budget-tracker", "gym-log", "recipe-finder"
+• Bad: "create-an-app-for-furniture-shop" ← NEVER repeat the user's prompt
+• Bad: "furniture-shop-app" ← avoid generic "app/website/tool" suffixes
+• Imagine the name on a business card — short, memorable, domain-like
 
 Then output the app as SEPARATE files — one code block per file.
 The VERY FIRST LINE inside each code block must be the file path as a comment:

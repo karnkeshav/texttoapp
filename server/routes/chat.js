@@ -1077,10 +1077,14 @@ await pooledStream({
       const hasBuildOutput = /REPO_NAME\s*:/i.test(finalText) || /```html/i.test(finalText);
       if (hasBuildOutput) {
         donePayload.build = true;
-        // Primary: explicit REPO_NAME line from AI
+        // Primary: explicit REPO_NAME line from AI — but reject if it looks like the user's prompt
         const rn = finalText.match(/REPO_NAME:\s*([a-z0-9][a-z0-9\-]{1,48}[a-z0-9])/i);
-        if (rn) {
-          donePayload.repoName = rn[1].toLowerCase();
+        const BAD_PREFIX_RE = /^(create|make|build|generate|develop|design|give|an?)-/i;
+        const rnValue = rn ? rn[1].toLowerCase() : null;
+        const rnWordCount = rnValue ? rnValue.split('-').length : 0;
+        const rnIsGood = rnValue && rnWordCount <= 4 && !BAD_PREFIX_RE.test(rnValue);
+        if (rnIsGood) {
+          donePayload.repoName = rnValue;
         } else {
           // Secondary: parse app name from "Here's your [X]! 🚀" title line
           const titleMatch = finalText.match(/Here['']s your ([^!🚀\n]{2,60})(?:!|🚀)/i);
