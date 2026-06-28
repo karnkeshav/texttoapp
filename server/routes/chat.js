@@ -1081,15 +1081,19 @@ router.post('/chat', requireAuth, async (req, res) => {
             if (slug) donePayload.repoName = slug;
           }
         }
-        // Tertiary: slug derived from the user's original request (sent to client as fallback)
+        // Tertiary: extract key nouns from original request — strip filler verbs/articles
         if (req.session.originalRequest) {
-          donePayload.fallbackSlug = req.session.originalRequest
+          const FILLER = /\b(create|make|build|generate|develop|design|give|me|an?|a|the|for|of|with|and|that|which|some|my|i|want|need|please|app|website|site|page|tool|platform)\b/gi;
+          const keyWords = req.session.originalRequest
+            .replace(FILLER, ' ')
+            .trim()
             .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '')
-            .slice(0, 50) || null;
+            .replace(/[^a-z0-9\s]/g, '')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 3)
+            .join('-');
+          donePayload.fallbackSlug = keyWords || null;
         }
       }
     }
