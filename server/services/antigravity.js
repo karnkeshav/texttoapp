@@ -479,8 +479,8 @@ async function streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, on
 }
 
 // ── Main entry point ──────────────────────────────────────────────
-async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDone, enrichedNotes = '') {
-  const apiKey  = process.env.GEMINI_API_KEY;
+async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDone, enrichedNotes = '', apiKeyOverride = null) {
+  const apiKey  = apiKeyOverride || process.env.GEMINI_API_KEY;
   const agentId = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
 
   if (!apiKey) throw new Error('GEMINI_API_KEY not set in .env');
