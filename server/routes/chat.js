@@ -399,6 +399,7 @@ router.post('/chat', requireAuth, async (req, res) => {
     req.session.gatheredAnswers  = [];
     req.session.originalRequest  = '';
     req.session.compiledSpec     = '';
+    req.session.styleAnswer      = '';
     req.session.editMode         = null;
     req.session.pptOriginalMsg   = '';     // PPT ask-back: user's original request
     req.session.pptPurpose       = '';     // PPT ask-back: chosen purpose key (1-6)
@@ -633,6 +634,7 @@ router.post('/chat', requireAuth, async (req, res) => {
         req.session.gatheredAnswers  = [];
         req.session.originalRequest  = '';
         req.session.compiledSpec     = '';
+        req.session.styleAnswer      = '';
         req.session.editMode         = null;
         req.session.conversionFormat = null;
         req.session.pptOriginalMsg   = '';
@@ -937,6 +939,7 @@ router.post('/chat', requireAuth, async (req, res) => {
     if (req.session.chatPhase === 'prototype_style') {
       req.session.chatPhase = 'building';
       req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
+      req.session.styleAnswer = trimmedMessage; // persist so refinements don't corrupt enrichedNotes
       // ↓ fall through to build (trimmedMessage IS the style answer)
     }
 
@@ -958,10 +961,11 @@ router.post('/chat', requireAuth, async (req, res) => {
         ? req.session.planNotes
         : `Original request: "${req.session.originalRequest}"`;
 
-      // trimmedMessage at this point IS the style answer (prototype_style turn)
+      // Use the saved style answer so refinement turns don't corrupt the visual direction
+      const visualDirection = req.session.styleAnswer || trimmedMessage;
       enrichedNotes =
         `${base}\n` +
-        `Visual direction chosen by user: "${trimmedMessage}". ` +
+        `Visual direction chosen by user: "${visualDirection}". ` +
         `Apply this theme fully inside css/style.css — colour palette, typography, ` +
         `animations, hover states, gradients, and responsive layout all live there.\n\n` +
         `PROTOTYPE MODE: Build a polished SINGLE-PAGE application using the standard ` +
@@ -994,9 +998,18 @@ router.post('/chat', requireAuth, async (req, res) => {
     }
 
     // Determine which history to send (use recent context window; spec is in enrichedNotes)
-    const historyToSend = req.session.buildMode === 'complete'
-      ? []                    // complete mode: spec self-contained, no history needed
-      : history.slice(-6);   // prototype / building: send recent context
+    // IMPORTANT: exclude any trailing user-role entry — buildContents/streamFromGeminiPool
+    // appends processedMessage as the final user turn. If history already ends with a user
+    // message (e.g. prototype_style pushes the style answer before falling through to build),
+    // including it would produce two consecutive user roles → Gemini 400 BAD_REQUEST.
+    let historyToSend;
+    if (req.session.buildMode === 'complete') {
+      historyToSend = [];
+    } else {
+      const raw  = history.slice(-6);
+      const last = raw[raw.length - 1];
+      historyToSend = (last && last.role === 'user') ? raw.slice(0, -1) : raw;
+    }
 
     // ── Stream — capture full text, then audit, then send done ───────
     const onChunk = (text) => sendEvent('chunk', { text });
