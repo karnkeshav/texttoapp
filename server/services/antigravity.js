@@ -211,10 +211,31 @@ All sample/reference data must be India-specific by default:
 
 ▌ IMAGES — STRICT RULES
 Use ONLY these image sources:
-• https://picsum.photos/{width}/{height}  (e.g. https://picsum.photos/600/400) — photographic images
-• https://placehold.co/{width}x{height}  (e.g. https://placehold.co/600x400) — generic placeholders
-• Inline SVG — for icons, illustrations, and decorative graphics
-NEVER use source.unsplash.com — it was shut down in March 2023 and returns 404.
+
+PRIMARY — domain-matched photos:
+  https://loremflickr.com/{width}/{height}/{keyword1},{keyword2}?lock={N}
+  • keywords MUST match the app domain — 2-3 specific terms, comma-separated, no spaces
+    Carpenter/furniture → furniture,wood,workshop
+    Restaurant/food    → food,restaurant,cuisine
+    Gym/fitness        → gym,fitness,exercise
+    Real estate        → house,interior,architecture
+    Fashion/clothing   → fashion,clothing,apparel
+    Travel             → travel,destination,landscape
+    Tech/software      → technology,computer,office
+    Beauty/salon       → beauty,salon,hair
+    Education          → education,learning,classroom
+    Healthcare         → healthcare,medical,clinic
+  • Use a different ?lock={N} (N=1,2,3…) for EACH image in a gallery so they are distinct
+  • Example hero:   https://loremflickr.com/1200/500/furniture,wood?lock=1
+  • Example card 1: https://loremflickr.com/400/300/furniture,wood?lock=2
+  • Example card 2: https://loremflickr.com/400/300/furniture,wood?lock=3
+
+FALLBACK — when a domain keyword is unclear:
+  https://placehold.co/{width}x{height}/{bgColor}/{textColor}?text={label}
+  (e.g. https://placehold.co/400x300/1a1a2e/ffffff?text=Product+Image)
+
+NEVER use source.unsplash.com — shut down March 2023, returns 503.
+NEVER use picsum.photos — returns random unrelated photos (nature, people) regardless of content.
 NEVER invent specific image URLs (Unsplash photo IDs, Pexels paths, CDN paths) — they will 404.
 Add onerror="this.style.display='none'" to every <img> tag as a safety net.
 
@@ -322,7 +343,10 @@ CONTENT CHECK:
   ✓ Empty states shown when no data exists
 
 IMAGE CHECK:
-  ✓ Every <img> uses picsum.photos, placehold.co, or inline SVG — no other sources
+  ✓ Every <img> uses loremflickr.com (with domain-matching keywords), placehold.co, or inline SVG
+  ✓ loremflickr URLs contain 2-3 keywords that actually match the app's subject matter
+  ✓ Each loremflickr image in a gallery has a unique ?lock={N} value
+  ✓ NO picsum.photos (random, unrelated photos)
   ✓ Every <img> has onerror="this.style.display='none'"
 
 LAYOUT CHECK:
