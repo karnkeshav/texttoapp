@@ -214,28 +214,47 @@ Use ONLY these image sources:
 
 PRIMARY — domain-matched photos:
   https://loremflickr.com/{width}/{height}/{keyword1},{keyword2}?lock={N}
-  • keywords MUST match the app domain — 2-3 specific terms, comma-separated, no spaces
-    Carpenter/furniture → furniture,wood,workshop
-    Restaurant/food    → food,restaurant,cuisine
-    Gym/fitness        → gym,fitness,exercise
-    Real estate        → house,interior,architecture
-    Fashion/clothing   → fashion,clothing,apparel
-    Travel             → travel,destination,landscape
-    Tech/software      → technology,computer,office
-    Beauty/salon       → beauty,salon,hair
-    Education          → education,learning,classroom
-    Healthcare         → healthcare,medical,clinic
-  • Use a different ?lock={N} (N=1,2,3…) for EACH image in a gallery so they are distinct
-  • Example hero:   https://loremflickr.com/1200/500/furniture,wood?lock=1
-  • Example card 1: https://loremflickr.com/400/300/furniture,wood?lock=2
-  • Example card 2: https://loremflickr.com/400/300/furniture,wood?lock=3
 
-FALLBACK — when a domain keyword is unclear:
+CRITICAL KEYWORD RULE — use the APP DOMAIN keywords, NOT the card/section title.
+Every <img> on the same site shares the same 2 keywords. Only ?lock={N} changes per image.
+  ❌ WRONG: HIIT card → /hiit,cardio?lock=2  (Flickr has almost no "hiit" photos → cat statues)
+  ✅ RIGHT:  HIIT card → /gym,fitness?lock=2  (Flickr has thousands → relevant gym photos)
+
+DOMAIN → KEYWORDS (always use these exact keywords — proven Flickr-rich tags):
+  Carpenter/furniture → furniture,wood
+  Restaurant/food     → food,restaurant
+  Gym/fitness         → gym,fitness
+  Yoga/wellness       → yoga,wellness
+  Real estate         → house,interior
+  Fashion/clothing    → fashion,clothing
+  Travel              → travel,landscape
+  Tech/software       → technology,office
+  Beauty/salon        → beauty,salon
+  Education           → education,classroom
+  Healthcare          → healthcare,medical
+  Photography         → photography,camera
+
+LOCK VALUES — increment by 1 for every image on the page (never repeat the same lock value):
+  Hero image:          ?lock=1
+  Gallery card 1:      ?lock=2
+  Gallery card 2:      ?lock=3
+  Gallery card 3:      ?lock=4
+  Gallery card 4:      ?lock=5
+  … and so on
+
+  Example (fitness site, 4 program cards):
+  https://loremflickr.com/1200/500/gym,fitness?lock=1       ← hero banner
+  https://loremflickr.com/400/300/gym,fitness?lock=2        ← Strength Training card
+  https://loremflickr.com/400/300/gym,fitness?lock=3        ← HIIT & Cardio card
+  https://loremflickr.com/400/300/gym,fitness?lock=4        ← Yoga card
+  https://loremflickr.com/400/300/gym,fitness?lock=5        ← Personal Training card
+
+FALLBACK — only when domain keyword is unclear:
   https://placehold.co/{width}x{height}/{bgColor}/{textColor}?text={label}
   (e.g. https://placehold.co/400x300/1a1a2e/ffffff?text=Product+Image)
 
 NEVER use source.unsplash.com — shut down March 2023, returns 503.
-NEVER use picsum.photos — returns random unrelated photos (nature, people) regardless of content.
+NEVER use picsum.photos — returns random unrelated photos regardless of content.
 NEVER invent specific image URLs (Unsplash photo IDs, Pexels paths, CDN paths) — they will 404.
 Add onerror="this.style.display='none'" to every <img> tag as a safety net.
 
