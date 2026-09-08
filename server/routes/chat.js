@@ -868,8 +868,9 @@ CRITICAL EDIT MODE RULES:
 1. START WITH THE EXISTING CODE: You are provided with the exact CURRENT HTML code of index.html.
 2. APPLY ONLY THE REQUESTED CHANGES: Modify, add, or replace only what the user specifically asked for (e.g. style changes, color updates, text content, new sections/components, translations, bug fixes, or functionality improvements).
 3. DO NOT WIPE OUT EXISTING CODE: Preserve all existing styling, UI elements, layouts, script logic, event listeners, and features that the user did not ask to change.
-4. COMPLETE OUTPUT: Return the COMPLETE modified HTML file inside a single \`\`\`html ... \`\`\` code block with <!DOCTYPE html> ... </html>.
-5. NO REPO_NAME: Do NOT output any REPO_NAME: prefix lines. Return a brief friendly 1-sentence summary in ${LANGUAGE_NAMES[currentLang] || 'English'} followed immediately by the \`\`\`html code block.
+4. LANGUAGE CONTINUITY: Respect and maintain the existing language in which the website was built. If the existing index.html is in Hindi, Spanish, Telugu, or English, keep the website in that language and ensure any newly added sections, buttons, headings, or content match that same language (unless the user explicitly requests to translate the website to another language).
+5. COMPLETE OUTPUT: Return the COMPLETE modified HTML file inside a single \`\`\`html ... \`\`\` code block with <!DOCTYPE html> ... </html>.
+6. NO REPO_NAME: Do NOT output any REPO_NAME: prefix lines. Return a brief friendly 1-sentence summary in ${LANGUAGE_NAMES[currentLang] || 'English'} followed immediately by the \`\`\`html code block.
 ${langDirective}`;
 
       const editPrompt =
