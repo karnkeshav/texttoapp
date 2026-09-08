@@ -158,10 +158,10 @@ const I18N_APP = {
     live_site_label: "🔗 लाइव साइट:",
     btn_retry_push: "पुनः पुश करने का प्रयास करें",
     push_net_error: "⚠️ नेटवर्क त्रुटि — कृपया अपना कनेक्शन जांचें और पुनः प्रयास करें।",
-    edit_welcome_title: "संपादित कर रहे हैं: {repo}",
-    edit_welcome_sub: "आप जो बदलाव करना चाहते हैं उनका विवरण दें। Ready4Launch वर्तमान कोड प्राप्त करेगा, आपके बदलाव लागू करेगा, और नया कमिट पुश करेगा।",
-    edit_topbar_prefix: "संपादन जारी:",
-    edit_input_placeholder: "{repo} में किए जाने वाले बदलाव बताएं…",
+    edit_welcome_title: "संपादन: {repo}",
+    edit_welcome_sub: "आप अपनी वेबसाइट में जो भी बदलाव करना चाहते हैं, यहाँ बताएं। Ready4Launch मौजूदा कोड प्राप्त करेगा, आपके बदलाव लागू करेगा और नया कमिट पुश कर देगा।",
+    edit_topbar_prefix: "संपादन:",
+    edit_input_placeholder: "{repo} में किए जाने वाले बदलाव यहाँ लिखें…",
     resume_build_title: "🏗️ बिना डिप्लॉय किया गया ऐप मिला — <em>{repo}</em>",
     resume_build_desc: "आपका ऐप बन चुका था लेकिन डिप्लॉय नहीं हुआ। इसे गिटहब पेजेस पर पुश करने के लिए पुनः शुरू करें।",
     btn_resume_deploy: "🚀 डिप्लॉय करें",
@@ -208,7 +208,7 @@ const I18N_APP = {
     connect_gh_modal_title: "Un último paso: conectar GitHub",
     connect_gh_modal_desc: "Ready4Launch despliega tu aplicación directamente en <strong>GitHub Pages</strong>: gratis, permanente y tuyo.",
     connect_gh_modal_sub: "Haz clic a continuación para conectar tu cuenta de GitHub con un solo clic.",
-    chat_input_placeholder_build: "Describe la aplicación que deseas construir… (ej. 'Una tienda de electrónica con tema oscuro')",
+    chat_input_placeholder_build: "Describe la aplicación que deseas construir… (ej. 'Una tienda online con tema oscuro')",
     chat_input_placeholder_convert: "Describe lo que deseas crear, p. ej. 'Crea una presentación de PowerPoint sobre los resultados' o 'Convierte esto a Word'",
     chat_input_placeholder_chat: "Pregúntame lo que sea: una pregunta, análisis, investigación o asesoramiento experto…",
     chat_input_placeholder_vision: "¿Qué te gustaría saber sobre la imagen? (adjúntala con el botón 📎)",
@@ -237,9 +237,9 @@ const I18N_APP = {
     btn_retry_push: "Reintentar publicación",
     push_net_error: "⚠️ Error de red: verifica tu conexión y vuelve a intentarlo.",
     edit_welcome_title: "Editando: {repo}",
-    edit_welcome_sub: "Describe los cambios que deseas realizar. Ready4Launch obtendrá el código actual, aplicará tus cambios y publicará un nuevo commit.",
+    edit_welcome_sub: "Describe las modificaciones que deseas realizar. Ready4Launch obtendrá el código actual, aplicará tus cambios y publicará una nueva versión.",
     edit_topbar_prefix: "Editando",
-    edit_input_placeholder: "Describe tus cambios para {repo}…",
+    edit_input_placeholder: "Describe los cambios que deseas para {repo}…",
     resume_build_title: "🏗️ Compilación no guardada encontrada — <em>{repo}</em>",
     resume_build_desc: "Tu aplicación fue construida pero no desplegada. Continúa para publicarla en GitHub Pages.",
     btn_resume_deploy: "🚀 Desplegar",
@@ -286,7 +286,7 @@ const I18N_APP = {
     connect_gh_modal_title: "చివరి దశ — GitHub కనెక్ట్ చేయండి",
     connect_gh_modal_desc: "Ready4Launch మీ యాప్‌ను నేరుగా <strong>GitHub Pages</strong> కి డిప్లాయ్ చేస్తుంది — ఉచితం, శాశ్వతం, మీ స్వంతం.",
     connect_gh_modal_sub: "మీ GitHub ఖాతాను ఒక క్లిక్‌తో కనెక్ట్ చేయడానికి క్రింద క్లిక్ చేయండి.",
-    chat_input_placeholder_build: "మీరు నిర్మించాలనుకుంటున్న యాప్‌ను వివరించండి… (ఉదా. 'డార్క్ థీమ్‌తో ఎలక్ట్రానిక్స్ షాప్')",
+    chat_input_placeholder_build: "మీరు నిర్మించాలనుకుంటున్న యాప్‌ను వివరించండి… (ఉదా. 'డార్క్ థీమ్‌తో షాపింగ్ సైట్')",
     chat_input_placeholder_convert: "ఏమి సృష్టించాలో వివరించండి — ఉదా. 'మా Q1 ఫలితాలపై PowerPoint చేయండి' లేదా 'దీనిని Word డాక్యుమెంట్‌గా మార్చండి'",
     chat_input_placeholder_chat: "నన్ను ఏదైనా అడగండి — ప్రశ్న, విశ్లేషణ, పరిశోధన లేదా నిపుణుల సలహా…",
     chat_input_placeholder_vision: "చిత్రం గురించి మీరు ఏమి తెలుసుకోవాలనుకుంటున్నారు? (📎 బటన్‌తో జోడించండి)",
@@ -315,9 +315,9 @@ const I18N_APP = {
     btn_retry_push: "మళ్లీ పుష్ చేయడానికి ప్రయత్నించండి",
     push_net_error: "⚠️ నెట్‌వర్క్ లోపం — దయచేసి మీ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.",
     edit_welcome_title: "సవరిస్తోంది: {repo}",
-    edit_welcome_sub: "మీరు చేయాలనుకుంటున్న మార్పులను వివరించండి. Ready4Launch ప్రస్తుత కోడ్‌ను తీసుకొని, మీ మార్పులను వర్తింపజేసి, కొత్త కమిట్‌ను పుష్ చేస్తుంది.",
-    edit_topbar_prefix: "సవరిస్తోంది",
-    edit_input_placeholder: "{repo} లో మీరు చేయాలనుకుంటున్న మార్పులను వివరించండి…",
+    edit_welcome_sub: "మీరు చేయాలనుకుంటున్న మార్పులను ఇక్కడ వివరించండి. Ready4Launch ప్రస్తుత కోడ్‌ను తీసుకొని, మీ మార్పులను జోడించి, కొత్త కమిట్‌ను పంపుతుంది.",
+    edit_topbar_prefix: "సవరిస్తోంది:",
+    edit_input_placeholder: "{repo} లో మీరు చేయాలనుకుంటున్న మార్పులను ఇక్కడ రాయండి…",
     resume_build_title: "🏗️ సేవ్ చేయని యాప్ కనుగొనబడింది — <em>{repo}</em>",
     resume_build_desc: "మీ యాప్ నిర్మించబడింది కానీ డిప్లాయ్ కాలేదు. దీన్ని GitHub Pages కి పంపడానికి కొనసాగించండి.",
     btn_resume_deploy: "🚀 డిప్లాయ్ చేయండి",
@@ -356,8 +356,34 @@ function applyAppLanguage(lang) {
     }
   });
 
-  updateWelcomeForMode();
-  showWelcomeCards();
+  if (editModeActive) {
+    const titleTemplate = t('edit_welcome_title', 'Editing: {repo}').replace('{repo}', `<span style="color:var(--purple-light);">${escapeHtml(editModeActive.repo)}</span>`);
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+      welcomeScreen.innerHTML = `
+        <div class="welcome-icon">✏️</div>
+        <h2 class="welcome-title" style="font-size:clamp(20px,3vw,28px);">${titleTemplate}</h2>
+        <p class="welcome-sub">${t('edit_welcome_sub', 'Describe the changes you want to make. Ready4Launch will fetch the current code, apply your changes, and push a new commit.')}</p>
+      `;
+    }
+    const topbarSub = document.getElementById('topbarSub');
+    if (topbarSub) {
+      topbarSub.textContent = `${t('edit_topbar_prefix', 'Editing')} ${editModeActive.owner}/${editModeActive.repo}`;
+    }
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+      chatInput.placeholder = t('edit_input_placeholder', 'Describe your changes to {repo}…').replace('{repo}', editModeActive.repo);
+    }
+  } else {
+    updateWelcomeForMode();
+    showWelcomeCards();
+  }
+
+  const statusText = document.getElementById('statusText');
+  if (statusText && !isStreaming) {
+    statusText.textContent = t('status_ready', 'Ready');
+  }
+
   loadUser().catch(() => {});
 }
 
@@ -547,6 +573,7 @@ async function loadUser() {
 
 // ── Adapt welcome screen copy to deploy mode ──────────────────────
 function updateWelcomeForMode() {
+  if (editModeActive) return;
   const topbarEl = document.getElementById('topbarSub');
   if (topbarEl) topbarEl.textContent = t('topbar_sub_pages');
 }
@@ -738,10 +765,9 @@ function startNewConversation() {
   container.innerHTML = `
     <div class="welcome-screen" id="welcomeScreen">
       <div class="welcome-icon">⚡</div>
-      <h2 class="welcome-title">What do you want to build?</h2>
-      <p class="welcome-sub">
-        Describe any app or website in plain English. Ready4Launch will ask a few quick questions,
-        then build and deploy your complete website — free.
+      <h2 class="welcome-title" id="welcomeTitle" data-i18n="welcome_title">${t('welcome_title', 'What do you want to build?')}</h2>
+      <p class="welcome-sub" id="welcomeSub" data-i18n="welcome_sub">
+        ${t('welcome_sub', 'Describe any app or website in your language. Ready4Launch will ask a few quick questions, then build and deploy your complete website — free.')}
       </p>
       <div class="welcome-cards-grid" id="welcomeCards" style="display:none;"></div>
       <div id="editModeBanner" style="display:none;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--purple-light);margin-top:12px;">
@@ -752,13 +778,17 @@ function startNewConversation() {
   // Show cards (and hide prompt bar) for signed-in users
   showWelcomeCards();
 
-  document.getElementById('chatInput').placeholder = 'Describe the app you want to build…';
-  document.getElementById('topbarSub').textContent = 'Describe your app to get started';
+  document.getElementById('chatInput').placeholder = t('chat_input_placeholder_build', 'Describe the app you want to build…');
+  document.getElementById('topbarSub').textContent = t('topbar_sub_pages', 'GitHub Pages — deploy to your own repo for free');
   closeSidebar();
   setStatus('Ready', false);
 
   // De-highlight any selected repo in sidebar
-  document.querySelectorAll('.repo-item-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.repo-item-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'none';
+    b.style.color = 'var(--text-2)';
+  });
 }
 
 // ── Repo browser ──────────────────────────────────────────────────
@@ -1131,9 +1161,18 @@ function setStreaming(active) {
 }
 
 function setStatus(text, thinking = false) {
-  document.getElementById('statusText').textContent = text;
+  let translatedText = text;
+  if (text === 'Ready' || text === 'तैयार' || text === 'Listo' || text === 'సిద్ధం') {
+    translatedText = t('status_ready', 'Ready');
+  } else if (text === 'Thinking…' || text === 'Thinking...' || text === 'सोच रहा हूँ…' || text === 'Pensando…' || text === 'ఆలోచిస్తోంది…') {
+    translatedText = t('status_thinking', 'Thinking…');
+  } else if (text === 'Building app…' || text === 'Building app...' || text === 'ऐप बना रहा हूँ…' || text === 'Construyendo app…' || text === 'యాప్ నిర్మిస్తోంది…') {
+    translatedText = t('status_building', 'Building app…');
+  }
+  const el = document.getElementById('statusText');
+  if (el) el.textContent = translatedText;
   const dot = document.getElementById('statusDot');
-  dot.className = 'status-dot' + (thinking ? ' thinking' : '');
+  if (dot) dot.className = 'status-dot' + (thinking ? ' thinking' : '');
 }
 
 // ── Code detection & auto-deploy ─────────────────────────────────
