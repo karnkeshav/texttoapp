@@ -249,9 +249,7 @@ function applyAppLanguage(lang) {
   });
 
   updateWelcomeForMode();
-  if (_userAuthenticated) {
-    showWelcomeCards();
-  }
+  showWelcomeCards();
   loadUser().catch(() => {});
 }
 
@@ -386,6 +384,7 @@ async function loadUser() {
       if (repoSection) repoSection.style.display = 'none';
       if (disconnectBtn) disconnectBtn.style.display = 'none';
       if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'none';
+      showWelcomeCards();
       return;
     }
 
@@ -427,7 +426,6 @@ async function loadUser() {
       if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'none';
     }
 
-    // Show mode-selection cards for any authenticated user
     _userAuthenticated = true;
     showWelcomeCards();
 
@@ -482,9 +480,10 @@ function _welcomeCardsInnerHTML() {
 }
 
 function showWelcomeCards() {
-  if (!_userAuthenticated) return;
   const cards = document.getElementById('welcomeCards');
   if (!cards) return;
+  const welcomeScreen = document.getElementById('welcomeScreen');
+  if (welcomeScreen && welcomeScreen.style.display === 'none') return;
   cards.innerHTML = _welcomeCardsInnerHTML();
   cards.style.display = 'grid';
   hidePromptBar();

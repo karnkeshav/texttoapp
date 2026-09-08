@@ -28,12 +28,12 @@
       <span class="logo-text">AppBuilder</span>
     </div>
     <div class="nav-actions">
-      <a href="#capabilities" class="nav-link">Features</a>
-      <a href="#how-it-works" class="nav-link">How it works</a>
-      <a href="#packages" class="nav-link">Packages</a>
+      <a href="#capabilities" class="nav-link" data-i18n="nav_features">Features</a>
+      <a href="#how-it-works" class="nav-link" data-i18n="nav_how_it_works">How it works</a>
+      <a href="#packages" class="nav-link" data-i18n="nav_packages">Packages</a>
       <a href="/auth/google" class="btn-google-nav">
         <svg viewBox="0 0 24 24" width="17" height="17" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Sign In
+        <span data-i18n="nav_signin">Sign In</span>
       </a>
     </div>
     <button class="nav-mobile-menu" aria-label="Menu" onclick="toggleMobileMenu()">
@@ -54,15 +54,15 @@
   <div class="hero-content">
     <div class="hero-badge">
       <span class="badge-dot"></span>
-      Text-to-App Engine &nbsp;·&nbsp; Powered by Google Gemini AI
+      <span data-i18n="hero_badge">Text-to-App Engine &nbsp;·&nbsp; Powered by Google Gemini AI</span>
     </div>
 
     <h1 class="hero-title">
-      Give Your Ideas Wings.<br />
-      <span class="gradient-text">Build Your Custom App in 60 Seconds.</span>
+      <span data-i18n="hero_title_1">Give Your Ideas Wings.</span><br />
+      <span class="gradient-text" data-i18n="hero_title_2">Build Your Custom App in 60 Seconds.</span>
     </h1>
 
-    <p class="hero-subtitle">
+    <p class="hero-subtitle" data-i18n="hero_subtitle">
       No Code Required. No Developer. No Server.<br />
       Just type what you want — and watch it come to life.
     </p>
@@ -70,15 +70,15 @@
     <div class="hero-cta">
       <a href="/auth/google" class="btn-google-hero" id="heroCta">
         <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Sign In with Google to Start Building
+        <span data-i18n="hero_cta">Sign In with Google to Start Building</span>
       </a>
-      <a href="#use-cases" class="btn btn-ghost">See what others are building ↓</a>
+      <a href="#use-cases" class="btn btn-ghost" data-i18n="hero_see_more">See what others are building ↓</a>
     </div>
 
     <div class="hero-trust">
-      <span>✓ No technical skills needed</span>
-      <span>✓ Live app in under 60 seconds</span>
-      <span>✓ Your code, your property, forever</span>
+      <span data-i18n="hero_trust_1">✓ No technical skills needed</span>
+      <span data-i18n="hero_trust_2">✓ Live app in under 60 seconds</span>
+      <span data-i18n="hero_trust_3">✓ Your code, your property, forever</span>
     </div>
 
     <!-- Animated demo card -->
@@ -105,18 +105,18 @@
 <section id="capabilities" class="section">
   <div class="container">
     <div class="section-header">
-      <span class="section-tag">What you can do</span>
-      <h2 class="section-title">Four Powerful Capabilities. One Platform.</h2>
-      <p class="section-subtitle">Your AppBuilder account unlocks everything below — analyse, convert, reason, and build — all from plain English conversation.</p>
+      <span class="section-tag" data-i18n="cap_tag">What you can do</span>
+      <h2 class="section-title" data-i18n="cap_title">Four Powerful Capabilities. One Platform.</h2>
+      <p class="section-subtitle" data-i18n="cap_subtitle">Your AppBuilder account unlocks everything below — analyse, convert, reason, and build — all from plain English conversation.</p>
     </div>
 
     <div class="cap-grid">
       <div class="cap-card cap-vision">
         <div class="cap-card-header">
           <div class="cap-icon">🔍</div>
-          <div class="cap-label">Analyse Images &amp; Documents</div>
+          <div class="cap-label" data-i18n="cap_vision_title">Analyse Images &amp; Documents</div>
         </div>
-        <p class="cap-desc">Upload any image, PDF, spreadsheet, or report. Ask questions, extract insights, summarise, translate, or describe — instantly.</p>
+        <p class="cap-desc" data-i18n="cap_vision_desc">Upload any image, PDF, spreadsheet, or report. Ask questions, extract insights, summarise, translate, or describe — instantly.</p>
         <div class="cap-prompt-box">
           <div class="cap-prompt-label">Example prompt:</div>
           <div class="cap-prompt-text">"Analyse this 40-page contract and list every clause that puts us at risk."</div>
@@ -131,9 +131,9 @@
       <div class="cap-card cap-convert">
         <div class="cap-card-header">
           <div class="cap-icon">📄</div>
-          <div class="cap-label">Premium Document Conversion</div>
+          <div class="cap-label" data-i18n="cap_convert_title">Premium Document Conversion</div>
         </div>
-        <p class="cap-desc">Generate board-ready reports, professional decks, and structured spreadsheets in seconds. Every document formatted like a consultant prepared it.</p>
+        <p class="cap-desc" data-i18n="cap_convert_desc">Generate board-ready reports, professional decks, and structured spreadsheets in seconds. Every document formatted like a consultant prepared it.</p>
         <div class="cap-prompt-box">
           <div class="cap-prompt-label">Example prompt:</div>
           <div class="cap-prompt-text">"Write a Q3 board report and convert it to a McKinsey-style PowerPoint, an Excel summary, and a signed-off Word document."</div>
@@ -148,9 +148,9 @@
       <div class="cap-card cap-chat">
         <div class="cap-card-header">
           <div class="cap-icon">🧠</div>
-          <div class="cap-label">AI Research &amp; Reasoning</div>
+          <div class="cap-label" data-i18n="cap_chat_title">AI Research &amp; Reasoning</div>
         </div>
-        <p class="cap-desc">Deep reasoning for complex problems. Solve equations, research topics, draft proposals, analyse case studies — with a level of depth that rivals expert consultants.</p>
+        <p class="cap-desc" data-i18n="cap_chat_desc">Deep reasoning for complex problems. Solve equations, research topics, draft proposals, analyse case studies — with a level of depth that rivals expert consultants.</p>
         <div class="cap-prompt-box">
           <div class="cap-prompt-label">Example prompt:</div>
           <div class="cap-prompt-text">"Analyse the pros and cons of entering the Indian EV market in 2025, with a SWOT breakdown and competitor landscape."</div>
@@ -165,9 +165,9 @@
       <div class="cap-card cap-build">
         <div class="cap-card-header">
           <div class="cap-icon">🚀</div>
-          <div class="cap-label">Build &amp; Deploy Web Applications</div>
+          <div class="cap-label" data-i18n="cap_build_title">Build &amp; Deploy Web Applications</div>
         </div>
-        <p class="cap-desc">The centrepiece. Describe any software in plain English — our Text-to-App Engine designs, codes, and deploys a live, fully functional web application. No developer needed.</p>
+        <p class="cap-desc" data-i18n="cap_build_desc">The centrepiece. Describe any software in plain English — our Text-to-App Engine designs, codes, and deploys a live, fully functional web application. No developer needed.</p>
         <div class="cap-prompt-box">
           <div class="cap-prompt-label">Example prompt:</div>
           <div class="cap-prompt-text">"Build me an employee shift-scheduling tool with a live roster, export to Excel, and SMS reminders."</div>
@@ -191,47 +191,47 @@
 <section id="use-cases" class="section section-dark">
   <div class="container">
     <div class="section-header">
-      <span class="section-tag">Text-to-App Engine</span>
-      <h2 class="section-title">From Every Discipline. Every Dream.</h2>
-      <p class="section-subtitle" style="max-width:820px;margin:0 auto;">
+      <span class="section-tag" data-i18n="usecase_tag">Text-to-App Engine</span>
+      <h2 class="section-title" data-i18n="usecase_title">From Every Discipline. Every Dream.</h2>
+      <p class="section-subtitle" style="max-width:820px;margin:0 auto;" data-i18n="usecase_subtitle">
         From the classroom to the boardroom, and across every discipline imaginable — whether you are pursuing a Bachelor of Arts, mastering Medicine, navigating Law, finishing an MBA, engineering the future, or leading an enterprise. If you can imagine it, you can build it.
         <br /><br />
         Stop dreaming about the perfect software and start using it. You don't need a developer, a server, or a single line of code. <strong style="color:var(--purple-light);">Just type what you want, and our Text-to-App Engine instantly designs, codes, and deploys a live, fully functional web application.</strong>
       </p>
     </div>
 
-    <h3 style="text-align:center;font-size:1.5rem;font-weight:800;margin-bottom:36px;color:var(--text);">What Will You Bring to Life Today?</h3>
+    <h3 style="text-align:center;font-size:1.5rem;font-weight:800;margin-bottom:36px;color:var(--text);" data-i18n="usecase_heading">What Will You Bring to Life Today?</h3>
 
     <div class="usecase-grid">
       <div class="usecase-card">
         <div class="usecase-emoji">🏦</div>
-        <h4>Corporate &amp; Operations</h4>
-        <p>An AGM of a bank tracking regional metrics, or a railway employee streamlining complex shift and cargo schedules.</p>
+        <h4 data-i18n="usecase_corp_title">Corporate &amp; Operations</h4>
+        <p data-i18n="usecase_corp_desc">An AGM of a bank tracking regional metrics, or a railway employee streamlining complex shift and cargo schedules.</p>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🏢</div>
-        <h4>Founders &amp; Agencies</h4>
-        <p>Launch a fully functional SaaS dashboard, a client onboarding portal, or an automated lead-generation tool.</p>
+        <h4 data-i18n="usecase_found_title">Founders &amp; Agencies</h4>
+        <p data-i18n="usecase_found_desc">Launch a fully functional SaaS dashboard, a client onboarding portal, or an automated lead-generation tool.</p>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🛠️</div>
-        <h4>Local Business &amp; Services</h4>
-        <p>A plumbing contractor's automated booking system, or a local bakery's live inventory and delivery form.</p>
+        <h4 data-i18n="usecase_local_title">Local Business &amp; Services</h4>
+        <p data-i18n="usecase_local_desc">A plumbing contractor's automated booking system, or a local bakery's live inventory and delivery form.</p>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🎓</div>
-        <h4>Students &amp; Educators</h4>
-        <p>An interactive study vault for your Master's thesis, a custom flashcard app for medical school, or a collaborative workspace for your engineering cohort.</p>
+        <h4 data-i18n="usecase_stud_title">Students &amp; Educators</h4>
+        <p data-i18n="usecase_stud_desc">An interactive study vault for your Master's thesis, a custom flashcard app for medical school, or a collaborative workspace for your engineering cohort.</p>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🏡</div>
-        <h4>Personal &amp; Household</h4>
-        <p>A dedicated home-maker organising family schedules and budgets, or your personal Indo-Chinese recipe hub.</p>
+        <h4 data-i18n="usecase_home_title">Personal &amp; Household</h4>
+        <p data-i18n="usecase_home_desc">A dedicated home-maker organising family schedules and budgets, or your personal Indo-Chinese recipe hub.</p>
       </div>
       <div class="usecase-card">
         <div class="usecase-emoji">🌐</div>
-        <h4>Online Presence</h4>
-        <p>A photographer's portfolio, a consultant's personal brand site, a startup's waitlist page — live and shareable in under a minute.</p>
+        <h4 data-i18n="usecase_brand_title">Online Presence</h4>
+        <p data-i18n="usecase_brand_desc">A photographer's portfolio, a consultant's personal brand site, a startup's waitlist page — live and shareable in under a minute.</p>
       </div>
     </div>
 
@@ -253,17 +253,17 @@
     <div class="auth-security-panel">
       <div class="auth-sec-icon">🔒</div>
       <div class="auth-sec-content">
-        <h3>Your Ideas, Completely Secured</h3>
-        <p>
+        <h3 data-i18n="sec_title">Your Ideas, Completely Secured</h3>
+        <p data-i18n="sec_desc">
           Why do we ask you to sign in? Your generated apps are your intellectual property.
           We use <strong>Google Authentication</strong> to instantly create a private, encrypted workspace.
           Your code, your data, and your live links are securely saved and accessible only to you.
         </p>
         <a href="/auth/google" class="btn-google-hero" style="margin-top:24px;display:inline-flex;" id="securityCta">
           <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          ⚡ Sign In securely with Google to Start Building
+          <span data-i18n="sec_cta">⚡ Sign In securely with Google to Start Building</span>
         </a>
-        <p class="auth-sec-note">Launch your first app today. No credit card required to sign in.</p>
+        <p class="auth-sec-note" data-i18n="sec_note">Launch your first app today. No credit card required to sign in.</p>
       </div>
     </div>
   </div>
@@ -273,38 +273,38 @@
 <section id="how-it-works" class="section">
   <div class="container">
     <div class="section-header">
-      <span class="section-tag">The Process</span>
-      <h2 class="section-title">How the Text-to-App Engine Works</h2>
-      <p class="section-subtitle">From your idea to a live application — in four steps, under sixty seconds.</p>
+      <span class="section-tag" data-i18n="how_tag">The Process</span>
+      <h2 class="section-title" data-i18n="how_title">How the Text-to-App Engine Works</h2>
+      <p class="section-subtitle" data-i18n="how_subtitle">From your idea to a live application — in four steps, under sixty seconds.</p>
     </div>
 
     <div class="steps-grid">
       <div class="step-card">
         <div class="step-number">01</div>
         <div class="step-icon">🔑</div>
-        <h3>Sign in with Google</h3>
-        <p>One click creates your private, encrypted workspace. Your builds, your data, accessible only to you — secured by Google.</p>
+        <h3 data-i18n="step1_title">Sign in with Google</h3>
+        <p data-i18n="step1_desc">One click creates your private, encrypted workspace. Your builds, your data, accessible only to you — secured by Google.</p>
       </div>
       <div class="step-connector"></div>
       <div class="step-card">
         <div class="step-number">02</div>
         <div class="step-icon">💬</div>
-        <h3>Describe your application</h3>
-        <p>Type what you need in plain English. Our engine asks intelligent follow-up questions to understand exactly what you want to build.</p>
+        <h3 data-i18n="step2_title">Describe your application</h3>
+        <p data-i18n="step2_desc">Type what you need in plain English. Our engine asks intelligent follow-up questions to understand exactly what you want to build.</p>
       </div>
       <div class="step-connector"></div>
       <div class="step-card">
         <div class="step-number">03</div>
         <div class="step-icon">⚡</div>
-        <h3>The engine builds it</h3>
-        <p>AppBuilder designs the UI, writes the code, handles the logic, and assembles a complete, production-ready web application — automatically.</p>
+        <h3 data-i18n="step3_title">The engine builds it</h3>
+        <p data-i18n="step3_desc">AppBuilder designs the UI, writes the code, handles the logic, and assembles a complete, production-ready web application — automatically.</p>
       </div>
       <div class="step-connector"></div>
       <div class="step-card">
         <div class="step-number">04</div>
         <div class="step-icon">🚀</div>
-        <h3>It goes live instantly</h3>
-        <p>Click publish. Your app gets a live URL you can share immediately. Edit it, improve it, rebuild it — as many times as you want.</p>
+        <h3 data-i18n="step4_title">It goes live instantly</h3>
+        <p data-i18n="step4_desc">Click publish. Your app gets a live URL you can share immediately. Edit it, improve it, rebuild it — as many times as you want.</p>
       </div>
     </div>
   </div>
@@ -314,9 +314,9 @@
 <section id="packages" class="section section-dark">
   <div class="container">
     <div class="section-header">
-      <span class="section-tag">Pricing</span>
-      <h2 class="section-title">Choose Your AppBuilder Plan</h2>
-      <p class="section-subtitle">One-time software purchase. No hidden fees. Own your code forever.</p>
+      <span class="section-tag" data-i18n="pricing_tag">Pricing</span>
+      <h2 class="section-title" data-i18n="pricing_title">Choose Your AppBuilder Plan</h2>
+      <p class="section-subtitle" data-i18n="pricing_subtitle">One-time software purchase. No hidden fees. Own your code forever.</p>
     </div>
 
     <!-- Recommendation note -->
@@ -409,23 +409,23 @@
 <!-- ══════════════════════ APPBUILDER PROMISE ══════════════════════ -->
 <section class="promise-section">
   <div class="container">
-    <h2 class="promise-title">The AppBuilder Promise</h2>
+    <h2 class="promise-title" data-i18n="promise_title">The AppBuilder Promise</h2>
     <div class="promise-grid">
       <div class="promise-item">
         <div class="promise-icon">⚡</div>
-        <div class="promise-text"><strong>Zero Coding</strong><span>You type. We build. No exceptions.</span></div>
+        <div class="promise-text"><strong data-i18n="promise_1_title">Zero Coding</strong><span data-i18n="promise_1_desc">You type. We build. No exceptions.</span></div>
       </div>
       <div class="promise-item">
         <div class="promise-icon">🔗</div>
-        <div class="promise-text"><strong>Instant Live Links</strong><span>Shareable URLs the moment you hit publish.</span></div>
+        <div class="promise-text"><strong data-i18n="promise_2_title">Instant Live Links</strong><span data-i18n="promise_2_desc">Shareable URLs the moment you hit publish.</span></div>
       </div>
       <div class="promise-item">
         <div class="promise-icon">♾️</div>
-        <div class="promise-text"><strong>Yours to Keep Forever</strong><span>Full source code ownership. No lock-in.</span></div>
+        <div class="promise-text"><strong data-i18n="promise_3_title">Yours to Keep Forever</strong><span data-i18n="promise_3_desc">Full source code ownership. No lock-in.</span></div>
       </div>
       <div class="promise-item">
         <div class="promise-icon">📑</div>
-        <div class="promise-text"><strong>Premium Documents</strong><span>Word, Excel &amp; PowerPoint that look consultant-made.</span></div>
+        <div class="promise-text"><strong data-i18n="promise_4_title">Premium Documents</strong><span data-i18n="promise_4_desc">Word, Excel &amp; PowerPoint that look consultant-made.</span></div>
       </div>
     </div>
   </div>
@@ -439,10 +439,10 @@
         <span class="logo-icon">⚡</span>
         <span class="logo-text">AppBuilder</span>
       </div>
-      <p class="footer-text">Build apps · Analyse anything · Convert documents · Powered by Google Gemini</p>
+      <p class="footer-text" data-i18n="footer_text">Build apps · Analyse anything · Convert documents · Powered by Google Gemini</p>
       <a href="/auth/google" class="btn-google-nav">
         <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Sign In with Google
+        <span data-i18n="footer_signin">Sign In with Google</span>
       </a>
     </div>
   </div>
