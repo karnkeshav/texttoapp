@@ -258,10 +258,10 @@ Do NOT include explanations outside the code block.`;
         console.warn('[Orchestrate] Audit warning:', auditErr.message);
       }
 
-      // Deployment to GitHub
+      let isDeployed = false;
       let repoName = cleanSlug(prompt.trim());
-      let repoUrl = `https://github.com/${targetUser}/${repoName}`;
-      let pagesUrl = `https://${targetUser}.github.io/${repoName}/`;
+      let repoUrl = null;
+      let pagesUrl = null;
 
       if (token) {
         try {
@@ -272,6 +272,7 @@ Do NOT include explanations outside the code block.`;
             await pushFiles(token, owner, repoName, [{ path: 'index.html', content: cleanHtml }], 'Update app via AI Orchestration');
             pagesUrl = await enablePages(token, owner, repoName);
             repoUrl = `https://github.com/${owner}/${repoName}`;
+            isDeployed = true;
             addLog(`[00:10] 🚀 Updated GitHub Pages deployment at ${pagesUrl}`);
           } else {
             addLog(`[00:08] 📦 Provisioning new GitHub repository: ${targetUser}/${repoName}...`);
@@ -282,10 +283,11 @@ Do NOT include explanations outside the code block.`;
             addLog(`[00:10] 🚀 Pushing files and activating GitHub Pages...`);
             await pushFiles(token, targetUser, repoName, [
               { path: 'index.html', content: cleanHtml },
-              { path: 'README.md', content: `# ${repoName}\n\n> Autonomous web application generated with **Google Stitch UI** and **AI Orchestration**.\n\n### 🌐 Live Demo: [${pagesUrl}](${pagesUrl})\n\n### ⚡ Directive:\n\`\`\`\n${prompt.trim()}\n\`\`\`\n` }
+              { path: 'README.md', content: `# ${repoName}\n\n> Autonomous web application generated with **Google Stitch UI** and **AI Orchestration**.\n\n### 🌐 Live Demo: [https://${targetUser}.github.io/${repoName}/](https://${targetUser}.github.io/${repoName}/)\n\n### ⚡ Directive:\n\`\`\`\n${prompt.trim()}\n\`\`\`\n` }
             ], 'Initial deployment via AI Orchestration');
 
             pagesUrl = await enablePages(token, targetUser, repoName);
+            isDeployed = true;
             addLog(`[00:12] ✅ GitHub Pages activated successfully at ${pagesUrl}`);
           }
         } catch (ghErr) {
@@ -293,7 +295,8 @@ Do NOT include explanations outside the code block.`;
           addLog(`[00:11] ⚠️ GitHub deployment notice: ${ghErr.message}`);
         }
       } else {
-        addLog(`[00:08] ℹ️ GitHub Token not provided — running in standalone preview mode.`);
+        addLog(`[00:08] ℹ️ GitHub Token not connected — running in standalone interactive preview mode.`);
+        addLog(`[00:09] 💡 Tip: Connect GitHub in top-right to automatically deploy repository & GitHub Pages.`);
       }
 
       const deliverable = {
@@ -301,11 +304,14 @@ Do NOT include explanations outside the code block.`;
         repo_url: repoUrl,
         live_url: pagesUrl,
         owner: targetUser,
+        deployed: isDeployed,
         files: ['index.html', 'README.md'],
         html: cleanHtml
       };
 
-      const markdownAnswer = `### 🚀 App Successfully Generated & Deployed!
+      let markdownAnswer = '';
+      if (isDeployed) {
+        markdownAnswer = `### 🚀 App Successfully Generated & Deployed!
 
 * **Live App URL:** [${pagesUrl}](${pagesUrl})
 * **GitHub Repository:** [${repoUrl}](${repoUrl})
@@ -315,9 +321,22 @@ Do NOT include explanations outside the code block.`;
 ---
 
 #### 🌟 Features Built:
-* **Google Stitch Design:** Clean Glassmorphism cards, glowing status badges, and typography.
+* **Google Stitch Design:** Clean Glassmorphism cards, glowing status badges, and modern typography.
 * **Interactive Telemetry:** Live data analytics, responsive charts, and searchable filters.
 * **Autonomous Hosting:** Production build committed to \`main\` branch and hosted live on GitHub Pages.`;
+      } else {
+        markdownAnswer = `### ⚡ Autonomous Web App Generated!
+
+* **Status:** Complete standalone HTML5 code generated with **Google Stitch Glassmorphic UI**.
+* **Interactive Live Preview:** Click **"👁️ Open Live Preview"** below to test the app in your browser!
+* **GitHub Deployment:** Connect your GitHub Account or Personal Access Token to publish to \`@${targetUser}/${repoName}\` with automated GitHub Pages hosting.
+
+---
+
+#### 🌟 Features Built:
+* **Google Stitch UI:** Modern glassmorphism layout, responsive grid, and rich component cards.
+* **Interactive Controls:** Interactive state management, search/filter inputs, and telemetry widgets.`;
+      }
 
       task.status = 'COMPLETED';
       task.answer = markdownAnswer;
@@ -333,6 +352,7 @@ Do NOT include explanations outside the code block.`;
           liveUrl: pagesUrl,
           repoUrl,
           repoName,
+          deployed: isDeployed,
           owner: targetUser
         })}\n\n`);
         res.end();
@@ -357,6 +377,44 @@ Do NOT include explanations outside the code block.`;
     }
   })();
 }
+
+// ── POST /deploy-code (Deploy existing raw HTML to GitHub Pages) ───
+router.post('/deploy-code', async (req, res) => {
+  const { repoName, html, github_token, github_user, description } = req.body || {};
+  const token = github_token || req.headers['x-github-token'] || req.session?.githubToken || process.env.GITHUB_TOKEN;
+  const targetUser = github_user || req.headers['x-github-user'] || req.session?.user?.login || 'karnkeshav';
+
+  if (!token) {
+    return res.status(401).json({ error: 'GitHub Personal Access Token is required to create repositories' });
+  }
+  if (!html || !repoName) {
+    return res.status(400).json({ error: 'repoName and html are required' });
+  }
+
+  try {
+    const slug = cleanSlug(repoName);
+    const created = await createRepo(token, slug, description || `Autonomous Web App deployed via AI Orchestration`);
+    const processedHtml = pinCDNVersions(html);
+
+    await pushFiles(token, targetUser, created.name, [
+      { path: 'index.html', content: processedHtml },
+      { path: 'README.md', content: `# ${created.name}\n\n> Deployed via **AI Orchestration** and **Google Stitch UI**.\n\n### 🌐 Live Demo: [https://${targetUser}.github.io/${created.name}/](https://${targetUser}.github.io/${created.name}/)\n` }
+    ], 'Deploy app via AI Orchestration');
+
+    const pagesUrl = await enablePages(token, targetUser, created.name);
+
+    res.json({
+      success: true,
+      repoName: created.name,
+      repoUrl: created.url,
+      liveUrl: pagesUrl,
+      owner: targetUser
+    });
+  } catch (err) {
+    console.error('[DeployCode] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.post('/execute', handleOrchestration);
 router.post('/orchestrate', handleOrchestration);
