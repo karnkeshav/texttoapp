@@ -208,23 +208,45 @@ async function checkAuthStatus() {
   } catch (_) {}
 }
 
+// ── OAuth Popup Handling & Multi-Channel Sync ─────────────────────
+function openOAuth(url) {
+  const w = 540, h = 680;
+  const left = window.screenX + (window.outerWidth - w) / 2;
+  const top = window.screenY + (window.outerHeight - h) / 2;
+  const popup = window.open(url, 'OAuthPopup_' + Date.now(), `width=${w},height=${h},left=${left},top=${top},status=no,menubar=no,toolbar=no`);
+  
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    if (window.self !== window.top) {
+      window.top.location.href = url;
+    } else {
+      window.location.href = url;
+    }
+    return null;
+  }
+
+  const timer = setInterval(() => {
+    if (!popup || popup.closed) {
+      clearInterval(timer);
+      setTimeout(() => {
+        checkAuthStatus();
+      }, 500);
+    }
+  }, 600);
+
+  return popup;
+}
+
 // ── Start building ───────────────────────────────────────────────
 function startBuilding() {
   const isIframe = window.self !== window.top;
   if (isIframe) {
-    const w = 540, h = 680;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open('/auth/google', 'OAuthPopup', `width=${w},height=${h},left=${left},top=${top},status=no,menubar=no,toolbar=no`);
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      window.top.location.href = '/auth/google';
-    }
+    openOAuth('/auth/google');
   } else {
     window.location.href = '/auth/google';
   }
 }
 
-// ── OAuth Popup Handling for iframe embeds (e.g. ai-orchestration) ──
+// Global click interceptor for OAuth links
 document.addEventListener('click', function(e) {
   const link = e.target.closest('a[href^="/auth/google"], a[href^="/auth/github"], a[href*="/auth/google"], a[href*="/auth/github"]');
   if (!link) return;
@@ -232,17 +254,30 @@ document.addEventListener('click', function(e) {
   const isIframe = window.self !== window.top;
   if (isIframe) {
     e.preventDefault();
-    const w = 540;
-    const h = 680;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(link.href, 'OAuthPopup', `width=${w},height=${h},left=${left},top=${top},status=no,menubar=no,toolbar=no`);
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      window.top.location.href = link.href;
-    }
+    openOAuth(link.href);
   }
 });
 
+// 1. BroadcastChannel listener (instant sync from callback popup)
+try {
+  if ('BroadcastChannel' in window) {
+    const authChannel = new BroadcastChannel('r4l_auth_channel');
+    authChannel.onmessage = function(ev) {
+      if (ev.data && (ev.data.type === 'AUTH_COMPLETE' || ev.data === 'AUTH_COMPLETE')) {
+        window.location.href = ev.data.target || '/app';
+      }
+    };
+  }
+} catch(e) {}
+
+// 2. Storage event listener (sync across tabs / iframes)
+window.addEventListener('storage', function(e) {
+  if (e.key === 'r4l_auth_event') {
+    window.location.href = '/app';
+  }
+});
+
+// 3. postMessage listener
 window.addEventListener('message', function(event) {
   if (event.data && (event.data.type === 'AUTH_COMPLETE' || event.data === 'AUTH_COMPLETE')) {
     if (event.data.success !== false) {

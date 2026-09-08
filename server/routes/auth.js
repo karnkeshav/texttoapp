@@ -68,19 +68,43 @@ function sendAuthResponse(res, success, errCode = null) {
     (function() {
       const targetUrl = ${JSON.stringify(targetUrl)};
       const success = ${JSON.stringify(success)};
+
+      // 1. Notify same-origin frames / tabs via BroadcastChannel
+      try {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('r4l_auth_channel');
+          bc.postMessage({ type: 'AUTH_COMPLETE', success: success, target: targetUrl });
+          bc.close();
+        }
+      } catch (e) {}
+
+      // 2. Notify same-origin frames / tabs via localStorage storage event
+      try {
+        localStorage.setItem('r4l_auth_event', JSON.stringify({ time: Date.now(), success: success, target: targetUrl }));
+      } catch (e) {}
+
+      // 3. Notify window.opener if available
       try {
         if (window.opener && !window.opener.closed) {
           try {
-            window.opener.location.href = targetUrl;
-          } catch(e) {}
-          try {
             window.opener.postMessage({ type: 'AUTH_COMPLETE', success: success, target: targetUrl }, '*');
-          } catch(e) {}
-          setTimeout(function() { window.close(); }, 600);
+          } catch (e) {}
+          try {
+            if (typeof window.opener.loadUser === 'function') {
+              window.opener.loadUser();
+            } else {
+              window.opener.location.href = targetUrl;
+            }
+          } catch (e) {}
+          setTimeout(function() { window.close(); }, 500);
           return;
         }
-      } catch(e) {}
-      window.location.href = targetUrl;
+      } catch (e) {}
+
+      // 4. Standalone fallback (no opener / direct navigation)
+      setTimeout(function() {
+        window.location.href = targetUrl;
+      }, 500);
     })();
   </script>
 </body>
