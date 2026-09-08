@@ -158,6 +158,12 @@ app.get('/api/diagnose', async (req, res) => {
 
 // ── Page routes ───────────────────────────────────────────────────
 app.get('/', (req, res) => {
+  const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  res.redirect('/app' + qs);
+});
+
+// /landing serves the marketing landing page
+app.get('/landing', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 

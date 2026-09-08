@@ -340,6 +340,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   await loadUser();
   autoResize(document.getElementById('chatInput'));
   updateWelcomeForMode();
+
+  // Handshake with parent window (if inside an iframe like ai-orchestration)
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'READY4LAUNCH_READY' }, '*');
+    }
+  } catch (e) {}
 });
 
 // ── User profile — never redirects; app is open to all ───────────
