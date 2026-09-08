@@ -250,8 +250,8 @@ Do NOT include explanations outside the code block.`;
       // Perform quality audit & self-healing
       try {
         const healed = await auditAndHeal(cleanHtml, apiKey);
-        if (healed && healed.html) {
-          cleanHtml = healed.html;
+        if (healed && healed.code) {
+          cleanHtml = healed.code;
           addLog(`[00:07] ✨ Quality pass complete: Structural integrity and DOM bindings verified.`);
         }
       } catch (auditErr) {
