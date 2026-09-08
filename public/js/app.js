@@ -1,4 +1,4 @@
-﻿/* ── Ready4Launch chat interface ──────────────────────────────────── */
+/* ── Ready4Launch chat interface ──────────────────────────────────── */
 
 let isStreaming = false;
 let isNewConversation = true;
@@ -1336,3 +1336,30 @@ function showDailyLimitBanner(errData) {
   container.appendChild(div);
   scrollToBottom();
 }
+
+// ── OAuth Popup Handling for iframe embeds (e.g. ai-orchestration) ──
+document.addEventListener('click', function(e) {
+  const link = e.target.closest('a[href^="/auth/google"], a[href^="/auth/github"], a[href*="/auth/google"], a[href*="/auth/github"]');
+  if (!link) return;
+
+  const isIframe = window.self !== window.top;
+  if (isIframe) {
+    e.preventDefault();
+    const w = 540;
+    const h = 680;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(link.href, 'OAuthPopup', `width=${w},height=${h},left=${left},top=${top},status=no,menubar=no,toolbar=no`);
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      window.top.location.href = link.href;
+    }
+  }
+});
+
+window.addEventListener('message', function(event) {
+  if (event.data && (event.data.type === 'AUTH_COMPLETE' || event.data === 'AUTH_COMPLETE')) {
+    if (event.data.success !== false) {
+      window.location.reload();
+    }
+  }
+});

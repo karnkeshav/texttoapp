@@ -11,6 +11,85 @@ function isAuthenticated(req) {
   return !!(req.session.googleUser || req.session.githubToken);
 }
 
+function sendAuthResponse(res, success, errCode = null) {
+  const targetUrl = success ? '/app' : `/?error=${errCode || 'auth_failed'}`;
+  const title = success ? 'Signed In — Ready4Launch' : 'Authentication Issue';
+  const heading = success ? '⚡ Welcome to Ready4Launch' : '⚠️ Authentication Issue';
+  const subtitle = success ? 'Redirecting to your workspace...' : `Sign in was not completed (${errCode || 'error'}). Closing...`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0b0f19;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 2.25rem 2rem;
+      text-align: center;
+      max-width: 420px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+    h2 { margin: 0 0 0.5rem 0; font-size: 1.25rem; font-weight: 700; color: #fff; }
+    p { margin: 0; font-size: 0.9rem; color: #94a3b8; line-height: 1.5; }
+    .spinner {
+      margin: 1.25rem auto 0;
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>${heading}</h2>
+    <p>${subtitle}</p>
+    <div class="spinner"></div>
+  </div>
+  <script>
+    (function() {
+      const targetUrl = ${JSON.stringify(targetUrl)};
+      const success = ${JSON.stringify(success)};
+      try {
+        if (window.opener && !window.opener.closed) {
+          try {
+            window.opener.location.href = targetUrl;
+          } catch(e) {}
+          try {
+            window.opener.postMessage({ type: 'AUTH_COMPLETE', success: success, target: targetUrl }, '*');
+          } catch(e) {}
+          setTimeout(function() { window.close(); }, 600);
+          return;
+        }
+      } catch(e) {}
+      window.location.href = targetUrl;
+    })();
+  </script>
+</body>
+</html>`;
+
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+}
+
 // ══════════════════════════════════════════════════════════════════
 // GOOGLE OAUTH  (primary — creates the secure workspace)
 // ══════════════════════════════════════════════════════════════════
@@ -30,7 +109,7 @@ router.get('/google', (req, res) => {
 
 router.get('/google/callback', async (req, res) => {
   const { code, error } = req.query;
-  if (error || !code) return res.redirect('/?error=google_cancelled');
+  if (error || !code) return sendAuthResponse(res, false, 'google_cancelled');
 
   try {
     const tokenRes = await axios.post('https://oauth2.googleapis.com/token', {
@@ -42,14 +121,14 @@ router.get('/google/callback', async (req, res) => {
     });
 
     const { access_token } = tokenRes.data;
-    if (!access_token) return res.redirect('/?error=google_token_failed');
+    if (!access_token) return sendAuthResponse(res, false, 'google_token_failed');
 
     const profileRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     const { sub: uid, email, name, picture } = profileRes.data;
 
-    if (!uid || !email) return res.redirect('/?error=google_profile_failed');
+    if (!uid || !email) return sendAuthResponse(res, false, 'google_profile_failed');
 
     // Persist to Firestore (non-blocking)
     upsertUser({ uid, email, name, picture, provider: 'google' }).catch(() => {});
@@ -64,10 +143,10 @@ router.get('/google/callback', async (req, res) => {
     };
 
     console.log(`[Auth] Google login: ${email}`);
-    res.redirect('/app');
+    return sendAuthResponse(res, true);
   } catch (err) {
     console.error('[Auth] Google callback error:', err.message);
-    res.redirect('/?error=google_oauth_error');
+    return sendAuthResponse(res, false, 'google_oauth_error');
   }
 });
 
@@ -87,7 +166,7 @@ router.get('/github', (req, res) => {
 
 router.get('/github/callback', async (req, res) => {
   const { code } = req.query;
-  if (!code) return res.redirect('/?error=no_code');
+  if (!code) return sendAuthResponse(res, false, 'no_code');
 
   try {
     const tokenRes = await axios.post(
@@ -102,7 +181,7 @@ router.get('/github/callback', async (req, res) => {
     );
 
     const { access_token, error } = tokenRes.data;
-    if (error || !access_token) return res.redirect('/?error=oauth_failed');
+    if (error || !access_token) return sendAuthResponse(res, false, 'oauth_failed');
 
     req.session.githubToken = access_token;
     const githubUser = await getUser(access_token);
@@ -133,10 +212,10 @@ router.get('/github/callback', async (req, res) => {
     }
 
     console.log(`[Auth] GitHub connected: ${githubUser.login}`);
-    res.redirect('/app');
+    return sendAuthResponse(res, true);
   } catch (err) {
     console.error('[Auth] GitHub callback error:', err.message);
-    res.redirect('/?error=oauth_error');
+    return sendAuthResponse(res, false, 'oauth_error');
   }
 });
 
