@@ -66,14 +66,13 @@ router.get('/github-repos', async (req, res) => {
     }
 
     // Public GitHub API fallback
-    const fetch = globalThis.fetch || require('axios').get;
-    const directRes = await fetch(`https://api.github.com/users/${encodeURIComponent(targetUser)}/repos?sort=updated&per_page=30`, {
+    const axios = require('axios');
+    const directRes = await axios.get(`https://api.github.com/users/${encodeURIComponent(targetUser)}/repos?sort=updated&per_page=30`, {
       headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Ready4Launch-Orchestrator' }
     });
 
-    if (directRes.ok || directRes.status === 200) {
-      const data = directRes.json ? await directRes.json() : directRes.data;
-      const repos = (data || []).map(r => ({
+    if (directRes.status === 200 && Array.isArray(directRes.data)) {
+      const repos = directRes.data.map(r => ({
         name: r.name,
         fullName: r.full_name,
         private: r.private,
