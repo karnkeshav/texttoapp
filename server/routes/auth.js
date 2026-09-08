@@ -87,7 +87,7 @@ function sendAuthResponse(res, success, errCode = null, authPayload = null) {
         }
       } catch (e) {}
 
-      // 3. postMessage to window.opener
+      // 3. postMessage to window.opener if accessible
       try {
         if (window.opener && !window.opener.closed) {
           try {
@@ -100,15 +100,21 @@ function sendAuthResponse(res, success, errCode = null, authPayload = null) {
               window.opener.loadUser();
             }
           } catch (e) {}
-          setTimeout(function() { window.close(); }, 600);
-          return;
         }
       } catch (e) {}
 
-      // 4. Standalone fallback (no opener / direct navigation)
+      // 4. Always close the popup so user remains in the main window
+      try {
+        window.close();
+      } catch (e) {}
+
+      // 5. Fallback only if browser blocked window.close (e.g. direct address bar tab)
       setTimeout(function() {
-        window.location.href = targetUrl;
-      }, 600);
+        try { window.close(); } catch (e) {}
+        if (!window.closed) {
+          window.location.href = targetUrl;
+        }
+      }, 500);
     })();
   </script>
 </body>
