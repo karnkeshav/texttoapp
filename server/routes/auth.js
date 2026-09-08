@@ -269,8 +269,14 @@ router.get('/github/callback', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 
 router.post('/sync-session', (req, res) => {
-  const { githubToken, user, googleUser } = req.body || {};
-  if (githubToken) {
+  const { githubToken, user, googleUser, clearGitHub } = req.body || {};
+  if (clearGitHub || githubToken === null) {
+    delete req.session.githubToken;
+    delete req.session.githubUser;
+    if (req.session.user) {
+      delete req.session.user.githubLogin;
+    }
+  } else if (githubToken) {
     req.session.githubToken = githubToken;
   }
   if (googleUser) {
@@ -280,18 +286,42 @@ router.post('/sync-session', (req, res) => {
     req.session.user = {
       ...(req.session.user || {}),
       ...user,
-      githubLogin: user.githubLogin || user.login || req.session?.user?.githubLogin,
+      githubLogin: clearGitHub ? undefined : (user.githubLogin || user.login || req.session?.user?.githubLogin),
     };
   }
   req.session.save((err) => {
     if (err) console.warn('[Auth] sync-session save error:', err.message);
     res.json({
       ok: true,
-      authenticated: true,
+      authenticated: isAuthenticated(req),
       user: req.session.user,
       hasGitHub: !!(req.session?.githubToken || req.headers['x-github-token']),
       hasGoogle: !!req.session?.googleUser,
     });
+  });
+});
+
+router.all('/github/logout', (req, res) => {
+  delete req.session.githubToken;
+  delete req.session.githubUser;
+  if (req.session.user) {
+    delete req.session.user.githubLogin;
+    if (req.session.user.provider === 'github' && !req.session.googleUser) {
+      delete req.session.user;
+    }
+  }
+  req.session.save((err) => {
+    if (err) console.warn('[Auth] github logout save error:', err.message);
+    if (req.xhr || req.headers.accept?.includes('json') || req.method === 'POST') {
+      return res.json({
+        ok: true,
+        success: true,
+        hasGitHub: false,
+        authenticated: isAuthenticated(req),
+        user: req.session.user || null,
+      });
+    }
+    res.redirect('/app');
   });
 });
 

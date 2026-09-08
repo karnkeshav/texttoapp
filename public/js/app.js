@@ -111,6 +111,9 @@ async function loadUser() {
     const res  = await fetch('/auth/status', { headers, credentials: 'include' });
     const data = await res.json();
 
+    const disconnectBtn = document.getElementById('sidebarDisconnectGhBtn');
+    const repoDisconnectBtn = document.getElementById('disconnectGithubBtn');
+
     if (!data.authenticated && !ghToken) {
       // No session — guest user. Show Google sign-in prompt in sidebar, NOT GitHub connect.
       if (avatarEl) avatarEl.textContent = '⚡';
@@ -127,6 +130,8 @@ async function loadUser() {
           </a>`;
       }
       if (repoSection) repoSection.style.display = 'none';
+      if (disconnectBtn) disconnectBtn.style.display = 'none';
+      if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'none';
       return;
     }
 
@@ -144,14 +149,18 @@ async function loadUser() {
     if (nameEl) nameEl.textContent = name || (githubLogin ? `@${githubLogin}` : (login?.startsWith('gh_') ? `@${login.slice(3)}` : login));
 
     if (hasGitHub) {
-      if (subEl)       subEl.textContent          = hasGoogle ? 'Google + GitHub connected' : 'GitHub connected';
-      if (ghBanner)    ghBanner.style.display    = 'none';
-      if (repoSection) repoSection.style.display = 'flex';
+      if (subEl)            subEl.textContent       = hasGoogle ? 'Google + GitHub connected' : 'GitHub connected';
+      if (ghBanner)         ghBanner.style.display = 'none';
+      if (repoSection)      repoSection.style.display = 'flex';
+      if (disconnectBtn)    disconnectBtn.style.display = 'flex';
+      if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'inline-block';
       loadUserRepos();
     } else {
-      if (subEl)       subEl.textContent          = 'Connect GitHub to deploy to Pages';
-      if (ghBanner)    ghBanner.style.display    = 'block';
-      if (repoSection) repoSection.style.display = 'none';
+      if (subEl)            subEl.textContent       = 'Connect GitHub to deploy to Pages';
+      if (ghBanner)         ghBanner.style.display = 'block';
+      if (repoSection)      repoSection.style.display = 'none';
+      if (disconnectBtn)    disconnectBtn.style.display = 'none';
+      if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'none';
     }
 
     // Show mode-selection cards for any authenticated user
@@ -1438,6 +1447,58 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ── Disconnect GitHub ─────────────────────────────────────────────
+async function disconnectGitHub() {
+  try {
+    // 1. Clear GitHub token and auth payload from localStorage
+    localStorage.removeItem('r4l_gh_token');
+
+    const cachedUser = JSON.parse(localStorage.getItem('r4l_user') || '{}');
+    delete cachedUser.githubLogin;
+    localStorage.setItem('r4l_user', JSON.stringify(cachedUser));
+
+    const authPayload = JSON.parse(localStorage.getItem('r4l_auth_payload') || '{}');
+    delete authPayload.githubToken;
+    delete authPayload.githubUser;
+    if (authPayload.user) delete authPayload.user.githubLogin;
+    localStorage.setItem('r4l_auth_payload', JSON.stringify(authPayload));
+    localStorage.setItem('r4l_auth_event', JSON.stringify({ time: Date.now(), type: 'AUTH_LOGOUT_GITHUB' }));
+
+    // 2. Call backend to clear GitHub session
+    await fetch('/auth/github/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    }).catch(() => {});
+
+    // 3. Sync session with clearGitHub
+    await fetch('/auth/sync-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ clearGitHub: true, user: cachedUser }),
+    }).catch(() => {});
+
+    // 4. Broadcast to all frames / tabs
+    try {
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('r4l_auth_channel');
+        bc.postMessage({ type: 'AUTH_LOGOUT_GITHUB' });
+        bc.close();
+      }
+    } catch (e) {}
+
+    // 5. Update local state & UI
+    _allRepos = [];
+    const list = document.getElementById('repoList');
+    if (list) list.innerHTML = '';
+
+    await loadUser();
+  } catch (err) {
+    console.error('Error disconnecting GitHub:', err);
+  }
+}
+
 // 1. BroadcastChannel listener (instant sync from callback popup)
 try {
   if ('BroadcastChannel' in window) {
@@ -1445,6 +1506,10 @@ try {
     authChannel.onmessage = function(ev) {
       if (ev.data && (ev.data.type === 'AUTH_COMPLETE' || ev.data === 'AUTH_COMPLETE')) {
         handleAuthSync(ev.data.payload);
+      } else if (ev.data && (ev.data.type === 'AUTH_LOGOUT_GITHUB' || ev.data === 'AUTH_LOGOUT_GITHUB')) {
+        localStorage.removeItem('r4l_gh_token');
+        _allRepos = [];
+        loadUser();
       }
     };
   }
@@ -1455,7 +1520,13 @@ window.addEventListener('storage', function(e) {
   if (e.key === 'r4l_auth_event' || e.key === 'r4l_auth_payload' || e.key === 'r4l_gh_token') {
     try {
       const data = JSON.parse(localStorage.getItem('r4l_auth_payload') || localStorage.getItem('r4l_auth_event') || '{}');
-      handleAuthSync(data?.payload || data);
+      if (data?.type === 'AUTH_LOGOUT_GITHUB') {
+        localStorage.removeItem('r4l_gh_token');
+        _allRepos = [];
+        loadUser();
+      } else {
+        handleAuthSync(data?.payload || data);
+      }
     } catch (_) {
       loadUser();
     }
@@ -1468,5 +1539,9 @@ window.addEventListener('message', function(event) {
     if (event.data.success !== false) {
       handleAuthSync(event.data.payload);
     }
+  } else if (event.data && (event.data.type === 'AUTH_LOGOUT_GITHUB' || event.data === 'AUTH_LOGOUT_GITHUB')) {
+    localStorage.removeItem('r4l_gh_token');
+    _allRepos = [];
+    loadUser();
   }
 });
