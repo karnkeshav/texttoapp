@@ -4,12 +4,13 @@ const session = require('express-session');
 const path = require('path');
 const { FirestoreSessionStore } = require('./services/firestoreSessionStore');
 
-const authRoutes    = require('./routes/auth');
-const chatRoutes    = require('./routes/chat');
-const githubRoutes  = require('./routes/github');
-const convertRoutes = require('./routes/convert');
-const userRoutes    = require('./routes/user');
-const supportRoutes = require('./routes/support');
+const authRoutes        = require('./routes/auth');
+const chatRoutes        = require('./routes/chat');
+const githubRoutes      = require('./routes/github');
+const convertRoutes     = require('./routes/convert');
+const userRoutes        = require('./routes/user');
+const supportRoutes     = require('./routes/support');
+const orchestrateRoutes = require('./routes/orchestrate');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,15 @@ const PORT = process.env.PORT || 3000;
 // Without this, Express thinks requests are HTTP → secure cookies are never
 // sent → sessions vanish after the GitHub OAuth redirect.
 app.set('trust proxy', 1);
+
+// ── CORS Middleware ───────────────────────────────────────────────
+const cors = require('cors');
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'x-github-token', 'x-github-user']
+}));
 
 // ── Middleware ────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
@@ -48,6 +58,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/auth', authRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', convertRoutes);
+app.use('/api', orchestrateRoutes);
 app.use('/api/github', githubRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/support', supportRoutes);
