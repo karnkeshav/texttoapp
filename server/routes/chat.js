@@ -30,35 +30,96 @@ const { recordSession } = require('../services/firestoreService');
 
 const router = express.Router();
 
-// ── Fixed mode question ───────────────────────────────────────────
-const MODE_QUESTION = `One quick question before I start — what are we building?
+// ── Fixed mode questions (multi-language) ───────────────────────────
+const I18N_MODE_QUESTIONS = {
+  en: `One quick question before I start — what are we building?
 
 🚀 **Prototype** — A polished single-page app with 5+ smooth-scrolling sections, done fast. Perfect for validating ideas or sharing a preview.
 
 📦 **Complete Product** — I'll ask you 5 focused questions (end goal, audience, features, tech needs, style) and build a production-ready app that matches your full vision exactly.
 
-Which would you like?`;
+Which would you like?`,
 
-// ── Complete-mode questions (Q1–Q5, asked one per turn) ──────────
-const COMPLETE_QUESTIONS = [
-  `Let's build this properly. 🎯
+  hi: `शुरू करने से पहले एक संक्षिप्त प्रश्न — हम क्या बना रहे हैं?
 
-**Question 1 of 5 — End goal:** When someone finishes using this app, what did they accomplish? What's the core job-to-be-done? Be as specific as you like — what data do they enter, what does the app show them, what's the main outcome?`,
+🚀 **प्रोटोटाइप (Prototype)** — 5+ आकर्षक और सुचारू सेक्शन वाला आधुनिक सिंगल-पेज ऐप, जो तुरंत तैयार होगा। अपने विचार की पुष्टि या लाइव प्रीव्यू साझा करने के लिए उत्तम।
 
-  `**Question 2 of 5 — Your users:** Who will use this app? (e.g. "internal team of 8", "restaurant customers", "students aged 16–22", "general public") — the more specific, the better the result.`,
+📦 **पूर्ण उत्पाद (Complete Product)** — मैं आपसे 5 मुख्य प्रश्न पूछूँगा (अंतिम लक्ष्य, लक्षित उपयोगकर्ता, मुख्य विशेषताएँ, तकनीकी आवश्यकताएं, डिज़ाइन शैली) और आपकी कल्पना के अनुसार सम्पूर्ण प्रोडक्शन-रेडी ऐप बनाऊँगा।
 
-  `**Question 3 of 5 — Must-have features:** List the 3–5 features that absolutely must work at launch. Anything that's nice-to-have but not critical? (Say "none" for the optional part if you prefer.)`,
+आप किसे चुनना चाहेंगे?`,
 
-  `**Question 4 of 5 — Technical needs:** Any specific requirements?
-• Should it save data between visits (localStorage)?
-• Mobile-first or desktop-first?
-• Need to export/import data (CSV, PDF)?
-• Any third-party integrations?
+  es: `Una pregunta rápida antes de comenzar: ¿qué estamos construyendo?
 
-(Just say "none" if nothing applies)`,
+🚀 **Prototipo (Prototype)** — Una aplicación pulida de una sola página con más de 5 secciones y desplazamiento fluido, creada rápidamente. Perfecta para validar ideas o compartir una vista previa.
 
-  `**Question 5 of 5 — Style & feel:** Last one! Dark or light? Minimal or bold? Elegant or playful? Name a colour palette, a brand you like, or describe the mood — even rough ideas help.`,
-];
+📦 **Producto Completo (Complete Product)** — Te haré 5 preguntas clave (objetivo final, audiencia, funciones, necesidades técnicas y estilo) y construiré una aplicación lista para producción que coincida exactamente con tu visión.
+
+¿Cuál prefieres?`,
+
+  te: `మనం ప్రారంభించే ముందు ఒక చిన్న ప్రశ్న — మనం ఏమి నిర్మిస్తున్నాము?
+
+🚀 **ప్రోటోటైప్ (Prototype)** — 5+ విభాగాలు కలిగిన అందమైన సింగిల్-పేజ్ యాప్, వేగంగా సిద్ధమవుతుంది. మీ ఆలోచనను పరీక్షించడానికి లేదా ప్రివ్యూ చూపించడానికి ఉత్తమమైనది.
+
+📦 **పూర్తి ఉత్పత్తి (Complete Product)** — నేను మిమ్మల్ని 5 లక్ష్య ప్రశ్నలు అడుగుతాను (తుది లక్ష్యం, వినియోగదారులు, ఫీచర్లు, సాంకేతిక అవసరాలు, శైలి) మరియు మీ పూర్తి దృష్టికి సరిపోయే ప్రొడక్షన్-రెడీ యాప్‌ను నిర్మిస్తాను.
+
+మీరు దేనిని ఎంచుకోవాలనుకుంటున్నారు?`
+};
+const MODE_QUESTION = I18N_MODE_QUESTIONS.en;
+
+// ── Complete-mode questions (Q1–Q5, multi-language) ─────────────────
+const I18N_COMPLETE_QUESTIONS = {
+  en: [
+    `Let's build this properly. 🎯\n\n**Question 1 of 5 — End goal:** When someone finishes using this app, what did they accomplish? What's the core job-to-be-done? Be as specific as you like — what data do they enter, what does the app show them, what's the main outcome?`,
+    `**Question 2 of 5 — Your users:** Who will use this app? (e.g. "internal team of 8", "restaurant customers", "students aged 16–22", "general public") — the more specific, the better the result.`,
+    `**Question 3 of 5 — Must-have features:** List the 3–5 features that absolutely must work at launch. Anything that's nice-to-have but not critical? (Say "none" for the optional part if you prefer.)`,
+    `**Question 4 of 5 — Technical needs:** Any specific requirements?\n• Should it save data between visits (localStorage)?\n• Mobile-first or desktop-first?\n• Need to export/import data (CSV, PDF)?\n• Any third-party integrations?\n\n(Just say "none" if nothing applies)`,
+    `**Question 5 of 5 — Style & feel:** Last one! Dark or light? Minimal or bold? Elegant or playful? Name a colour palette, a brand you like, or describe the mood — even rough ideas help.`
+  ],
+  hi: [
+    `आइए इसे पूरी गुणवत्ता के साथ बनाएँ। 🎯\n\n**प्रश्न 1 / 5 — मुख्य लक्ष्य:** जब कोई इस ऐप का उपयोग पूरा करता है, तो वह क्या हासिल करता है? ऐप का मुख्य कार्य क्या है? विस्तार से बताएं — उपयोगकर्ता क्या डेटा दर्ज करते हैं, ऐप क्या प्रदर्शित करता है, और अंतिम परिणाम क्या है?`,
+    `**प्रश्न 2 / 5 — आपके उपयोगकर्ता:** इस ऐप का उपयोग कौन करेगा? (जैसे "8 लोगों की आंतरिक टीम", "रेस्टोरेंट ग्राहक", "छात्र", "आम जनता") — जितना सटीक होगा, परिणाम उतना ही बेहतर होगा।`,
+    `**प्रश्न 3 / 5 — अनिवार्य विशेषताएँ (Must-have features):** 3–5 ऐसी विशेषताएँ बताएं जिनका काम करना अनिवार्य है। क्या कोई ऐसी सुविधा है जो वैकल्पिक हो? (यदि कुछ नहीं तो "कोई नहीं" लिखें)`,
+    `**प्रश्न 4 / 5 — तकनीकी आवश्यकताएं:** क्या कोई विशेष आवश्यकता है?\n• क्या विज़िट के बीच डेटा सहेजना चाहिए (localStorage)?\n• मोबाइल-प्रथम या डेस्कटॉप-प्रथम?\n• डेटा निर्यात/आयात (CSV, PDF) चाहिए?\n• कोई अन्य एकीकरण?\n\n(यदि कुछ नहीं तो "कोई नहीं" लिखें)`,
+    `**प्रश्न 5 / 5 — डिज़ाइन शैली और लुक:** अंतिम प्रश्न! डार्क थीम या लाइट? मिनिमल या बोल्ड? पसंदीदा रंग पैलेट या कोई ब्रांड बताएं जो आपको पसंद हो — सामान्य विचार भी मददगार हैं।`
+  ],
+  es: [
+    `Construyamos esto con la mejor calidad. 🎯\n\n**Pregunta 1 de 5 — Objetivo principal:** Cuando alguien termine de usar esta aplicación, ¿qué habrá logrado? ¿Cuál es el propósito principal? Sé tan específico como desees: ¿qué datos ingresan, qué muestra la app y cuál es el resultado final?`,
+    `**Pregunta 2 de 5 — Tus usuarios:** ¿Quiénes usarán esta aplicación? (por ejemplo: "equipo interno de 8 personas", "clientes de restaurante", "estudiantes", "público general").`,
+    `**Pregunta 3 de 5 — Funciones imprescindibles:** Menciona de 3 a 5 funciones que deben funcionar sí o sí en el lanzamiento. ¿Alguna función opcional? (Puedes decir "ninguna" si no aplica).`,
+    `**Pregunta 4 de 5 — Requisitos técnicos:** ¿Algún requerimiento específico?\n• ¿Debe guardar datos entre visitas (localStorage)?\n• ¿Diseño enfocado en móvil o escritorio?\n• ¿Exportar/importar datos (CSV, PDF)?\n• ¿Alguna integración?\n\n(Di "ninguna" si nada aplica)`,
+    `**Pregunta 5 de 5 — Estilo visual:** ¡Última pregunta! ¿Tema oscuro o claro? ¿Minimalista o llamativo? ¿Elegante o moderno? Menciona una paleta de colores o marca de referencia.`
+  ],
+  te: [
+    `దీన్ని సరైన పద్ధతిలో నిర్మిద్దాం. 🎯\n\n**ప్రశ్న 1 / 5 — ప్రధాన లక్ష్యం:** ఎవరైనా ఈ యాప్‌ను ఉపయోగించినప్పుడు, వారు ఏమి సాధిస్తారు? దీని ప్రధాన పని ఏమిటి? యూజర్లు ఏ డేటాను ఎంటర్ చేస్తారు, యాప్ ఏమి చూపిస్తుంది, తుది ఫలితం ఏమిటి?`,
+    `**ప్రశ్న 2 / 5 — వినియోగదారులు:** ఈ యాప్‌ను ఎవరు ఉపయోగిస్తారు? (ఉదాహరణకు "రెస్టారెంట్ కస్టమర్లు", "విద్యార్థులు", "సాధారణ ప్రజలు").`,
+    `**ప్రశ్న 3 / 5 — ముఖ్యమైన ఫీచర్లు:** తప్పనిసరిగా ఉండవలసిన 3–5 ముఖ్యమైన ఫీచర్లను పేర్కొనండి. ఏదైనా ఐచ్ఛిక ఫీచర్ ఉందా?`,
+    `**ప్రశ్న 4 / 5 — సాంకేతిక అవసరాలు:** ఏదైనా నిర్దిష్ట అవసరాలు ఉన్నాయా?\n• డేటాను నిల్వ చేయాలా (localStorage)?\n• మొబైల్-ఫస్ట్ లేదా డెస్క్‌టాప్-ఫస్ట్?\n• డేటా ఎగుమతి/దిగుమతి (CSV, PDF)?`,
+    `**ప్రశ్న 5 / 5 — శైలి మరియు లుక్:** చివరి ప్రశ్న! డార్క్ థీమా లేదా లైట్ థీమా? మినిమల్ లేదా బోల్డ్? మీకు నచ్చిన రంగులు లేదా బ్రాండ్ పేర్కొనండి.`
+  ]
+};
+const COMPLETE_QUESTIONS = I18N_COMPLETE_QUESTIONS.en;
+
+const LANGUAGE_NAMES = {
+  en: 'English',
+  hi: 'Hindi (हिन्दी)',
+  es: 'Spanish (Español)',
+  te: 'Telugu (తెలుగు)'
+};
+
+function getLanguageDirective(lang) {
+  if (!lang || lang === 'en') return '';
+  const langName = LANGUAGE_NAMES[lang] || lang;
+  return `\n── MANDATORY LANGUAGE DIRECTIVE ──
+Target Language: ${langName} (${lang})
+1. ALL user-visible text in the generated web application (HTML, CSS, JS) MUST be written in natural, fluent ${langName}:
+   - The HTML document MUST have <html lang="${lang}">.
+   - All user-visible text (page title, navbar links, hero headlines, badges, section headings, feature descriptions, button text, form labels, input placeholders, modals, and toast notifications) MUST be written in fluent ${langName} using proper Unicode characters (e.g. Devanagari script for Hindi, Telugu script for Telugu).
+   - Pre-loaded sample data (product names, descriptions, user testimonials, transaction items, etc.) MUST be realistic and written in ${langName}.
+   - If pricing is shown, use regional currency format where appropriate (e.g. ₹ for Hindi/Telugu, €/$ for Spanish).
+2. Code syntax, HTML tags, CSS property names, and JavaScript variable/function names must remain valid standard English code syntax.
+3. Conversational explanation / response text from you to the user MUST also be in ${langName}.
+─────────────────────────────────\n`;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────
 const FRAMEWORK_RE = /\b(react|vue|angular|next\.?js|nuxt\.?js|svelte|gatsby|remix|typescript|webpack|vite)\b/i;
@@ -353,7 +414,32 @@ function detectBuildMode(answer) {
   return 'prototype'; // default
 }
 
-function defaultStyleQuestion() {
+function defaultStyleQuestion(lang = 'en') {
+  if (lang === 'hi') {
+    return `एक अंतिम विवरण — आप इस ऐप के लिए किस प्रकार का लुक और थीम पसंद करेंगे? 🎨
+• 🖤 **डार्क थीम** (गहरा बैकग्राउंड, नियॉन या वायलेट एक्सेंट — आधुनिक व प्रीमियम)
+• ☀️ **लाइट थीम** (साफ, सफेद/ग्रे बैकग्राउंड, कॉर्पोरेट ब्लू या एमराल्ड एक्सेंट)
+• ⚡ **बोल्ड और ऊर्जावान** (गहरा बैकग्राउंड + आकर्षक एक्सेंट)
+• 🎯 **मिनिमल प्रो** (सटीक, न्यूनतम व व्यावसायिक रूप)
+
+या कोई विशिष्ट रंग पैलेट या ब्रांड स्टाइल बताएं जो आप चाहते हों।`;
+  }
+  if (lang === 'es') {
+    return `Un último detalle visual: ¿qué estilo o tema prefieres para esta aplicación? 🎨
+• 🖤 **Tema Oscuro** (fondo oscuro con acentos violeta/neón, moderno y premium)
+• ☀️ **Tema Claro** (fondo blanco/gris limpio con acentos azul corporativo o esmeralda)
+• ⚡ **Audaz y Enérgico** (fondo oscuro + acento brillante)
+• 🎯 **Minimalista Pro** (tonos neutros, acentos sutiles)
+
+O describe tus propios colores, una marca de referencia o el estilo que prefieras.`;
+  }
+  if (lang === 'te') {
+    return `చివరి దృశ్య వివరాలు — ఈ యాప్ కోసం మీరు ఏ శైలి లేదా థీమ్‌ను ఇష్టపడతారు? 🎨
+• 🖤 **డార్క్ థీమ్** (ఆధునిక మరియు ప్రీమియం డార్క్ బ్యాక్‌గ్రౌండ్)
+• ☀️ **లైట్ థీమ్** (శుభ్రమైన వైట్/గ్రే కార్పొరేట్ లుక్)
+• ⚡ **బోల్డ్ లుక్** (డార్క్ బ్యాక్‌గ్రౌండ్ + ప్రత్యేక రంగులు)
+• 🎯 **మినిమల్ ప్రో** (సాధారణ మరియు ప్రొఫెషనల్ లుక్)`;
+  }
   return `One quick thing — what vibe are you going for? 🎨
 
 • 🖤 Dark & Sleek (black + purple/blue)
@@ -379,7 +465,13 @@ router.post('/chat', requireAuth, async (req, res) => {
     editBranch = 'main',
     attachment,   // optional: { fileName, mimeType, data (base64) }
     modeHint,     // optional: 'convert' | 'chat' — set by frontend when user clicks a welcome card
+    language,     // optional: 'en' | 'hi' | 'es' | 'te'
   } = req.body;
+
+  if (language) {
+    req.session.language = language;
+  }
+  const currentLang = language || req.session.language || 'en';
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'message is required' });
@@ -815,10 +907,11 @@ router.post('/chat', requireAuth, async (req, res) => {
       const fw = interceptFramework(trimmedMessage);
       if (fw) console.log(`[Chat] Framework "${fw}" detected — will annotate on build`);
 
+      const modeQ = I18N_MODE_QUESTIONS[currentLang] || MODE_QUESTION;
       req.session.chatHistory.push({ role: 'user',      content: trimmedMessage });
-      req.session.chatHistory.push({ role: 'assistant', content: MODE_QUESTION });
-      sendEvent('chunk', { text: MODE_QUESTION });
-      sendEvent('done',  { text: MODE_QUESTION });
+      req.session.chatHistory.push({ role: 'assistant', content: modeQ });
+      sendEvent('chunk', { text: modeQ });
+      sendEvent('done',  { text: modeQ });
       return res.end();
     }
 
@@ -863,13 +956,15 @@ router.post('/chat', requireAuth, async (req, res) => {
       const detected = detectBuildMode(trimmedMessage);
       req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
 
+      const activeCompleteQuestions = I18N_COMPLETE_QUESTIONS[currentLang] || COMPLETE_QUESTIONS;
+
       if (detected === 'complete') {
         req.session.buildMode       = 'complete';
         req.session.chatPhase       = 'complete_questioning';
         req.session.questionIndex   = 0;
         req.session.gatheredAnswers = [];
 
-        const q = COMPLETE_QUESTIONS[0];
+        const q = activeCompleteQuestions[0];
         req.session.chatHistory.push({ role: 'assistant', content: q });
         sendEvent('chunk', { text: q });
         sendEvent('done',  { text: q });
@@ -879,11 +974,8 @@ router.post('/chat', requireAuth, async (req, res) => {
         req.session.buildMode = 'prototype';
         req.session.chatPhase = 'prototype_style';
 
-        // Always ask the standard style/design question for Prototype mode.
-        // planAskBack may be a functional Gap-1/Gap-2 question (e.g. data storage),
-        // not a visual direction question — using it would leave the AI with no CSS guidance.
-        // planNotes (domain context) is still carried into enrichedNotes for the build.
-        const styleQ = defaultStyleQuestion();
+        // Ask the style/design question in the active language
+        const styleQ = defaultStyleQuestion(currentLang);
 
         req.session.chatHistory.push({ role: 'assistant', content: styleQ });
         sendEvent('chunk', { text: styleQ });
@@ -896,15 +988,17 @@ router.post('/chat', requireAuth, async (req, res) => {
     // PHASE: complete_questioning — Q1 through Q5
     // ════════════════════════════════════════════════════════════
     if (req.session.chatPhase === 'complete_questioning') {
+      const activeCompleteQuestions = I18N_COMPLETE_QUESTIONS[currentLang] || COMPLETE_QUESTIONS;
+
       // Save answer for the current question
-      const currentQ = COMPLETE_QUESTIONS[req.session.questionIndex];
+      const currentQ = activeCompleteQuestions[req.session.questionIndex] || COMPLETE_QUESTIONS[req.session.questionIndex];
       req.session.gatheredAnswers.push({ q: currentQ, a: trimmedMessage });
       req.session.chatHistory.push({ role: 'user', content: trimmedMessage });
       req.session.questionIndex++;
 
-      if (req.session.questionIndex < COMPLETE_QUESTIONS.length) {
+      if (req.session.questionIndex < activeCompleteQuestions.length) {
         // More questions remain
-        const nextQ = COMPLETE_QUESTIONS[req.session.questionIndex];
+        const nextQ = activeCompleteQuestions[req.session.questionIndex];
         req.session.chatHistory.push({ role: 'assistant', content: nextQ });
         sendEvent('chunk', { text: nextQ });
         sendEvent('done',  { text: nextQ });
@@ -979,6 +1073,9 @@ router.post('/chat', requireAuth, async (req, res) => {
       // Subsequent turns in 'building' phase (app refinement)
       enrichedNotes = req.session.planNotes;
     }
+
+    // Inject active language directive
+    enrichedNotes += getLanguageDirective(currentLang);
 
     // For complete mode, send original request to AI (spec is in enrichedNotes)
     // For prototype style turn, the AI gets the history (original req visible) + style as message

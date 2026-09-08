@@ -9,6 +9,252 @@ const pendingFiles = new Map(); // fileId → { repoName, files }
 let fileIdCounter = 0;
 let _userAuthenticated = false; // set by loadUser(); controls welcome card visibility
 
+// ── Multi-Language Dictionary (i18n) ──────────────────────────────
+const I18N_APP = {
+  en: {
+    sidebar_user_loading: "Loading...",
+    sidebar_user_guest_title: "Ready4Launch",
+    sidebar_user_guest_sub: "Sign in to get started",
+    guest_banner_title: "👋 Welcome to Ready4Launch",
+    guest_banner_sub: "Sign in with Google to build and deploy apps — free.",
+    btn_signin_google: "Sign in with Google",
+    sidebar_gh_connected: "GitHub connected",
+    sidebar_google_gh_connected: "Google + GitHub connected",
+    sidebar_connect_gh_prompt: "Connect GitHub to deploy to Pages",
+    connect_gh_banner_title: "🐙 Connect GitHub to build apps",
+    connect_gh_banner_sub: "Deploy your apps to GitHub Pages — free, permanent, owned by you.",
+    btn_connect_gh: "Connect GitHub",
+    btn_connect_gh_account: "Connect GitHub Account",
+    setup_guide_link: "📖 Step-by-step setup guide →",
+    your_apps: "Your Apps",
+    search_repos_placeholder: "Search repos…",
+    btn_disconnect: "Disconnect",
+    btn_disconnect_gh: "Disconnect GitHub",
+    btn_new_conv: "New conversation",
+    my_account: "My Account",
+    sign_out: "Sign out",
+    topbar_sub_default: "Describe your app to get started",
+    topbar_sub_pages: "GitHub Pages — deploy to your own repo for free",
+    status_ready: "Ready",
+    status_thinking: "Thinking…",
+    status_building: "Building app…",
+    welcome_title: "What do you want to build?",
+    welcome_sub: "Describe any app or website in your language. Ready4Launch will ask a few quick questions, then build and deploy your complete website — free.",
+    card_build_title: "Build an App",
+    card_build_desc: "Turn any idea into a full web app in minutes — just describe it in your language",
+    card_convert_title: "Convert a Document",
+    card_convert_desc: "Export content to Word, Excel, PowerPoint or PDF instantly",
+    card_chat_title: "Chat & Analyse",
+    card_chat_desc: "Ask anything, analyse data, research topics or get expert answers",
+    card_vision_title: "Analyse an Image",
+    card_vision_desc: "Upload any photo or diagram for instant AI visual analysis",
+    back_btn: "← Back",
+    connect_gh_modal_title: "One last step — connect GitHub",
+    connect_gh_modal_desc: "Ready4Launch deploys your app directly to <strong>GitHub Pages</strong> — free, permanent, and owned by you.",
+    connect_gh_modal_sub: "Click below to connect your GitHub account in one click.",
+    chat_input_placeholder_build: "Describe the app you want to build… (e.g. 'A recipe website with a search bar and dark theme')",
+    chat_input_placeholder_convert: "Describe what to create — e.g. 'Make a PowerPoint about our Q1 results' or 'Convert this to a Word doc'",
+    chat_input_placeholder_chat: "Ask me anything — a question, analysis, research, or expert advice…",
+    chat_input_placeholder_vision: "What would you like to know about the image? (attach it with the 📎 button)",
+    chat_input_hint: "Press Enter to send · Shift+Enter for new line",
+    btn_deploy_pages: "Deploy to GitHub Pages",
+    btn_push_update: "Push update to GitHub",
+    btn_preview: "Preview App",
+    btn_view_code: "View Code",
+  },
+  hi: {
+    sidebar_user_loading: "लोड हो रहा है...",
+    sidebar_user_guest_title: "Ready4Launch",
+    sidebar_user_guest_sub: "शुरू करने के लिए साइन इन करें",
+    guest_banner_title: "👋 Ready4Launch में आपका स्वागत है",
+    guest_banner_sub: "ऐप्स बनाने और डिप्लॉय करने के लिए गूगल से साइन इन करें — बिल्कुल मुफ्त।",
+    btn_signin_google: "Google से साइन इन करें",
+    sidebar_gh_connected: "गिटहब कनेक्टेड है",
+    sidebar_google_gh_connected: "गूगल एवं गिटहब कनेक्टेड है",
+    sidebar_connect_gh_prompt: "लाइव डिप्लॉय करने के लिए गिटहब कनेक्ट करें",
+    connect_gh_banner_title: "🐙 ऐप्स बनाने के लिए गिटहब कनेक्ट करें",
+    connect_gh_banner_sub: "अपने ऐप्स को सीधे गिटहब पेजेस पर डिप्लॉय करें — मुफ्त, स्थायी, और आपका अपना।",
+    btn_connect_gh: "गिटहब कनेक्ट करें",
+    btn_connect_gh_account: "गिटहब खाता कनेक्ट करें",
+    setup_guide_link: "📖 स्टेप-बाय-स्टेप गाइड →",
+    your_apps: "आपके ऐप्स एवं प्रोजेक्ट्स",
+    search_repos_placeholder: "रेपॉजिटरी खोजें…",
+    btn_disconnect: "डिस्कनेक्ट",
+    btn_disconnect_gh: "गिटहब डिस्कनेक्ट करें",
+    btn_new_conv: "नया वार्तालाप",
+    my_account: "मेरा खाता",
+    sign_out: "साइन आउट",
+    topbar_sub_default: "अपने ऐप का विवरण दें और निर्माण शुरू करें",
+    topbar_sub_pages: "गिटहब पेजेस — अपनी रेपॉजिटरी में मुफ्त डिप्लॉय करें",
+    status_ready: "तैयार",
+    status_thinking: "सोच रहा हूँ…",
+    status_building: "ऐप बना रहा हूँ…",
+    welcome_title: "आप क्या बनाना चाहते हैं?",
+    welcome_sub: "अपनी पसंदीदा भाषा में किसी भी ऐप या वेबसाइट का विवरण दें। Ready4Launch आपका सम्पूर्ण वेब ऐप तैयार और डिप्लॉय करेगा — बिल्कुल मुफ्त।",
+    card_build_title: "ऐप बनाएं",
+    card_build_desc: "किसी भी विचार को कुछ ही मिनटों में पूर्ण वेब ऐप में बदलें — केवल अपनी भाषा में बताएं",
+    card_convert_title: "दस्तावेज़ कनवर्ट करें",
+    card_convert_desc: "सामग्री को तुरंत Word, Excel, PowerPoint या PDF में निर्यात करें",
+    card_chat_title: "बातचीत और विश्लेषण",
+    card_chat_desc: "कुछ भी पूछें, डेटा का विश्लेषण करें, शोध करें या विशेषज्ञ सलाह लें",
+    card_vision_title: "चित्र का विश्लेषण करें",
+    card_vision_desc: "त्वरित AI दृश्य विश्लेषण के लिए कोई भी फोटो या आरेख अपलोड करें",
+    back_btn: "← वापस",
+    connect_gh_modal_title: "अंतिम चरण — गिटहब कनेक्ट करें",
+    connect_gh_modal_desc: "Ready4Launch आपके ऐप को सीधे <strong>GitHub Pages</strong> पर डिप्लॉय करता है — मुफ़्त, स्थायी और आपका अपना।",
+    connect_gh_modal_sub: "अपने गिटहब खाते को एक क्लिक में कनेक्ट करने के लिए नीचे क्लिक करें।",
+    chat_input_placeholder_build: "जिस ऐप को आप बनाना चाहते हैं उसका विवरण दें… (उदा. 'डार्क थीम वाला इलेक्ट्रॉनिक्स स्टोर')",
+    chat_input_placeholder_convert: "क्या बनाना है बताएं — उदा. 'Q1 परिणामों पर एक PowerPoint बनाएं' या 'इसे Word दस्तावेज़ में बदलें'",
+    chat_input_placeholder_chat: "मुझसे कुछ भी पूछें — प्रश्न, डेटा विश्लेषण, शोध या विशेषज्ञ सलाह…",
+    chat_input_placeholder_vision: "आप चित्र के बारे में क्या जानना चाहते हैं? (📎 बटन से संलग्न करें)",
+    chat_input_hint: "भेजने के लिए Enter दबाएं · नई पंक्ति के लिए Shift+Enter",
+    btn_deploy_pages: "गिटहब पेजेस पर डिप्लॉय करें",
+    btn_push_update: "रेपॉजिटरी में अपडेट पुश करें",
+    btn_preview: "लाइव प्रीव्यू देखें",
+    btn_view_code: "कोड देखें",
+  },
+  es: {
+    sidebar_user_loading: "Cargando...",
+    sidebar_user_guest_title: "Ready4Launch",
+    sidebar_user_guest_sub: "Inicia sesión para comenzar",
+    guest_banner_title: "👋 Bienvenido a Ready4Launch",
+    guest_banner_sub: "Inicia sesión con Google para crear y desplegar aplicaciones gratis.",
+    btn_signin_google: "Iniciar sesión con Google",
+    sidebar_gh_connected: "GitHub conectado",
+    sidebar_google_gh_connected: "Google y GitHub conectados",
+    sidebar_connect_gh_prompt: "Conecta GitHub para desplegar en Pages",
+    connect_gh_banner_title: "🐙 Conecta GitHub para crear apps",
+    connect_gh_banner_sub: "Despliega tus aplicaciones directamente en GitHub Pages: gratis, permanente y tuyo.",
+    btn_connect_gh: "Conectar GitHub",
+    btn_connect_gh_account: "Conectar Cuenta de GitHub",
+    setup_guide_link: "📖 Guía paso a paso →",
+    your_apps: "Tus Aplicaciones",
+    search_repos_placeholder: "Buscar repositorios…",
+    btn_disconnect: "Desconectar",
+    btn_disconnect_gh: "Desconectar GitHub",
+    btn_new_conv: "Nueva conversación",
+    my_account: "Mi Cuenta",
+    sign_out: "Cerrar sesión",
+    topbar_sub_default: "Describe tu aplicación para comenzar",
+    topbar_sub_pages: "GitHub Pages: despliega en tu propio repositorio gratis",
+    status_ready: "Listo",
+    status_thinking: "Pensando…",
+    status_building: "Construyendo app…",
+    welcome_title: "¿Qué deseas construir?",
+    welcome_sub: "Describe cualquier app o sitio web en tu idioma. Ready4Launch construirá y desplegará tu aplicación web completa gratis.",
+    card_build_title: "Construir una App",
+    card_build_desc: "Convierte cualquier idea en una aplicación web completa en minutos: solo descríbela en tu idioma",
+    card_convert_title: "Convertir Documento",
+    card_convert_desc: "Exporta contenido a Word, Excel, PowerPoint o PDF al instante",
+    card_chat_title: "Chat y Análisis",
+    card_chat_desc: "Pregunta lo que quieras, analiza datos o investiga cualquier tema",
+    card_vision_title: "Analizar Imagen",
+    card_vision_desc: "Sube cualquier foto o diagrama para análisis visual instantáneo con IA",
+    back_btn: "← Volver",
+    connect_gh_modal_title: "Un último paso: conectar GitHub",
+    connect_gh_modal_desc: "Ready4Launch despliega tu aplicación directamente en <strong>GitHub Pages</strong>: gratis, permanente y tuyo.",
+    connect_gh_modal_sub: "Haz clic a continuación para conectar tu cuenta de GitHub con un solo clic.",
+    chat_input_placeholder_build: "Describe la aplicación que deseas construir… (ej. 'Una tienda de electrónica con tema oscuro')",
+    chat_input_placeholder_convert: "Describe lo que deseas crear, p. ej. 'Crea una presentación de PowerPoint sobre los resultados' o 'Convierte esto a Word'",
+    chat_input_placeholder_chat: "Pregúntame lo que sea: una pregunta, análisis, investigación o asesoramiento experto…",
+    chat_input_placeholder_vision: "¿Qué te gustaría saber sobre la imagen? (adjúntala con el botón 📎)",
+    chat_input_hint: "Presiona Enter para enviar · Shift+Enter para nueva línea",
+    btn_deploy_pages: "Desplegar en GitHub Pages",
+    btn_push_update: "Publicar actualización en GitHub",
+    btn_preview: "Vista previa",
+    btn_view_code: "Ver código",
+  },
+  te: {
+    sidebar_user_loading: "లోడ్ అవుతోంది...",
+    sidebar_user_guest_title: "Ready4Launch",
+    sidebar_user_guest_sub: "ప్రారంభించడానికి సైన్ ఇన్ చేయండి",
+    guest_banner_title: "👋 Ready4Launch కి స్వాగతం",
+    guest_banner_sub: "యాప్‌లను నిర్మించడానికి మరియు డిప్లాయ్ చేయడానికి Google తో సైన్ ఇన్ చేయండి — ఉచితం.",
+    btn_signin_google: "Google తో సైన్ ఇన్ చేయండి",
+    sidebar_gh_connected: "GitHub కనెక్ట్ చేయబడింది",
+    sidebar_google_gh_connected: "Google + GitHub కనెక్ట్ చేయబడింది",
+    sidebar_connect_gh_prompt: "Pages కి డిప్లాయ్ చేయడానికి GitHub కనెక్ట్ చేయండి",
+    connect_gh_banner_title: "🐙 యాప్‌లను నిర్మించడానికి GitHub కనెక్ట్ చేయండి",
+    connect_gh_banner_sub: "మీ యాప్‌లను GitHub Pages కి డిప్లాయ్ చేయండి — ఉచితం, శాశ్వతం, మీ స్వంతం.",
+    btn_connect_gh: "GitHub కనెక్ట్ చేయండి",
+    btn_connect_gh_account: "GitHub ఖాతాను కనెక్ట్ చేయండి",
+    setup_guide_link: "📖 స్టెప్-బై-స్టెప్ గైడ్ →",
+    your_apps: "మీ యాప్‌లు",
+    search_repos_placeholder: "రెపోలను శోధించండి…",
+    btn_disconnect: "డిస్‌కనెక్ట్",
+    btn_disconnect_gh: "GitHub డిస్‌కనెక్ట్ చేయండి",
+    btn_new_conv: "కొత్త సంభాషణ",
+    my_account: "నా ఖాతా",
+    sign_out: "సైన్ అవుట్",
+    topbar_sub_default: "ప్రారంభించడానికి మీ యాప్‌ను వివరించండి",
+    topbar_sub_pages: "GitHub Pages — మీ స్వంత రెపోకి ఉచితంగా డిప్లాయ్ చేయండి",
+    status_ready: "సిద్ధం",
+    status_thinking: "ఆలోచిస్తోంది…",
+    status_building: "యాప్ నిర్మిస్తోంది…",
+    welcome_title: "మీరు ఏమి నిర్మించాలనుకుంటున్నారు?",
+    welcome_sub: "మీ భాషలో ఏదైనా యాప్ లేదా వెబ్‌సైట్‌ను వివరించండి. Ready4Launch మీ పూర్తి వెబ్ యాప్‌ను నిర్మించి డిప్లాయ్ చేస్తుంది — ఉచితం.",
+    card_build_title: "యాప్ నిర్మించండి",
+    card_build_desc: "ఏదైనా ఆలోచనను నిమిషాల్లో పూర్తి వెబ్ యాప్‌గా మార్చండి — మీ భాషలో వివరించండి",
+    card_convert_title: "పత్రాన్ని మార్చండి",
+    card_convert_desc: "Word, Excel, PowerPoint లేదా PDF కి కంటెంట్‌ను ఎగుమతి చేయండి",
+    card_chat_title: "చాట్ & విశ్లేషణ",
+    card_chat_desc: "ఏదైనా అడగండి, డేటాను విశ్లేషించండి, సమాచారం పొందండి",
+    card_vision_title: "చిత్రాన్ని విశ్లేషించండి",
+    card_vision_desc: "తక్షణ విశ్లేషణ కోసం ఏదైనా ఫోటోను అప్‌లోడ్ చేయండి",
+    back_btn: "← వెనుకకు",
+    connect_gh_modal_title: "చివరి దశ — GitHub కనెక్ట్ చేయండి",
+    connect_gh_modal_desc: "Ready4Launch మీ యాప్‌ను నేరుగా <strong>GitHub Pages</strong> కి డిప్లాయ్ చేస్తుంది — ఉచితం, శాశ్వతం, మీ స్వంతం.",
+    connect_gh_modal_sub: "మీ GitHub ఖాతాను ఒక క్లిక్‌తో కనెక్ట్ చేయడానికి క్రింద క్లిక్ చేయండి.",
+    chat_input_placeholder_build: "మీరు నిర్మించాలనుకుంటున్న యాప్‌ను వివరించండి… (ఉదా. 'డార్క్ థీమ్‌తో ఎలక్ట్రానిక్స్ షాప్')",
+    chat_input_placeholder_convert: "ఏమి సృష్టించాలో వివరించండి — ఉదా. 'మా Q1 ఫలితాలపై PowerPoint చేయండి' లేదా 'దీనిని Word డాక్యుమెంట్‌గా మార్చండి'",
+    chat_input_placeholder_chat: "నన్ను ఏదైనా అడగండి — ప్రశ్న, విశ్లేషణ, పరిశోధన లేదా నిపుణుల సలహా…",
+    chat_input_placeholder_vision: "చిత్రం గురించి మీరు ఏమి తెలుసుకోవాలనుకుంటున్నారు? (📎 బటన్‌తో జోడించండి)",
+    chat_input_hint: "పంపడానికి Enter నొక్కండి · కొత్త లైన్ కోసం Shift+Enter",
+    btn_deploy_pages: "GitHub Pages కి డిప్లాయ్ చేయండి",
+    btn_push_update: "GitHub కి అప్‌డేట్ పుష్ చేయండి",
+    btn_preview: "యాప్ ప్రివ్యూ",
+    btn_view_code: "కోడ్ చూడండి",
+  }
+};
+
+let currentAppLang = new URLSearchParams(window.location.search).get('lang') || localStorage.getItem('r4l_lang') || localStorage.getItem('aios_lang') || 'en';
+
+function t(key, fallback = '') {
+  const dict = I18N_APP[currentAppLang] || I18N_APP.en;
+  return dict[key] || I18N_APP.en[key] || fallback;
+}
+
+function applyAppLanguage(lang) {
+  if (!lang) return;
+  currentAppLang = lang;
+  localStorage.setItem('r4l_lang', lang);
+  document.documentElement.lang = lang;
+
+  const dict = I18N_APP[lang] || I18N_APP.en;
+
+  // Translate static DOM elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (dict[k]) {
+      el.textContent = dict[k];
+    }
+  });
+
+  // Translate placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.getAttribute('data-i18n-placeholder');
+    if (dict[k]) {
+      el.placeholder = dict[k];
+    }
+  });
+
+  updateWelcomeForMode();
+  if (_userAuthenticated) {
+    showWelcomeCards();
+  }
+  loadUser().catch(() => {});
+}
+
 // ── Deploy mode — always GitHub Pages ────────────────────────────
 // All deployment goes through GitHub Pages. Cloudflare has been removed.
 let deployMode = 'github';
@@ -90,6 +336,7 @@ function clearAttachment() {
 
 // ── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  applyAppLanguage(currentAppLang);
   await loadUser();
   autoResize(document.getElementById('chatInput'));
   updateWelcomeForMode();
@@ -118,15 +365,15 @@ async function loadUser() {
       // No session — guest user. Show Google sign-in prompt in sidebar, NOT GitHub connect.
       if (avatarEl) avatarEl.textContent = '⚡';
       if (nameEl)   nameEl.textContent   = 'Ready4Launch';
-      if (subEl)    subEl.textContent    = 'Sign in to get started';
+      if (subEl)    subEl.textContent    = t('sidebar_user_guest_sub');
       if (ghBanner) {
         ghBanner.style.display = 'block';
         ghBanner.innerHTML = `
-          <div style="font-size:12px;font-weight:600;color:var(--purple-light);margin-bottom:4px;">👋 Welcome to Ready4Launch</div>
-          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">Sign in with Google to build and deploy apps — free.</div>
+          <div style="font-size:12px;font-weight:600;color:var(--purple-light);margin-bottom:4px;">${t('guest_banner_title')}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">${t('guest_banner_sub')}</div>
           <a href="/auth/google" onclick="openOAuth('/auth/google'); return false;" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:7px;padding:6px 14px;cursor:pointer;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-            Sign in with Google
+            ${t('btn_signin_google')}
           </a>`;
       }
       if (repoSection) repoSection.style.display = 'none';
@@ -149,15 +396,25 @@ async function loadUser() {
     if (nameEl) nameEl.textContent = name || (githubLogin ? `@${githubLogin}` : (login?.startsWith('gh_') ? `@${login.slice(3)}` : login));
 
     if (hasGitHub) {
-      if (subEl)            subEl.textContent       = hasGoogle ? 'Google + GitHub connected' : 'GitHub connected';
+      if (subEl)            subEl.textContent       = hasGoogle ? t('sidebar_google_gh_connected') : t('sidebar_gh_connected');
       if (ghBanner)         ghBanner.style.display = 'none';
       if (repoSection)      repoSection.style.display = 'flex';
       if (disconnectBtn)    disconnectBtn.style.display = 'flex';
       if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'inline-block';
       loadUserRepos();
     } else {
-      if (subEl)            subEl.textContent       = 'Connect GitHub to deploy to Pages';
-      if (ghBanner)         ghBanner.style.display = 'block';
+      if (subEl)            subEl.textContent       = t('sidebar_connect_gh_prompt');
+      if (ghBanner) {
+        ghBanner.style.display = 'block';
+        ghBanner.innerHTML = `
+          <div style="font-size:12px;font-weight:600;color:var(--purple-light);margin-bottom:4px;">${t('connect_gh_banner_title')}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">${t('connect_gh_banner_sub')}</div>
+          <a href="/auth/github" onclick="openOAuth('/auth/github'); return false;" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#fff;text-decoration:none;background:linear-gradient(135deg,#6366f1,#4f46e5);border-radius:7px;padding:6px 12px;cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            ${t('btn_connect_gh')}
+          </a>
+          <a href="/github-guide" target="_blank" style="display:block;margin-top:8px;font-size:11px;color:var(--text-3);text-decoration:none;">${t('setup_guide_link')}</a>`;
+      }
       if (repoSection)      repoSection.style.display = 'none';
       if (disconnectBtn)    disconnectBtn.style.display = 'none';
       if (repoDisconnectBtn) repoDisconnectBtn.style.display = 'none';
@@ -178,9 +435,8 @@ async function loadUser() {
 // ── Adapt welcome screen copy to deploy mode ──────────────────────
 function updateWelcomeForMode() {
   const topbarEl = document.getElementById('topbarSub');
-  if (topbarEl) topbarEl.textContent = 'GitHub Pages — deploy to your own repo for free';
+  if (topbarEl) topbarEl.textContent = t('topbar_sub_pages');
 }
-
 
 // ── Prompt bar visibility ────────────────────────────────────────
 function hidePromptBar() {
@@ -198,23 +454,23 @@ function _welcomeCardsInnerHTML() {
   return `
     <div class="welcome-card" onclick="startWithMode('build')">
       <div class="welcome-card-icon">🏗️</div>
-      <div class="welcome-card-title">Build an App</div>
-      <div class="welcome-card-desc">Turn any idea into a full web app in minutes — just describe it in plain English</div>
+      <div class="welcome-card-title">${t('card_build_title')}</div>
+      <div class="welcome-card-desc">${t('card_build_desc')}</div>
     </div>
     <div class="welcome-card" onclick="startWithMode('convert')">
       <div class="welcome-card-icon">📄</div>
-      <div class="welcome-card-title">Convert a Document</div>
-      <div class="welcome-card-desc">Export content to Word, Excel, PowerPoint or PDF instantly</div>
+      <div class="welcome-card-title">${t('card_convert_title')}</div>
+      <div class="welcome-card-desc">${t('card_convert_desc')}</div>
     </div>
     <div class="welcome-card" onclick="startWithMode('chat')">
       <div class="welcome-card-icon">💬</div>
-      <div class="welcome-card-title">Chat &amp; Analyse</div>
-      <div class="welcome-card-desc">Ask anything, analyse data, research topics or get expert answers</div>
+      <div class="welcome-card-title">${t('card_chat_title')}</div>
+      <div class="welcome-card-desc">${t('card_chat_desc')}</div>
     </div>
     <div class="welcome-card" onclick="startWithMode('vision')">
       <div class="welcome-card-icon">🖼️</div>
-      <div class="welcome-card-title">Analyse an Image</div>
-      <div class="welcome-card-desc">Upload any photo or diagram for instant AI-powered visual analysis</div>
+      <div class="welcome-card-title">${t('card_vision_title')}</div>
+      <div class="welcome-card-desc">${t('card_vision_desc')}</div>
     </div>`;
 }
 
@@ -249,21 +505,21 @@ function startWithMode(mode) {
       if (cards) {
         cards.innerHTML = `
           <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:2px;">
-            <button onclick="showWelcomeCards()" style="background:none;border:none;color:var(--text-3);font-size:13px;cursor:pointer;padding:2px 0;font-family:var(--font);display:flex;align-items:center;gap:4px;">&#8592; Back</button>
+            <button onclick="showWelcomeCards()" style="background:none;border:none;color:var(--text-3);font-size:13px;cursor:pointer;padding:2px 0;font-family:var(--font);display:flex;align-items:center;gap:4px;">${t('back_btn')}</button>
           </div>
           <div style="grid-column:1/-1;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:16px;padding:28px 24px;text-align:center;">
             <div style="font-size:36px;margin-bottom:14px;">🐙</div>
-            <h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">One last step — connect GitHub</h3>
+            <h3 style="font-size:17px;font-weight:700;margin-bottom:10px;">${t('connect_gh_modal_title')}</h3>
             <p style="font-size:14px;color:var(--text-2);margin-bottom:8px;line-height:1.6;">
-              Ready4Launch deploys your app directly to <strong>GitHub Pages</strong> — free, permanent, and owned by you.
+              ${t('connect_gh_modal_desc')}
             </p>
             <p style="font-size:13px;color:var(--text-3);margin-bottom:20px;">
-              Click below to connect your GitHub account in one click.
-              <a href="/github-guide" target="_blank" style="color:var(--purple-light);text-decoration:none;margin-left:6px;">Step-by-step guide →</a>
+              ${t('connect_gh_modal_sub')}
+              <a href="/github-guide" target="_blank" style="color:var(--purple-light);text-decoration:none;margin-left:6px;">${t('setup_guide_link')}</a>
             </p>
             <button onclick="openOAuth('/auth/github')" style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(99,102,241,0.4);font-family:var(--font);">
               <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-              Connect GitHub Account
+              ${t('btn_connect_gh_account')}
             </button>
           </div>`;
       }
@@ -275,7 +531,7 @@ function startWithMode(mode) {
     showPromptBar();
     const input = document.getElementById('chatInput');
     if (input) {
-      input.placeholder = "Describe the app you want to build… (e.g. 'A recipe website with search and dark theme')";
+      input.placeholder = t('chat_input_placeholder_build');
       input.value = '';
       input.focus();
       autoResize(input);
@@ -288,9 +544,9 @@ function startWithMode(mode) {
   showPromptBar();
 
   const placeholders = {
-    convert: "Describe what to create — e.g. 'Make a PowerPoint about our Q1 results' or 'Convert this to a Word doc'",
-    chat:    'Ask me anything — a question, analysis, research, or expert advice…',
-    vision:  "What would you like to know about the image? (attach it with the 📎 button)",
+    convert: t('chat_input_placeholder_convert'),
+    chat:    t('chat_input_placeholder_chat'),
+    vision:  t('chat_input_placeholder_vision'),
   };
 
   const input = document.getElementById('chatInput');
@@ -550,6 +806,7 @@ async function sendMessage() {
     const body = {
       message: text || '(see attached file)',
       newConversation: isNewConversation,
+      language: currentAppLang,
     };
     // Pass the welcome-card mode as a hint on the very first message so the backend
     // doesn't have to guess intent from keywords alone (e.g. "make me a resume"
@@ -1499,7 +1756,7 @@ async function disconnectGitHub() {
   }
 }
 
-// 1. BroadcastChannel listener (instant sync from callback popup)
+// 1. BroadcastChannel listener (instant sync from callback popup or orchestration parent)
 try {
   if ('BroadcastChannel' in window) {
     const authChannel = new BroadcastChannel('r4l_auth_channel');
@@ -1510,6 +1767,13 @@ try {
         localStorage.removeItem('r4l_gh_token');
         _allRepos = [];
         loadUser();
+      }
+    };
+
+    const langChannel = new BroadcastChannel('r4l_lang_channel');
+    langChannel.onmessage = function(ev) {
+      if (ev.data && (ev.data.type === 'SET_LANGUAGE' || ev.data.lang)) {
+        applyAppLanguage(ev.data.lang || ev.data);
       }
     };
   }
@@ -1530,6 +1794,10 @@ window.addEventListener('storage', function(e) {
     } catch (_) {
       loadUser();
     }
+  } else if (e.key === 'r4l_lang' || e.key === 'aios_lang') {
+    if (e.newValue) {
+      applyAppLanguage(e.newValue);
+    }
   }
 });
 
@@ -1543,5 +1811,7 @@ window.addEventListener('message', function(event) {
     localStorage.removeItem('r4l_gh_token');
     _allRepos = [];
     loadUser();
+  } else if (event.data && (event.data.type === 'SET_LANGUAGE' || event.data.action === 'SET_LANGUAGE')) {
+    applyAppLanguage(event.data.lang);
   }
 });

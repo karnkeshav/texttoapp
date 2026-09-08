@@ -161,12 +161,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// /app requires a session (Google or GitHub) — redirect guests to the landing page.
+// /app serves the main interactive workspace (open to all visitors & authenticated users)
 app.get('/app', (req, res) => {
-  const authed =
-    !!req.session?.googleUser?.uid ||
-    !!(req.session?.githubToken && req.session?.user?.login);
-  if (!authed) return res.redirect('/');
   res.sendFile(path.join(__dirname, '..', 'public', 'app.html'));
 });
 
