@@ -8,10 +8,10 @@ const router = express.Router();
 
 // ── Helper ────────────────────────────────────────────────────────
 function isAuthenticated(req) {
-  return !!(req.session.googleUser || req.session.githubToken);
+  return !!(req.session?.googleUser || req.session?.githubToken || req.headers['x-github-token']);
 }
 
-function sendAuthResponse(res, success, errCode = null) {
+function sendAuthResponse(res, success, errCode = null, authPayload = null) {
   const targetUrl = success ? '/app' : `/?error=${errCode || 'auth_failed'}`;
   const title = success ? 'Signed In — Ready4Launch' : 'Authentication Issue';
   const heading = success ? '⚡ Welcome to Ready4Launch' : '⚠️ Authentication Issue';
@@ -68,35 +68,39 @@ function sendAuthResponse(res, success, errCode = null) {
     (function() {
       const targetUrl = ${JSON.stringify(targetUrl)};
       const success = ${JSON.stringify(success)};
+      const payload = ${JSON.stringify(authPayload || {})};
 
-      // 1. Notify same-origin frames / tabs via BroadcastChannel
+      // 1. Save locally in popup storage
+      try {
+        if (payload.githubToken) localStorage.setItem('r4l_gh_token', payload.githubToken);
+        if (payload.user) localStorage.setItem('r4l_user', JSON.stringify(payload.user));
+        localStorage.setItem('r4l_auth_payload', JSON.stringify(payload));
+        localStorage.setItem('r4l_auth_event', JSON.stringify({ time: Date.now(), success: success, payload: payload, target: targetUrl }));
+      } catch (e) {}
+
+      // 2. BroadcastChannel to any other frame / tab
       try {
         if ('BroadcastChannel' in window) {
           const bc = new BroadcastChannel('r4l_auth_channel');
-          bc.postMessage({ type: 'AUTH_COMPLETE', success: success, target: targetUrl });
+          bc.postMessage({ type: 'AUTH_COMPLETE', success: success, payload: payload, target: targetUrl });
           bc.close();
         }
       } catch (e) {}
 
-      // 2. Notify same-origin frames / tabs via localStorage storage event
-      try {
-        localStorage.setItem('r4l_auth_event', JSON.stringify({ time: Date.now(), success: success, target: targetUrl }));
-      } catch (e) {}
-
-      // 3. Notify window.opener if available
+      // 3. postMessage to window.opener
       try {
         if (window.opener && !window.opener.closed) {
           try {
-            window.opener.postMessage({ type: 'AUTH_COMPLETE', success: success, target: targetUrl }, '*');
+            window.opener.postMessage({ type: 'AUTH_COMPLETE', success: success, payload: payload, target: targetUrl }, '*');
           } catch (e) {}
           try {
-            if (typeof window.opener.loadUser === 'function') {
+            if (typeof window.opener.handleAuthSync === 'function') {
+              window.opener.handleAuthSync(payload);
+            } else if (typeof window.opener.loadUser === 'function') {
               window.opener.loadUser();
-            } else {
-              window.opener.location.href = targetUrl;
             }
           } catch (e) {}
-          setTimeout(function() { window.close(); }, 500);
+          setTimeout(function() { window.close(); }, 600);
           return;
         }
       } catch (e) {}
@@ -104,7 +108,7 @@ function sendAuthResponse(res, success, errCode = null) {
       // 4. Standalone fallback (no opener / direct navigation)
       setTimeout(function() {
         window.location.href = targetUrl;
-      }, 500);
+      }, 600);
     })();
   </script>
 </body>
@@ -167,7 +171,10 @@ router.get('/google/callback', async (req, res) => {
     };
 
     console.log(`[Auth] Google login: ${email}`);
-    return sendAuthResponse(res, true);
+    return sendAuthResponse(res, true, null, {
+      googleUser: req.session.googleUser,
+      user: req.session.user,
+    });
   } catch (err) {
     console.error('[Auth] Google callback error:', err.message);
     return sendAuthResponse(res, false, 'google_oauth_error');
@@ -205,7 +212,10 @@ router.get('/github/callback', async (req, res) => {
     );
 
     const { access_token, error } = tokenRes.data;
-    if (error || !access_token) return sendAuthResponse(res, false, 'oauth_failed');
+    if (error || !access_token) {
+      console.error('[Auth] GitHub token error:', tokenRes.data);
+      return sendAuthResponse(res, false, error || 'oauth_failed');
+    }
 
     req.session.githubToken = access_token;
     const githubUser = await getUser(access_token);
@@ -220,10 +230,11 @@ router.get('/github/callback', async (req, res) => {
     } else {
       // GitHub-only login
       req.session.user = {
-        login:    githubUser.login,
-        name:     githubUser.name || githubUser.login,
-        avatarUrl: githubUser.avatarUrl || null,
-        provider: 'github',
+        login:       githubUser.login,
+        name:        githubUser.name || githubUser.login,
+        avatarUrl:   githubUser.avatarUrl || null,
+        provider:    'github',
+        githubLogin: githubUser.login,
       };
       upsertUser({
         uid:        `gh_${githubUser.login}`,
@@ -236,7 +247,11 @@ router.get('/github/callback', async (req, res) => {
     }
 
     console.log(`[Auth] GitHub connected: ${githubUser.login}`);
-    return sendAuthResponse(res, true);
+    return sendAuthResponse(res, true, null, {
+      githubToken: access_token,
+      githubUser: githubUser,
+      user: req.session.user,
+    });
   } catch (err) {
     console.error('[Auth] GitHub callback error:', err.message);
     return sendAuthResponse(res, false, 'oauth_error');
@@ -247,19 +262,52 @@ router.get('/github/callback', async (req, res) => {
 // SHARED
 // ══════════════════════════════════════════════════════════════════
 
+router.post('/sync-session', (req, res) => {
+  const { githubToken, user, googleUser } = req.body || {};
+  if (githubToken) {
+    req.session.githubToken = githubToken;
+  }
+  if (googleUser) {
+    req.session.googleUser = googleUser;
+  }
+  if (user) {
+    req.session.user = {
+      ...(req.session.user || {}),
+      ...user,
+      githubLogin: user.githubLogin || user.login || req.session?.user?.githubLogin,
+    };
+  }
+  req.session.save((err) => {
+    if (err) console.warn('[Auth] sync-session save error:', err.message);
+    res.json({
+      ok: true,
+      authenticated: true,
+      user: req.session.user,
+      hasGitHub: !!(req.session?.githubToken || req.headers['x-github-token']),
+      hasGoogle: !!req.session?.googleUser,
+    });
+  });
+});
+
 router.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
 router.get('/status', (req, res) => {
-  if (!isAuthenticated(req)) {
+  const token = req.headers['x-github-token'] || req.session?.githubToken;
+  const hasGitHub = !!token;
+  const hasGoogle = !!req.session?.googleUser;
+
+  if (!isAuthenticated(req) && !token) {
     return res.json({ authenticated: false });
   }
+
+  const user = req.session?.user || {};
   res.json({
     authenticated: true,
-    user:      req.session.user,
-    hasGoogle: !!req.session.googleUser,
-    hasGitHub: !!req.session.githubToken,
+    user,
+    hasGoogle,
+    hasGitHub,
   });
 });
 

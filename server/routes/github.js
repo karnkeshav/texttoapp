@@ -5,7 +5,9 @@ const { auditAndHeal } = require('../services/codeQuality');
 const router = express.Router();
 
 function requireAuth(req, res, next) {
-  if (!req.session.githubToken) return res.status(401).json({ error: 'Not authenticated' });
+  const token = req.headers['x-github-token'] || req.session?.githubToken;
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  req.githubToken = token;
   next();
 }
 
@@ -90,7 +92,7 @@ function processFiles(files, backendOrigin) {
 
 router.get('/repos', requireAuth, async (req, res) => {
   try {
-    const repos = await listRepos(req.session.githubToken);
+    const repos = await listRepos(req.githubToken);
     res.json(repos);
   } catch (err) {
     console.error('List repos error:', err.message);
@@ -103,7 +105,7 @@ router.get('/repo-content', requireAuth, async (req, res) => {
   const { owner, repo, path = 'index.html' } = req.query;
   if (!owner || !repo) return res.status(400).json({ error: 'owner and repo are required' });
   try {
-    const content = await getFileContent(req.session.githubToken, owner, repo, path);
+    const content = await getFileContent(req.githubToken, owner, repo, path);
     if (content === null) return res.status(404).json({ error: `${path} not found in ${owner}/${repo}` });
     res.json({ content });
   } catch (err) {
@@ -120,8 +122,8 @@ router.post('/push', requireAuth, async (req, res) => {
 
   try {
     const processed = processFiles(files, process.env.BACKEND_ORIGIN);
-    const repoUrl   = await pushFiles(req.session.githubToken, owner, repo, processed, 'Update app via Ready4Launch', branch);
-    const pagesUrl  = await enablePages(req.session.githubToken, owner, repo, branch);
+    const repoUrl   = await pushFiles(req.githubToken, owner, repo, processed, 'Update app via Ready4Launch', branch);
+    const pagesUrl  = await enablePages(req.githubToken, owner, repo, branch);
     res.json({ success: true, repoUrl, pagesUrl });
   } catch (err) {
     console.error('Push error:', err.message);
@@ -170,19 +172,19 @@ router.post('/deploy', requireAuth, async (req, res) => {
     }
 
     // 2. Create the public repo (auto-renames if name is taken)
-    const { name, owner } = await createRepo(req.session.githubToken, repoName, description);
+    const { name, owner } = await createRepo(req.githubToken, repoName, description);
 
     // 3. Apply CDN pinning + telemetry injection before committing
     const processed = processFiles(auditedFiles, process.env.BACKEND_ORIGIN);
 
     // 4. Atomic push — all files in one commit (prevents partial deploy state)
     const repoUrl = await pushFiles(
-      req.session.githubToken, owner, name, processed,
+      req.githubToken, owner, name, processed,
       'Initial app — built with Ready4Launch'
     );
 
     // 5. Enable GitHub Pages
-    const pagesUrl = await enablePages(req.session.githubToken, owner, name);
+    const pagesUrl = await enablePages(req.githubToken, owner, name);
 
     res.json({ success: true, repoUrl, pagesUrl, repoName: name });
   } catch (err) {
