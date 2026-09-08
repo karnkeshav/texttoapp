@@ -61,6 +61,33 @@ const I18N_APP = {
     btn_push_update: "Push update to GitHub",
     btn_preview: "Preview App",
     btn_view_code: "View Code",
+    deploy_ready_title: "🚀 Your app is ready to deploy!",
+    deploy_ready_desc: "Ready4Launch will create a new public GitHub repository called {repo}, push your code, and enable GitHub Pages — automatically.",
+    deploying_status: "Creating repo & deploying…",
+    deploy_success_title: "🎉 Deployed to GitHub Pages!",
+    deploy_success_desc: "Your code is pushed and GitHub Pages is building the site. The live URL below is usually ready within <strong>2–5 minutes</strong> for a first deployment — if it shows a 404, wait a moment and refresh.",
+    live_url_label: "🔗 Live URL:",
+    repo_url_label: "📁 Repository:",
+    btn_retry_deploy: "Retry deployment",
+    gh_session_expired_title: "⚠️ GitHub session expired",
+    gh_session_expired_desc: "Please reconnect your GitHub account to deploy.",
+    btn_reconnect_gh: "🔗 Reconnect GitHub",
+    edit_ready_title: "✅ Changes ready to push!",
+    edit_ready_desc: "Ready4Launch has applied your changes to <strong style=\"color:#4ade80;\">{repo}</strong>. Push a new commit to update your live site.",
+    pushing_status: "Pushing…",
+    push_success_title: "🎉 Update pushed!",
+    push_success_desc: "Your changes are live. GitHub Pages usually updates within ~60 seconds.",
+    live_site_label: "🔗 Live site:",
+    btn_retry_push: "Retry push",
+    push_net_error: "⚠️ Network error — please check your connection and retry.",
+    edit_welcome_title: "Editing: {repo}",
+    edit_welcome_sub: "Describe the changes you want to make. Ready4Launch will fetch the current code, apply your changes, and push a new commit.",
+    edit_topbar_prefix: "Editing",
+    edit_input_placeholder: "Describe your changes to {repo}…",
+    resume_build_title: "🏗️ Unsaved build found — <em>{repo}</em>",
+    resume_build_desc: "Your app was built but not deployed. Resume to push it to GitHub Pages.",
+    btn_resume_deploy: "🚀 Deploy it",
+    btn_resume_dismiss: "Discard",
   },
   hi: {
     sidebar_user_loading: "लोड हो रहा है...",
@@ -112,6 +139,33 @@ const I18N_APP = {
     btn_push_update: "रेपॉजिटरी में अपडेट पुश करें",
     btn_preview: "लाइव प्रीव्यू देखें",
     btn_view_code: "कोड देखें",
+    deploy_ready_title: "🚀 आपका ऐप डिप्लॉय होने के लिए तैयार है!",
+    deploy_ready_desc: "Ready4Launch {repo} नाम से एक नया सार्वजनिक गिटहब रेपॉजिटरी बनाएगा, आपका कोड पुश करेगा, और गिटहब पेजेस को स्वतः सक्षम करेगा।",
+    deploying_status: "रेपॉजिटरी बना रहा है और डिप्लॉय कर रहा है…",
+    deploy_success_title: "🎉 गिटहब पेजेस पर सफलतापूर्वक डिप्लॉय हो गया!",
+    deploy_success_desc: "आपका कोड पुश हो गया है और गिटहब पेजेस साइट का निर्माण कर रहा है। पहली बार डिप्लॉयमेंट के लिए लाइव URL आमतौर पर <strong>2–5 मिनट</strong> में तैयार हो जाता है — यदि 404 दिखाई दे, तो थोड़ा प्रतीक्षा करें और रीफ्रेश करें।",
+    live_url_label: "🔗 लाइव URL:",
+    repo_url_label: "📁 रेपॉजिटरी:",
+    btn_retry_deploy: "पुनः डिप्लॉय का प्रयास करें",
+    gh_session_expired_title: "⚠️ गिटहब सत्र समाप्त हो गया",
+    gh_session_expired_desc: "डिप्लॉय करने के लिए कृपया अपने गिटहब खाते को पुनः कनेक्ट करें।",
+    btn_reconnect_gh: "🔗 गिटहब पुनः कनेक्ट करें",
+    edit_ready_title: "✅ बदलाव पुश करने के लिए तैयार हैं!",
+    edit_ready_desc: "Ready4Launch ने <strong style=\"color:#4ade80;\">{repo}</strong> में आपके बदलाव लागू कर दिए हैं। अपनी लाइव साइट को अपडेट करने के लिए नया कमिट पुश करें।",
+    pushing_status: "पुश हो रहा है…",
+    push_success_title: "🎉 अपडेट सफलतापूर्वक पुश हो गया!",
+    push_success_desc: "आपके बदलाव लाइव हो गए हैं। गिटहब पेजेस आमतौर पर ~60 सेकंड में अपडेट हो जाता है।",
+    live_site_label: "🔗 लाइव साइट:",
+    btn_retry_push: "पुनः पुश करने का प्रयास करें",
+    push_net_error: "⚠️ नेटवर्क त्रुटि — कृपया अपना कनेक्शन जांचें और पुनः प्रयास करें।",
+    edit_welcome_title: "संपादित कर रहे हैं: {repo}",
+    edit_welcome_sub: "आप जो बदलाव करना चाहते हैं उनका विवरण दें। Ready4Launch वर्तमान कोड प्राप्त करेगा, आपके बदलाव लागू करेगा, और नया कमिट पुश करेगा।",
+    edit_topbar_prefix: "संपादन जारी:",
+    edit_input_placeholder: "{repo} में किए जाने वाले बदलाव बताएं…",
+    resume_build_title: "🏗️ बिना डिप्लॉय किया गया ऐप मिला — <em>{repo}</em>",
+    resume_build_desc: "आपका ऐप बन चुका था लेकिन डिप्लॉय नहीं हुआ। इसे गिटहब पेजेस पर पुश करने के लिए पुनः शुरू करें।",
+    btn_resume_deploy: "🚀 डिप्लॉय करें",
+    btn_resume_dismiss: "हटाएं",
   },
   es: {
     sidebar_user_loading: "Cargando...",
@@ -163,6 +217,33 @@ const I18N_APP = {
     btn_push_update: "Publicar actualización en GitHub",
     btn_preview: "Vista previa",
     btn_view_code: "Ver código",
+    deploy_ready_title: "🚀 ¡Tu aplicación está lista para desplegarse!",
+    deploy_ready_desc: "Ready4Launch creará un nuevo repositorio público de GitHub llamado {repo}, subirá tu código y habilitará GitHub Pages automáticamente.",
+    deploying_status: "Creando repositorio y desplegando…",
+    deploy_success_title: "🎉 ¡Desplegado en GitHub Pages con éxito!",
+    deploy_success_desc: "Tu código ha sido subido y GitHub Pages está construyendo el sitio. La URL en vivo suele estar lista en <strong>2–5 minutos</strong> en el primer despliegue; si muestra un error 404, espera un momento y actualiza.",
+    live_url_label: "🔗 URL en vivo:",
+    repo_url_label: "📁 Repositorio:",
+    btn_retry_deploy: "Reintentar despliegue",
+    gh_session_expired_title: "⚠️ La sesión de GitHub ha caducado",
+    gh_session_expired_desc: "Por favor reconecta tu cuenta de GitHub para desplegar.",
+    btn_reconnect_gh: "🔗 Reconectar GitHub",
+    edit_ready_title: "✅ ¡Cambios listos para publicar!",
+    edit_ready_desc: "Ready4Launch ha aplicado tus cambios en <strong style=\"color:#4ade80;\">{repo}</strong>. Publica un nuevo commit para actualizar tu sitio en vivo.",
+    pushing_status: "Publicando…",
+    push_success_title: "🎉 ¡Actualización publicada!",
+    push_success_desc: "Tus cambios están en vivo. GitHub Pages normalmente se actualiza en ~60 segundos.",
+    live_site_label: "🔗 Sitio en vivo:",
+    btn_retry_push: "Reintentar publicación",
+    push_net_error: "⚠️ Error de red: verifica tu conexión y vuelve a intentarlo.",
+    edit_welcome_title: "Editando: {repo}",
+    edit_welcome_sub: "Describe los cambios que deseas realizar. Ready4Launch obtendrá el código actual, aplicará tus cambios y publicará un nuevo commit.",
+    edit_topbar_prefix: "Editando",
+    edit_input_placeholder: "Describe tus cambios para {repo}…",
+    resume_build_title: "🏗️ Compilación no guardada encontrada — <em>{repo}</em>",
+    resume_build_desc: "Tu aplicación fue construida pero no desplegada. Continúa para publicarla en GitHub Pages.",
+    btn_resume_deploy: "🚀 Desplegar",
+    btn_resume_dismiss: "Descartar",
   },
   te: {
     sidebar_user_loading: "లోడ్ అవుతోంది...",
@@ -214,6 +295,33 @@ const I18N_APP = {
     btn_push_update: "GitHub కి అప్‌డేట్ పుష్ చేయండి",
     btn_preview: "యాప్ ప్రివ్యూ",
     btn_view_code: "కోడ్ చూడండి",
+    deploy_ready_title: "🚀 మీ యాప్ డిప్లాయ్ చేయడానికి సిద్ధంగా ఉంది!",
+    deploy_ready_desc: "Ready4Launch {repo} పేరుతో కొత్త పబ్లిక్ GitHub రిపోజిటరీని సృష్టిస్తుంది, మీ కోడ్‌ను పుష్ చేస్తుంది మరియు GitHub Pages ని ఆటోమేటిక్‌గా ప్రారంభిస్తుంది.",
+    deploying_status: "రెపోను సృష్టిస్తోంది & డిప్లాయ్ చేస్తోంది…",
+    deploy_success_title: "🎉 GitHub Pages కి విజయవంతంగా డిప్లాయ్ చేయబడింది!",
+    deploy_success_desc: "మీ కోడ్ పుష్ చేయబడింది మరియు GitHub Pages సైట్‌ను నిర్మిస్తోంది. మొదటి డిప్లాయ్‌మెంట్ కోసం లైవ్ URL సాధారణంగా <strong>2–5 నిమిషాల్లో</strong> సిద్ధమవుతుంది — 404 కనిపిస్తే, కాసేపు ఆగి రిఫ్రెష్ చేయండి.",
+    live_url_label: "🔗 లైవ్ URL:",
+    repo_url_label: "📁 రిపోజిటరీ:",
+    btn_retry_deploy: "మళ్లీ డిప్లాయ్ చేయడానికి ప్రయత్నించండి",
+    gh_session_expired_title: "⚠️ GitHub సెషన్ గడువు ముగిసింది",
+    gh_session_expired_desc: "డిప్లాయ్ చేయడానికి దయచేసి మీ GitHub ఖాతాను మళ్లీ కనెక్ట్ చేయండి.",
+    btn_reconnect_gh: "🔗 GitHub ని మళ్లీ కనెక్ట్ చేయండి",
+    edit_ready_title: "✅ మార్పులు పుష్ చేయడానికి సిద్ధంగా ఉన్నాయి!",
+    edit_ready_desc: "Ready4Launch <strong style=\"color:#4ade80;\">{repo}</strong> లో మీ మార్పులను వర్తింపజేసింది. మీ లైవ్ సైట్‌ను అప్‌డేట్ చేయడానికి కొత్త కమిట్ పుష్ చేయండి.",
+    pushing_status: "పుష్ చేస్తోంది…",
+    push_success_title: "🎉 అప్‌డేట్ విజయవంతంగా పుష్ చేయబడింది!",
+    push_success_desc: "మీ మార్పులు లైవ్‌లోకి వచ్చాయి. GitHub Pages సాధారణంగా ~60 సెకన్లలో అప్‌డేట్ అవుతుంది.",
+    live_site_label: "🔗 లైవ్ సైట్:",
+    btn_retry_push: "మళ్లీ పుష్ చేయడానికి ప్రయత్నించండి",
+    push_net_error: "⚠️ నెట్‌వర్క్ లోపం — దయచేసి మీ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.",
+    edit_welcome_title: "సవరిస్తోంది: {repo}",
+    edit_welcome_sub: "మీరు చేయాలనుకుంటున్న మార్పులను వివరించండి. Ready4Launch ప్రస్తుత కోడ్‌ను తీసుకొని, మీ మార్పులను వర్తింపజేసి, కొత్త కమిట్‌ను పుష్ చేస్తుంది.",
+    edit_topbar_prefix: "సవరిస్తోంది",
+    edit_input_placeholder: "{repo} లో మీరు చేయాలనుకుంటున్న మార్పులను వివరించండి…",
+    resume_build_title: "🏗️ సేవ్ చేయని యాప్ కనుగొనబడింది — <em>{repo}</em>",
+    resume_build_desc: "మీ యాప్ నిర్మించబడింది కానీ డిప్లాయ్ కాలేదు. దీన్ని GitHub Pages కి పంపడానికి కొనసాగించండి.",
+    btn_resume_deploy: "🚀 డిప్లాయ్ చేయండి",
+    btn_resume_dismiss: "తీసివేయి",
   }
 };
 
@@ -583,26 +691,29 @@ function showResumeBuildBanner({ repoName, files, savedAt }) {
     margin-top:16px;background:rgba(124,58,237,0.10);
     border:1px solid rgba(124,58,237,0.30);border-radius:12px;
     padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;`;
+
+  const titleTemplate = t('resume_build_title', '🏗️ Unsaved build found — <em>{repo}</em>').replace('{repo}', escapeHtml(repoName));
+
   banner.innerHTML = `
     <div style="flex:1;min-width:200px;">
       <div style="font-size:13px;font-weight:700;color:var(--purple-light);margin-bottom:3px;">
-        🏗️ Unsaved build found — <em>${escapeHtml(repoName)}</em>
+        ${titleTemplate}
         <span style="font-weight:400;color:var(--text-3);font-size:12px;margin-left:6px;">${ageStr}</span>
       </div>
       <div style="font-size:12px;color:var(--text-2);">
-        Your app was built but not deployed. Resume to push it to GitHub Pages.
+        ${t('resume_build_desc', 'Your app was built but not deployed. Resume to push it to GitHub Pages.')}
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button id="resumeDeployBtn"
         style="background:var(--grad-main);color:#fff;border:none;border-radius:8px;
                padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);">
-        🚀 Deploy it
+        ${t('btn_resume_deploy', '🚀 Deploy it')}
       </button>
       <button id="resumeDismissBtn"
         style="background:none;border:1px solid var(--border);color:var(--text-3);
                border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:var(--font);">
-        Discard
+        ${t('btn_resume_dismiss', 'Discard')}
       </button>
     </div>`;
 
@@ -730,22 +841,25 @@ function selectRepoForEdit(owner, repo, defaultBranch) {
 
   // Update welcome banner
   const container = document.getElementById('chatMessages');
+  const titleTemplate = t('edit_welcome_title', 'Editing: {repo}').replace('{repo}', `<span style="color:var(--purple-light);">${escapeHtml(repo)}</span>`);
+
   // Re-render welcome with edit banner
   container.innerHTML = `
     <div class="welcome-screen" id="welcomeScreen">
       <div class="welcome-icon">✏️</div>
-      <h2 class="welcome-title" style="font-size:clamp(20px,3vw,28px);">Editing: <span style="color:var(--purple-light);">${escapeHtml(repo)}</span></h2>
-      <p class="welcome-sub">Describe the changes you want to make. Ready4Launch will fetch the current code, apply your changes, and push a new commit.</p>
+      <h2 class="welcome-title" style="font-size:clamp(20px,3vw,28px);">${titleTemplate}</h2>
+      <p class="welcome-sub">${t('edit_welcome_sub', 'Describe the changes you want to make. Ready4Launch will fetch the current code, apply your changes, and push a new commit.')}</p>
     </div>`;
 
   // Update topbar
-  document.getElementById('topbarSub').textContent = `Editing ${owner}/${repo}`;
+  document.getElementById('topbarSub').textContent = `${t('edit_topbar_prefix', 'Editing')} ${owner}/${repo}`;
 
   // Show prompt bar (it was hidden by the welcome card flow)
   showPromptBar();
 
   // Update input placeholder
-  document.getElementById('chatInput').placeholder = `Describe your changes to ${repo}…`;
+  const placeholderTemplate = t('edit_input_placeholder', 'Describe your changes to {repo}…').replace('{repo}', repo);
+  document.getElementById('chatInput').placeholder = placeholderTemplate;
   document.getElementById('chatInput').focus();
 
   // Highlight selected repo in list
@@ -757,7 +871,7 @@ function selectRepoForEdit(owner, repo, defaultBranch) {
   });
 
   closeSidebar();
-  setStatus('Ready', false);
+  setStatus(t('status_ready', 'Ready'), false);
 }
 
 // ── Sidebar (mobile) ─────────────────────────────────────────────
@@ -1214,18 +1328,20 @@ function showPushUpdatePrompt(fullText, owner, repo, branch) {
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
+  
+  const descTemplate = t('edit_ready_desc', 'Ready4Launch has applied your changes to <strong style="color:#4ade80;">{repo}</strong>. Push a new commit to update your live site.');
+  const descHtml = descTemplate.replace('{repo}', `${escapeHtml(owner)}/${escapeHtml(repo)}`);
+
   div.innerHTML = `
     <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:24px;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">✅ Changes ready to push!</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">${t('edit_ready_title', '✅ Changes ready to push!')}</div>
       <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-        Ready4Launch has applied your changes to
-        <strong style="color:#4ade80;">${escapeHtml(owner)}/${escapeHtml(repo)}</strong>.
-        Push a new commit to update your live site.
+        ${descHtml}
       </p>
       <button data-fileid="${fileId}" onclick="pushUpdate(this.dataset.fileid, this)"
               style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
-        Push update to GitHub
+        ${t('btn_push_update', 'Push update to GitHub')}
       </button>
     </div>`;
   container.appendChild(div);
@@ -1237,7 +1353,7 @@ async function pushUpdate(fileId, btn) {
   if (!pending) return;
 
   btn.disabled = true;
-  btn.innerHTML = '<span style="opacity:0.7">Pushing…</span>';
+  btn.innerHTML = `<span style="opacity:0.7">${t('pushing_status', 'Pushing…')}</span>`;
 
   // Clear any previous error message
   const card = btn.closest('div[style*="border-radius:14px"]');
@@ -1265,22 +1381,22 @@ async function pushUpdate(fileId, btn) {
     if (data.success) {
       card.innerHTML = `
         <div class="push-success">
-          <h4>🎉 Update pushed!</h4>
+          <h4>${t('push_success_title', '🎉 Update pushed!')}</h4>
           <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-            Your changes are live. GitHub Pages usually updates within ~60 seconds.
+            ${t('push_success_desc', 'Your changes are live. GitHub Pages usually updates within ~60 seconds.')}
           </p>
           <p style="margin-bottom:8px;">
-            🔗 <strong>Live site:</strong>
+            <strong>${t('live_site_label', '🔗 Live site:')}</strong>
             <a href="${data.pagesUrl}" target="_blank" style="color:var(--purple-light);">${data.pagesUrl}</a>
           </p>
           <p style="margin-bottom:0;">
-            📁 <strong>Repository:</strong>
+            <strong>${t('repo_url_label', '📁 Repository:')}</strong>
             <a href="${data.repoUrl}" target="_blank" style="color:var(--purple-light);">${data.repoUrl}</a>
           </p>
         </div>`;
     } else {
       btn.disabled = false;
-      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg> Retry push`;
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg> ${t('btn_retry_push', 'Retry push')}`;
       // Show error below the button — btn.closest('p') was null; find the card instead
       const errEl = document.createElement('p');
       errEl.className = 'push-error-msg';
@@ -1290,11 +1406,11 @@ async function pushUpdate(fileId, btn) {
     }
   } catch (err) {
     btn.disabled = false;
-    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg> Retry push`;
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg> ${t('btn_retry_push', 'Retry push')}`;
     const errEl = document.createElement('p');
     errEl.className = 'push-error-msg';
     errEl.style.cssText = 'color:#f87171;font-size:13px;margin-top:10px;margin-bottom:0;';
-    errEl.textContent = '⚠️ Network error — please check your connection and retry.';
+    errEl.textContent = t('push_net_error', '⚠️ Network error — please check your connection and retry.');
     btn.insertAdjacentElement('afterend', errEl);
   }
   scrollToBottom();
@@ -1341,18 +1457,20 @@ function showDeployPrompt(repoName, files) {
   const container = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.style.cssText = 'padding:16px 0;max-width:780px;align-self:flex-start;width:100%;';
+  
+  const descTemplate = t('deploy_ready_desc', 'Ready4Launch will create a new public GitHub repository called {repo}, push your code, and enable GitHub Pages — automatically.');
+  const descHtml = descTemplate.replace('{repo}', `<strong style="color:var(--purple-light);">${escapeHtml(repoName)}</strong>`);
+
   div.innerHTML = `
     <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:14px;padding:24px;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">🚀 Your app is ready to deploy!</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">${t('deploy_ready_title', '🚀 Your app is ready to deploy!')}</div>
       <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-        Ready4Launch will create a new public GitHub repository called
-        <strong style="color:var(--purple-light);">${repoName}</strong>,
-        push your code, and enable GitHub Pages — automatically.
+        ${descHtml}
       </p>
       <button data-fileid="${fileId}" onclick="deployToGitHub(this.dataset.fileid, this)"
               style="background:var(--grad-main);color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:var(--font);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        Deploy to GitHub Pages
+        ${t('btn_deploy_pages', 'Deploy to GitHub Pages')}
       </button>
     </div>
   `;
@@ -1365,7 +1483,7 @@ async function deployToGitHub(fileId, btn) {
   if (!pending) return;
 
   btn.disabled = true;
-  btn.innerHTML = '<span style="opacity:0.7">Creating repo &amp; deploying…</span>';
+  btn.innerHTML = `<span style="opacity:0.7">${t('deploying_status', 'Creating repo & deploying…')}</span>`;
 
   const { repoName, files } = pending;
 
@@ -1387,10 +1505,10 @@ async function deployToGitHub(fileId, btn) {
       // GitHub session expired — prompt reconnect
       card.innerHTML = `
         <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:20px;">
-          <p style="margin:0 0 12px;font-weight:600;">⚠️ GitHub session expired</p>
-          <p style="margin:0 0 16px;font-size:14px;color:var(--text-2);">Please reconnect your GitHub account to deploy.</p>
+          <p style="margin:0 0 12px;font-weight:600;">${t('gh_session_expired_title', '⚠️ GitHub session expired')}</p>
+          <p style="margin:0 0 16px;font-size:14px;color:var(--text-2);">${t('gh_session_expired_desc', 'Please reconnect your GitHub account to deploy.')}</p>
           <a href="/auth/github" style="display:inline-flex;align-items:center;gap:8px;background:var(--grad-main);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
-            🔗 Reconnect GitHub
+            ${t('btn_reconnect_gh', '🔗 Reconnect GitHub')}
           </a>
         </div>
       `;
@@ -1401,30 +1519,28 @@ async function deployToGitHub(fileId, btn) {
       clearPendingBuild(); // successfully deployed — no need to resume this build later
       card.innerHTML = `
         <div class="push-success">
-          <h4>🎉 Deployed to GitHub Pages!</h4>
+          <h4>${t('deploy_success_title', '🎉 Deployed to GitHub Pages!')}</h4>
           <p style="font-size:14px;color:var(--text-2);margin-bottom:16px;">
-            Your code is pushed and GitHub Pages is building the site.
-            The live URL below is usually ready within <strong>2–5 minutes</strong> for a first deployment —
-            if it shows a 404, wait a moment and refresh.
+            ${t('deploy_success_desc', 'Your code is pushed and GitHub Pages is building the site. The live URL below is usually ready within <strong>2–5 minutes</strong> for a first deployment — if it shows a 404, wait a moment and refresh.')}
           </p>
           <p style="margin-bottom:8px;">
-            🔗 <strong>Live URL:</strong>
+            <strong>${t('live_url_label', '🔗 Live URL:')}</strong>
             <a href="${data.pagesUrl}" target="_blank" rel="noopener" style="color:var(--purple-light);">${data.pagesUrl}</a>
           </p>
           <p style="margin-bottom:0;">
-            📁 <strong>Repository:</strong>
+            <strong>${t('repo_url_label', '📁 Repository:')}</strong>
             <a href="${data.repoUrl}" target="_blank" rel="noopener" style="color:var(--purple-light);">${data.repoUrl}</a>
           </p>
         </div>
       `;
     } else {
       btn.disabled = false;
-      btn.textContent = 'Retry deployment';
+      btn.textContent = t('btn_retry_deploy', 'Retry deployment');
       card.querySelector('p').textContent = `Error: ${data.error || 'Deployment failed'}`;
     }
   } catch (err) {
     btn.disabled = false;
-    btn.textContent = 'Retry deployment';
+    btn.textContent = t('btn_retry_deploy', 'Retry deployment');
     console.error('[Deploy] GitHub deploy error:', err);
   }
   scrollToBottom();

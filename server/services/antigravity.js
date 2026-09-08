@@ -503,7 +503,7 @@ async function streamFromAntigravity(newUserMessage, history, apiKey, agentId, o
 }
 
 // ── FALLBACK: Gemini pool (both SDKs, all working models) ─────────
-async function streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes = '') {
+async function streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes = '', systemInstructionOverride = null) {
   // Inject plan context so Gemini gets the same context as Antigravity
   let contextualMessage = newUserMessage;
   if (enrichedNotes && enrichedNotes !== 'No additional context.') {
@@ -515,14 +515,14 @@ async function streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, on
     contents:          buildContents(history, contextualMessage),
     config:            { temperature: 0.7, maxOutputTokens: 32768 },
     apiKey,
-    systemInstruction: SYSTEM_INSTRUCTION,
+    systemInstruction: systemInstructionOverride || SYSTEM_INSTRUCTION,
     onChunk,
     onDone,
   });
 }
 
 // ── Main entry point ──────────────────────────────────────────────
-async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDone, enrichedNotes = '', apiKeyOverride = null) {
+async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDone, enrichedNotes = '', apiKeyOverride = null, systemInstructionOverride = null) {
   const apiKey  = apiKeyOverride || process.env.GEMINI_API_KEY;
   const agentId = process.env.ANTIGRAVITY_AGENT_ID || 'antigravity-preview-05-2026';
 
@@ -531,7 +531,7 @@ async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDon
   // ── Circuit breaker: skip Antigravity while cooling down after a 429 ──
   if (antigravityBreaker.isOpen()) {
     console.log(`[AI] Antigravity breaker open (${antigravityBreaker.remainingSeconds()}s left) — routing to Gemini pool`);
-    await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes);
+    await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes, systemInstructionOverride);
     console.log('[AI] Gemini pool ✅');
     return;
   }
@@ -549,7 +549,7 @@ async function streamChat(newUserMessage, history, _googleTokens, onChunk, onDon
       console.warn(`[AI] Antigravity ${statusLabel} (${err.message}) — falling back to Gemini pool`);
     }
     // Always fall back — Gemini pool has its own retry logic across many models
-    await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes);
+    await streamFromGeminiPool(newUserMessage, history, apiKey, onChunk, onDone, enrichedNotes, systemInstructionOverride);
     console.log('[AI] Gemini pool ✅');
   }
 }

@@ -23,7 +23,7 @@ const express = require('express');
 const antigravity    = require('../services/antigravity');
 const { analyzePlanPhase, compileSpec } = require('../services/planPhase');
 const { getFileContent } = require('../services/githubService');
-const { fullQualityPass } = require('../services/codeQuality');
+const { auditAndHeal, fullQualityPass } = require('../services/codeQuality');
 const { pooledStream, pooledGenerate } = require('../services/geminiPool');
 const { checkGate, quickSection } = require('../middleware/packageGate');
 const { recordSession } = require('../services/firestoreService');
@@ -799,6 +799,12 @@ router.post('/chat', requireAuth, async (req, res) => {
     // Triggered whenever the client sends editMode=true (any turn in the session).
     // ════════════════════════════════════════════════════════════
     if (isEditMode && editOwner && editRepo) {
+      // Resolve token from header, session, or environment
+      const ghToken = req.headers['x-github-token'] || req.session?.githubToken || process.env.GITHUB_TOKEN || '';
+      if (ghToken && !req.session.githubToken) {
+        req.session.githubToken = ghToken;
+      }
+
       // Initialise session context on first edit-mode message
       if (isFirstMessage) {
         req.session.editMode    = { owner: editOwner, repo: editRepo, branch: editBranch };
@@ -808,10 +814,14 @@ router.post('/chat', requireAuth, async (req, res) => {
 
       // Fetch (and cache) the current index.html so we only hit GitHub once per session
       if (!req.session.currentCode) {
-        sendEvent('status', { message: `Fetching code from ${editOwner}/${editRepo}…` });
+        const fetchStatus = currentLang === 'hi' ? `कोड प्राप्त कर रहा हूँ: ${editOwner}/${editRepo}…`
+          : currentLang === 'es' ? `Obteniendo código de ${editOwner}/${editRepo}…`
+          : currentLang === 'te' ? `కోడ్‌ను పొందుతోంది ${editOwner}/${editRepo}…`
+          : `Fetching code from ${editOwner}/${editRepo}…`;
+        sendEvent('status', { message: fetchStatus });
         try {
           req.session.currentCode = await getFileContent(
-            req.session.githubToken, editOwner, editRepo, 'index.html'
+            ghToken, editOwner, editRepo, 'index.html'
           );
         } catch (fetchErr) {
           sendEvent('error', { message: `Could not fetch code: ${fetchErr.message}` });
@@ -830,15 +840,17 @@ router.post('/chat', requireAuth, async (req, res) => {
 
       // ── Conversational intent: explain / describe / answer questions ──
       if (isConversationalIntent(trimmedMessage)) {
+        const langName = LANGUAGE_NAMES[currentLang] || currentLang;
         const analysisPrompt =
           `You are a senior developer reviewing the "${editOwner}/${editRepo}" repository for the user.\n\n` +
           `CURRENT index.html (excerpt — up to 8 KB shown):\n\`\`\`html\n` +
           `${req.session.currentCode.slice(0, 8000)}\n\`\`\`\n\n` +
           `USER'S QUESTION: ${trimmedMessage}\n\n` +
-          `Answer clearly and specifically. Reference actual code sections when relevant. ` +
+          `Language: ${langName}\n` +
+          `Answer clearly and specifically in ${langName}. Reference actual code sections when relevant. ` +
           `Do NOT generate new HTML. Do NOT output REPO_NAME. Keep the response conversational.`;
 
-        await antigravity.streamChat(analysisPrompt, [], null, onChunk, onEditDone, '');
+        await antigravity.streamChat(analysisPrompt, [], null, onChunk, onEditDone, '', apiKey, `You are a helpful coding assistant. Respond in ${langName}.`);
         const answer = capturedResponse || '';
         req.session.chatHistory.push({ role: 'assistant', content: answer });
         // No editMode in done payload → no push button shown for plain answers
@@ -848,34 +860,61 @@ router.post('/chat', requireAuth, async (req, res) => {
       }
 
       // ── Edit intent: apply the requested change, return full updated HTML ──
-      const editPrompt =
-        `EDIT MODE — modify this existing app. Return the COMPLETE updated HTML file.\n` +
-        `Repository: ${editOwner}/${editRepo}\n\n` +
-        `CURRENT CODE:\n\`\`\`html\n${req.session.currentCode}\n\`\`\`\n\n` +
-        `USER'S CHANGE REQUEST: ${trimmedMessage}\n\n` +
-        `INSTRUCTIONS: Apply ONLY the requested changes. Keep all working features intact. ` +
-        `Output the entire updated HTML file in a single \`\`\`html block.`;
+      const langDirective = getLanguageDirective(currentLang);
+      const editSystemInstruction = `You are Ready4Launch in EDIT MODE. You modify existing single-page HTML web applications.
+The user wants to update their existing app in the repository "${editOwner}/${editRepo}".
 
-      sendEvent('status', { message: 'Applying your changes…' });
-      await antigravity.streamChat(editPrompt, [], null, onChunk, onEditDone, '');
+CRITICAL EDIT MODE RULES:
+1. START WITH THE EXISTING CODE: You are provided with the exact CURRENT HTML code of index.html.
+2. APPLY ONLY THE REQUESTED CHANGES: Modify, add, or replace only what the user specifically asked for (e.g. style changes, color updates, text content, new sections/components, translations, bug fixes, or functionality improvements).
+3. DO NOT WIPE OUT EXISTING CODE: Preserve all existing styling, UI elements, layouts, script logic, event listeners, and features that the user did not ask to change.
+4. COMPLETE OUTPUT: Return the COMPLETE modified HTML file inside a single \`\`\`html ... \`\`\` code block with <!DOCTYPE html> ... </html>.
+5. NO REPO_NAME: Do NOT output any REPO_NAME: prefix lines. Return a brief friendly 1-sentence summary in ${LANGUAGE_NAMES[currentLang] || 'English'} followed immediately by the \`\`\`html code block.
+${langDirective}`;
+
+      const editPrompt =
+        `REPOSITORY: ${editOwner}/${editRepo}\n\n` +
+        `CURRENT CODE OF index.html:\n\`\`\`html\n${req.session.currentCode}\n\`\`\`\n\n` +
+        `USER CHANGE REQUEST:\n"${trimmedMessage}"\n\n` +
+        `INSTRUCTIONS:\n` +
+        `- Apply the user's change request directly to the CURRENT CODE above.\n` +
+        `- Retain the whole existing design and code base, incorporating the requested change cleanly.\n` +
+        `- Return the complete updated HTML in a \`\`\`html code block.`;
+
+      const applyingStatus = currentLang === 'hi' ? 'आपके बदलाव लागू किए जा रहे हैं…'
+        : currentLang === 'es' ? 'Aplicando tus cambios…'
+        : currentLang === 'te' ? 'మీ మార్పులను వర్తింపజేస్తోంది…'
+        : 'Applying your changes…';
+      sendEvent('status', { message: applyingStatus });
+
+      await antigravity.streamChat(editPrompt, [], null, onChunk, onEditDone, '', apiKey, editSystemInstruction);
 
       if (!capturedResponse || !/```html/i.test(capturedResponse)) {
         sendEvent('error', { message: 'Could not generate the updated code. Please try again.' });
         return res.end();
       }
 
-      // Semantic quality pass — verify the requested changes were actually applied
+      // Non-destructive check & heal pass for HTML syntax/structure
       let finalEdit = capturedResponse;
       try {
-        sendEvent('status', { message: 'Verifying changes…' });
-        finalEdit = await fullQualityPass(capturedResponse, `Change request: ${trimmedMessage}`, apiKey);
-        if (finalEdit !== capturedResponse) sendEvent('status', { message: 'Self-heal complete ✓' });
+        const htmlMatch = capturedResponse.match(/```html\s*([\s\S]*?)```/i)
+                       || capturedResponse.match(/```html\s*([\s\S]*?<\/html>)/i);
+        if (htmlMatch) {
+          const rawHtml = htmlMatch[1].trim();
+          const healed = await auditAndHeal(rawHtml, apiKey, 'gemini-2.5-flash');
+          if (healed && healed.healed) {
+            const introMatch = capturedResponse.match(/^([^`]+)/);
+            const intro = introMatch ? introMatch[1].trim() + '\n\n' : '';
+            finalEdit = `${intro}\`\`\`html\n${healed.code}\n\`\`\``;
+          }
+        }
       } catch (qErr) {
-        console.warn('[QualityPass] Edit mode non-fatal:', qErr.message);
+        console.warn('[AuditAndHeal] Edit mode non-fatal:', qErr.message);
       }
 
-      // Update cached code so the next edit turn builds on this version
-      const updatedHtmlMatch = finalEdit.match(/```html\s*([\s\S]*?)```/i);
+      // Update cached code so subsequent edit turns build on this version
+      const updatedHtmlMatch = finalEdit.match(/```html\s*([\s\S]*?)```/i)
+                            || finalEdit.match(/```html\s*([\s\S]*?<\/html>)/i);
       if (updatedHtmlMatch) req.session.currentCode = updatedHtmlMatch[1].trim();
 
       req.session.chatHistory.push({ role: 'assistant', content: finalEdit });
