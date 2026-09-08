@@ -9,7 +9,7 @@ async function listRepos(accessToken) {
   const { data } = await octokit.repos.listForAuthenticatedUser({
     sort: 'updated',
     per_page: 50,
-    type: 'all',
+    affiliation: 'owner,collaborator',
   });
   return data.map((r) => ({
     id: r.id,
