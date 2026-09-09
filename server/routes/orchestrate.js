@@ -191,6 +191,103 @@ async function handleOrchestration(req, res) {
   // Execute in background
   (async () => {
     try {
+      const pLower = prompt.trim().toLowerCase();
+      
+      const appCreationPatterns = [
+        /\b(?:create|build|make|generate|deploy|scaffold|develop|code)\s+(?:an?\s+)?(?:[a-z0-9_-]+\s+)*(?:app|webapp|web\s*app|website|site|application|portal|landing\s*page|storefront)\b/i,
+        /^(?:create|build|make|generate|deploy)\s+(?:an?\s+)?(?:[a-z0-9_-]+\s+)*(?:dashboard|portfolio|calculator|tracker|clone|game)\b/i,
+        /\b(?:build|create|generate|deploy)\s+(?:me\s+)?(?:an?\s+)?(?:full-?stack|frontend|react|vue|html|svelte|single-?page\s+app)\b/i
+      ];
+      
+      const isNonAppQuery = /(?:what|how many|show|list|check|compare|calculate|find|get|tell me|explain|why|is there|status|cost|bill|spend|pricing|instance|vm|server|ec2|bucket|s3|deal|price|cheapest|faster|food|biryani|pizza|uber|ola|rapido|zomato|swiggy|amazon|flipkart|blinkit|zepto|meesho)/i.test(pLower);
+      
+      const matchesAppPattern = appCreationPatterns.some(pat => pat.test(pLower));
+      const isAppRequest = matchesAppPattern || (category === 'apps' && !isNonAppQuery);
+
+      if (!isAppRequest) {
+        // --- Direct Domain & Intelligence Query Pipeline (FinOps, Cloud, Deals, Food, Mobility, Info) ---
+        let domainSysPrompt = '';
+        let domainTitle = '🧠 Antigravity Intelligence';
+        let domainType = 'info';
+
+        if (category === 'finops' || /(?:cost|bill|billing|spend|expense|invoice|charge|finops)/i.test(pLower)) {
+          addLog(`[00:01] 📊 Antigravity FinOps Engine: Querying multi-cloud telemetry & billing models (AWS + OCI + Azure + GCP)...`);
+          addLog(`[00:03] 💰 Analyzing cost breakdown, sustained use discounts, and active recommendations...`);
+          domainTitle = '💰 Multi-Cloud FinOps Intelligence';
+          domainType = 'finops';
+          domainSysPrompt = `You are the AI Multi-Cloud FinOps & Cost Intelligence Assistant covering AWS, Oracle Cloud (OCI), Microsoft Azure, and Google Cloud (GCP).
+Answer the user's cost/FinOps request with structured, readable markdown.
+Include:
+1. Clear spend summary per cloud provider with icons (🔶 AWS, 🔴 OCI, 🔷 Azure, ⚪ GCP).
+2. Key active infrastructure and cost drivers (Compute Instances, Storage Vaults, Bandwidth).
+3. Quantified monthly optimization recommendations (Active Assist, Idle Disks, Reserved Instances).
+4. Mermaid diagram or summary comparison table when relevant.
+Do NOT output raw HTML documents or app code. Return pure, high-value Markdown.`;
+        } else if (category === 'cloud' || /(?:instance|vm|server|ec2|bucket|s3|infrastructure|storage)/i.test(pLower)) {
+          addLog(`[00:01] ☁️ Antigravity Cloud Engine: Auditing multi-cloud infrastructure & compute instances across AWS, OCI, Azure & GCP...`);
+          addLog(`[00:02] 🌐 Normalizing cross-cloud compute inventory and availability zones...`);
+          domainTitle = '☁️ Multi-Cloud Infrastructure Inventory';
+          domainType = 'cloud_query';
+          domainSysPrompt = `You are the AI Multi-Cloud Infrastructure Architect covering AWS, OCI, Azure, and GCP.
+Answer the user's infrastructure query with structured markdown inventory tables (Provider, Instance/Resource Name, Shape/Machine Type, Zone/Region, State, IP) and status insights.`;
+        } else if (category === 'shop' || /(?:deal|discount|amazon|flipkart|blinkit|zepto|meesho|buy|earphone|laptop|phone)/i.test(pLower)) {
+          addLog(`[00:01] 🛍️ Antigravity Commerce Engine: Searching deal arbitrage across Amazon, Flipkart, Blinkit, Zepto & Meesho...`);
+          domainTitle = '🛍️ Visual Best Deal Comparison';
+          domainType = 'shopping';
+          domainSysPrompt = `You are the AI Indian E-Commerce Price Arbitrage Assistant comparing Amazon, Flipkart, Blinkit, Zepto, and Meesho.
+Provide side-by-side pricing tables, delivery ETAs, discount breakdown, and smart ordering recommendations in markdown.`;
+        } else if (category === 'food' || /(?:food|paneer|biryani|pizza|burger|zomato|swiggy|restaurant)/i.test(pLower)) {
+          addLog(`[00:01] 🍲 Antigravity Food Engine: Comparing restaurant dish pricing & delivery ETAs across Zomato & Swiggy...`);
+          domainTitle = '🍲 Food Delivery Arbitrage';
+          domainType = 'food_comparison';
+          domainSysPrompt = `You are the AI Food Delivery Intelligence Assistant comparing Zomato and Swiggy. Provide cheapest restaurant vs fastest delivery comparisons in markdown.`;
+        } else if (category === 'travel' || /(?:ride|cab|fare|uber|ola|rapido|auto|bike taxi)/i.test(pLower)) {
+          addLog(`[00:01] 🚖 Antigravity Mobility Engine: Calculating 3-way route fare arbitrage (Rapido vs Uber vs Ola)...`);
+          domainTitle = '🚖 Mobility Fare Comparison';
+          domainType = 'ride_comparison';
+          domainSysPrompt = `You are the 3-Way Mobility Arbitrage Assistant (Rapido vs Uber vs Ola). Compare bike taxi, auto rickshaw, and cab fares with ranking and recommendations.`;
+        } else {
+          addLog(`[00:01] 🧠 Antigravity Intelligence Engine: Processing request...`);
+          domainSysPrompt = `You are the Antigravity Autonomous AI Assistant. Answer the user's request thoroughly, accurately, and cleanly using formatted markdown.`;
+        }
+
+        let directAnswer = '';
+        await pooledStream({
+          contents: [{ role: 'user', parts: [{ text: prompt.trim() }] }],
+          config: { maxOutputTokens: 4096, temperature: 0.3 },
+          apiKey,
+          tier: 'chat',
+          systemInstruction: domainSysPrompt,
+          onChunk: (chunk) => {
+            directAnswer += chunk;
+            if (isSse) {
+              res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
+            }
+          },
+          onDone: (full) => {
+            directAnswer = full;
+          }
+        });
+
+        addLog(`[00:04] 💎 Mission complete! Execution finished.`);
+        task.status = 'COMPLETED';
+        task.answer = directAnswer;
+        task.deliverable = { type: domainType, title: domainTitle, url: '#' };
+        addLog(`[DONE] Finished`);
+
+        if (isSse) {
+          res.write(`data: ${JSON.stringify({
+            type: 'success',
+            status: 'COMPLETED',
+            answer: directAnswer,
+            deliverable: task.deliverable
+          })}\n\n`);
+          res.end();
+        }
+        return;
+      }
+
+      // --- Autonomous App Generation Pipeline ---
       addLog(`[00:01] 🧠 Google Stitch Design Engine: Analyzing design tokens & layout structure...`);
 
       const systemPrompt = `You are Google Antigravity and Stitch UI - an elite full-stack UI/UX architect and autonomous software engineer.
@@ -300,6 +397,7 @@ Do NOT include explanations outside the code block.`;
       }
 
       const deliverable = {
+        type: 'app_deploy',
         repo_name: repoName,
         repo_url: repoUrl,
         live_url: pagesUrl,
