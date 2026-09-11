@@ -15,7 +15,6 @@ const {
   checkJSSyntax,
   checkCSSBraces,
   checkMetaTags,
-  sanitizeAndHealImages,
 } = require('../../server/services/codeQuality');
 
 // ── checkTagBalance ───────────────────────────────────────────────────────────
@@ -346,43 +345,5 @@ describe('checkMetaTags', () => {
   test('accepts <title> with attributes (e.g. lang)', () => {
     const html = '<html><head><meta charset="UTF-8"><meta name="viewport"><title lang="en">App</title></head></html>';
     expect(checkMetaTags(html).passed).toBe(true);
-  });
-});
-
-// ── sanitizeAndHealImages ───────────────────────────────────────────────────
-
-describe('sanitizeAndHealImages', () => {
-  test('replaces loremflickr URLs with pollinations AI prompts', () => {
-    const html = '<img src="https://loremflickr.com/400/300/warangal,travel" alt="Warangal Fort">';
-    const healed = sanitizeAndHealImages(html);
-    expect(healed).toContain('image.pollinations.ai/prompt/');
-    expect(healed).toContain('Warangal');
-    expect(healed).not.toContain('loremflickr.com');
-  });
-
-  test('replaces source.unsplash URLs with pollinations AI prompts', () => {
-    const html = '<img src="https://source.unsplash.com/random/400x300" alt="Electronics Store">';
-    const healed = sanitizeAndHealImages(html);
-    expect(healed).toContain('image.pollinations.ai/prompt/');
-    expect(healed).not.toContain('source.unsplash.com');
-  });
-
-  test('injects cascading onerror fallback when missing', () => {
-    const html = '<img src="https://image.pollinations.ai/prompt/sample" alt="Sample">';
-    const healed = sanitizeAndHealImages(html);
-    expect(healed).toContain('onerror=');
-    expect(healed).toContain('placehold.co');
-  });
-
-  test('preserves existing onerror handler', () => {
-    const html = '<img src="https://image.pollinations.ai/prompt/sample" alt="Sample" onerror="customHandler()">';
-    const healed = sanitizeAndHealImages(html);
-    expect(healed).toContain('onerror="customHandler()"');
-  });
-
-  test('adds loading="lazy" to images when missing', () => {
-    const html = '<img src="https://image.pollinations.ai/prompt/sample" alt="Sample">';
-    const healed = sanitizeAndHealImages(html);
-    expect(healed).toContain('loading="lazy"');
   });
 });

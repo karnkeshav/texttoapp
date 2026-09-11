@@ -253,14 +253,10 @@ DYNAMIC CLIENT-SIDE / JAVASCRIPT RENDERING:
 If items or cards are rendered dynamically via JavaScript (from an array or localStorage), construct the image URL dynamically using template literals and encodeURIComponent:
   const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&nologo=true`;
 
-AVATARS & PROFILE IMAGES (Teams, Doctors, Testimonials, User Cards):
-  • Realistic Initials:  https://api.dicebear.com/7.x/initials/svg?seed={Name}
-  • Illustrated Avatar: https://api.dicebear.com/7.x/avataaars/svg?seed={Name}
-
-SAFETY & MULTI-TIER FALLBACK RULES:
+SAFETY & FALLBACK RULES:
 • Every <img> tag MUST have a meaningful, descriptive alt attribute matching the item title.
-• Every <img> tag MUST have a cascading error fallback handler:
-  onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
+• Every <img> tag MUST have a clean fallback handler on error:
+  onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e293b/ffffff?text=' + encodeURIComponent(this.alt);"
 • NEVER use loremflickr.com (tag misses cause random cat placeholder photos).
 • NEVER use source.unsplash.com (shut down, returns 503).
 • NEVER use picsum.photos (random unrelated photos).
@@ -371,11 +367,11 @@ CONTENT CHECK:
   ✓ Empty states shown when no data exists
 
 IMAGE CHECK:
-  ✓ Every <img> uses image.pollinations.ai with a specific 4–8 word natural language prompt, DiceBear for avatars, or placehold.co
+  ✓ Every <img> uses image.pollinations.ai with a specific 4–8 word natural language prompt, or placehold.co
   ✓ Each card/section's image prompt reflects THAT card's specific subject and is completely unique
   ✓ No duplicate image URLs across different cards
   ✓ NO loremflickr.com (avoids random cat fallbacks) and NO picsum.photos (unrelated photos)
-  ✓ Every <img> has onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
+  ✓ Every <img> has onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e293b/ffffff?text=' + encodeURIComponent(this.alt);"
 
 LAYOUT CHECK:
   ✓ Renders correctly at 375px (mobile)

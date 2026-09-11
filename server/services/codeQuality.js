@@ -215,49 +215,6 @@ function runAllChecks(html) {
   return errors;
 }
 
-// ── 6. Image Sanitizer & Cascading Fallback Injector ─────────────
-// Mechanically sanitizes broken/legacy sources (loremflickr, source.unsplash)
-// and ensures every <img> tag has a robust cascading error fallback handler.
-function sanitizeAndHealImages(html) {
-  if (!html || typeof html !== 'string') return html;
-
-  return html.replace(/<img\b([^>]*)>/gi, (match, attrs) => {
-    let newAttrs = attrs;
-
-    // 1. Extract src and alt
-    const srcMatch = attrs.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
-    const altMatch = attrs.match(/\balt\s*=\s*["']([^"']*)["']/i);
-    let src = srcMatch ? srcMatch[1] : '';
-    const alt = altMatch ? altMatch[1] : 'Image';
-
-    // 2. Sanitize broken/legacy sources
-    if (/loremflickr\.com/i.test(src)) {
-      const parts = src.split('?')[0].split('/');
-      const tags = parts.slice(5).join(' ').replace(/[,/_-]+/g, ' ').trim();
-      const prompt = encodeURIComponent((tags || alt || 'product photo') + ' professional photography');
-      const newSrc = `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true`;
-      newAttrs = newAttrs.replace(srcMatch[0], `src="${newSrc}"`);
-    } else if (/source\.unsplash\.com/i.test(src)) {
-      const prompt = encodeURIComponent((alt || 'modern design') + ' high quality photography');
-      const newSrc = `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true`;
-      newAttrs = newAttrs.replace(srcMatch[0], `src="${newSrc}"`);
-    }
-
-    // 3. Ensure multi-tier onerror fallback exists
-    if (!/\bonerror\s*=/i.test(newAttrs)) {
-      const fallbackHandler = `onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"`;
-      newAttrs = `${newAttrs} ${fallbackHandler}`;
-    }
-
-    // 4. Add loading="lazy" if not present
-    if (!/\bloading\s*=/i.test(newAttrs)) {
-      newAttrs = `${newAttrs} loading="lazy"`;
-    }
-
-    return `<img ${newAttrs.trim().replace(/\s+/g, ' ')}>`;
-  });
-}
-
 // ── Main audit + heal loop ────────────────────────────────────────
 /**
  * Runs all 5 checks. If any fail, requests a targeted Gemini repair and re-checks.
@@ -269,13 +226,13 @@ function sanitizeAndHealImages(html) {
  * @returns {{ code: string, healed: boolean, attempts: number }}
  */
 async function auditAndHeal(code, apiKey, model) {
-  let current = sanitizeAndHealImages(code);
+  let current = code;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const errors = runAllChecks(current);
 
     if (errors.length === 0) {
-      return { code: sanitizeAndHealImages(current), healed: attempt > 0, attempts: attempt };
+      return { code: current, healed: attempt > 0, attempts: attempt };
     }
 
     console.log(
@@ -473,7 +430,6 @@ module.exports = {
   checkJSSyntax,
   checkCSSBraces,
   checkMetaTags,
-  sanitizeAndHealImages,
   auditAndHeal,
   semanticAudit,
   semanticRepair,
