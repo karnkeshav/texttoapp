@@ -313,7 +313,13 @@ DESIGN & TECHNICAL SPECIFICATIONS:
    - Include interactive modal forms, action triggers, export to CSV/JSON, theme toggle, and instant feedback.
    - Use Lucide icons or FontAwesome via CDN or inline SVG icons.
    - Fully responsive for desktop and mobile devices.
-4. Robust JavaScript:
+4. Semantic Imagery & Fallbacks:
+   - Every <img> must use contextual natural language AI generation: https://image.pollinations.ai/prompt/{encoded_detailed_description}?width={w}&height={h}&nologo=true
+   - Derive rich, unique 4-8 word descriptive prompts for every card, banner, or catalog item.
+   - For user/team avatars, use https://api.dicebear.com/7.x/initials/svg?seed={Name} or https://api.dicebear.com/7.x/avataaars/svg?seed={Name}.
+   - Every <img> MUST have onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
+   - NEVER use loremflickr.com or source.unsplash.com.
+5. Robust JavaScript:
    - Zero undefined variables or broken DOM selectors.
    - LocalStorage persistence for user actions.
    - Beautiful visual feedback and animations.
