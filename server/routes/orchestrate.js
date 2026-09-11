@@ -313,35 +313,14 @@ DESIGN & TECHNICAL SPECIFICATIONS:
    - Include interactive modal forms, action triggers, export to CSV/JSON, theme toggle, and instant feedback.
    - Use Lucide icons or FontAwesome via CDN or inline SVG icons.
    - Fully responsive for desktop and mobile devices.
-4. Semantic Imagery & Fallbacks (four free, no-signup tiers, resolved client-side):
+4. Semantic Imagery & Fallbacks (four free, no-signup tiers — resolved SERVER-SIDE by our backend after you generate the HTML, not by client JS):
    - Applies to EVERY domain with zero exceptions and zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, automotive, or anything else the user asks for. Decide data-query/data-entity per card, live, from that card's actual title/content.
-   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject (never src directly). If the card is about a REAL, NAMED, identifiable thing (a famous landmark, monument, building, lake, dam/project, brand, public figure), ALSO add data-entity set to its best-guess exact Wikipedia article title — this is tried first and avoids generic/mismatched photos. Omit data-entity for generic or invented subjects (a sample dish, a fictional product, a generic service/activity).
-   - Paste this helper verbatim into <script> and call it for every img[data-query] on DOMContentLoaded:
-       async function resolveImage(imgEl) {
-         const entity = imgEl.dataset.entity;
-         const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
-         const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
-         if (entity) {
-           try {
-             const r = await fetch(\`https://en.wikipedia.org/api/rest_v1/page/summary/\${encodeURIComponent(entity)}\`);
-             if (r.ok) {
-               const j = await r.json();
-               const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
-               if (src) { imgEl.src = src; return; }
-             }
-           } catch (e) {}
-         }
-         try {
-           const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
-           const j = await r.json();
-           const hit = j.results && j.results[0];
-           if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
-         } catch (e) {}
-         imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
-       }
-       document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('img[data-query]').forEach(resolveImage));
+   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject — do NOT put an image URL in src yourself, leave it empty/omitted. If the card is about a REAL, NAMED, identifiable thing (a famous landmark, monument, building, lake, dam/project, brand, public figure), ALSO add data-entity set to its best-guess exact Wikipedia article title — this is tried first and avoids generic/mismatched photos. Omit data-entity for generic or invented subjects (a sample dish, a fictional product, a generic service/activity).
+   - Our backend then tries, in order: Wikipedia REST summary API (exact-title match on data-entity) → Openverse keyword search (data-query) → Pollinations AI (generative, always succeeds) → and bakes the result into src before the app ships, with a placehold.co onerror as final safety net.
+   - EXCEPTION — items created at RUNTIME by client JS (a user adds something via a form, or localStorage renders a saved list) did not exist when the backend baked images, so build their src directly with Pollinations (never fetch, it's just a URL) plus the same cascading onerror:
+       img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' professional high quality photography')}?width=600&height=400&nologo=true\`;
    - For user/team avatars, use https://api.dicebear.com/7.x/initials/svg?seed={Name} or https://api.dicebear.com/7.x/avataaars/svg?seed={Name} directly (no fetch needed).
-   - Every <img> MUST have onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
+   - Every <img> MUST have onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');}else{this.onerror=null;}" — the ASCII check prevents tofu-box rendering when alt text is in a non-Latin script.
    - NEVER use loremflickr.com or source.unsplash.com.
 5. Robust JavaScript:
    - Zero undefined variables or broken DOM selectors.

@@ -215,6 +215,112 @@ function runAllChecks(html) {
   return errors;
 }
 
+// ── 6. Server-side image resolver ─────────────────────────────────
+// The generating model marks content <img> tags with data-query (and,
+// for real named things, data-entity) instead of a hardcoded image URL.
+// We resolve the ACTUAL src ourselves, server-side, so the shipped app
+// never depends on client-side fetch/CORS/JS-correctness at runtime:
+//   1. Wikipedia REST summary API  — exact-title lookup for named entities
+//   2. Openverse                   — keyword search over real licensed photos
+//   3. Pollinations AI             — generative fallback (URL only, always succeeds)
+// Domain-agnostic: works off whatever data-query/data-entity each card carries,
+// there is nothing hardcoded per-domain here.
+const IMAGE_FETCH_TIMEOUT_MS = 3500;
+
+async function fetchWithTimeout(url, ms = IMAGE_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Ready4Launch-ImageResolver/1.0' } });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function resolveOneImageSrc({ entity, query, width, height }) {
+  const w = width || 600;
+  const h = height || 400;
+  const safeQuery = query || 'image';
+
+  if (entity) {
+    try {
+      const r = await fetchWithTimeout(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(entity)}`);
+      if (r.ok) {
+        const j = await r.json();
+        const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
+        if (src) return src;
+      }
+    } catch (e) { /* fall through */ }
+  }
+
+  try {
+    const r = await fetchWithTimeout(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(safeQuery)}&page_size=1&mature=false`);
+    if (r.ok) {
+      const j = await r.json();
+      const hit = j.results && j.results[0];
+      const src = hit && (hit.thumbnail || hit.url);
+      if (src) return src;
+    }
+  } catch (e) { /* fall through */ }
+
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(safeQuery)}?width=${w}&height=${h}&nologo=true`;
+}
+
+// placehold.co's default font can't render non-Latin scripts (renders tofu
+// boxes) — fall back to a generic ASCII label rather than garbling the text.
+function asciiSafeLabel(text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return 'Image';
+  return /^[\x20-\x7E]*$/.test(trimmed) ? trimmed : 'Image';
+}
+
+async function bakeImages(html) {
+  if (!html || typeof html !== 'string') return html;
+
+  const imgTagRegex = /<img\b[^>]*>/gi;
+  const tags = html.match(imgTagRegex);
+  if (!tags || tags.length === 0) return html;
+
+  const resolved = await Promise.all(tags.map(async (tag) => {
+    const attrs = tag.slice(4, -1); // strip leading "<img" and trailing ">"
+
+    const entityMatch = attrs.match(/\bdata-entity\s*=\s*["']([^"']+)["']/i);
+    const queryMatch   = attrs.match(/\bdata-query\s*=\s*["']([^"']+)["']/i);
+    if (!entityMatch && !queryMatch) return tag; // not one of ours (e.g. a DiceBear avatar) — leave untouched
+
+    const altMatch = attrs.match(/\balt\s*=\s*["']([^"']*)["']/i);
+    const wMatch    = attrs.match(/\bdata-w\s*=\s*["']?(\d+)/i);
+    const hMatch    = attrs.match(/\bdata-h\s*=\s*["']?(\d+)/i);
+
+    const entity = entityMatch ? entityMatch[1] : null;
+    const query  = queryMatch ? queryMatch[1] : (altMatch ? altMatch[1] : 'image');
+    const width  = wMatch ? wMatch[1] : 600;
+    const height = hMatch ? hMatch[1] : 400;
+
+    const src = await resolveOneImageSrc({ entity, query, width, height });
+    const safeLabel = asciiSafeLabel(altMatch ? altMatch[1] : query);
+    const fallbackUrl = `https://placehold.co/${width}x${height}/1e293b/ffffff?text=${encodeURIComponent(safeLabel)}`;
+
+    let newAttrs = /\bsrc\s*=\s*["'][^"']*["']/i.test(attrs)
+      ? attrs.replace(/\bsrc\s*=\s*["'][^"']*["']/i, `src="${src}"`)
+      : `src="${src}" ${attrs}`;
+
+    if (/\bonerror\s*=/i.test(newAttrs)) {
+      newAttrs = newAttrs.replace(/\bonerror\s*=\s*["'][^"']*["']/i,
+        `onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallbackUrl}';}else{this.onerror=null;}"`);
+    } else {
+      newAttrs += ` onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallbackUrl}';}else{this.onerror=null;}"`;
+    }
+
+    if (!/\bloading\s*=/i.test(newAttrs)) newAttrs += ' loading="lazy"';
+
+    return `<img ${newAttrs.trim().replace(/\s+/g, ' ')}>`;
+  }));
+
+  let i = 0;
+  return html.replace(imgTagRegex, () => resolved[i++]);
+}
+
 // ── Main audit + heal loop ────────────────────────────────────────
 /**
  * Runs all 5 checks. If any fail, requests a targeted Gemini repair and re-checks.
@@ -226,7 +332,7 @@ function runAllChecks(html) {
  * @returns {{ code: string, healed: boolean, attempts: number }}
  */
 async function auditAndHeal(code, apiKey, model) {
-  let current = code;
+  let current = await bakeImages(code);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const errors = runAllChecks(current);
@@ -239,7 +345,7 @@ async function auditAndHeal(code, apiKey, model) {
       `[CodeAudit] Attempt ${attempt + 1}/2 — ${errors.length} issue(s): ` +
       errors.slice(0, 3).join(' | ')
     );
-    current = await runRepairPass(current, errors, apiKey, model);
+    current = await bakeImages(await runRepairPass(current, errors, apiKey, model));
   }
 
   // Final verification after all repair attempts
@@ -430,6 +536,8 @@ module.exports = {
   checkJSSyntax,
   checkCSSBraces,
   checkMetaTags,
+  bakeImages,
+  resolveOneImageSrc,
   auditAndHeal,
   semanticAudit,
   semanticRepair,

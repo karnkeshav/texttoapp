@@ -15,6 +15,7 @@ const {
   checkJSSyntax,
   checkCSSBraces,
   checkMetaTags,
+  bakeImages,
 } = require('../../server/services/codeQuality');
 
 // ── checkTagBalance ───────────────────────────────────────────────────────────
@@ -345,5 +346,95 @@ describe('checkMetaTags', () => {
   test('accepts <title> with attributes (e.g. lang)', () => {
     const html = '<html><head><meta charset="UTF-8"><meta name="viewport"><title lang="en">App</title></head></html>';
     expect(checkMetaTags(html).passed).toBe(true);
+  });
+});
+
+// ── bakeImages ───────────────────────────────────────────────────────────────
+
+describe('bakeImages', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  test('resolves data-entity via Wikipedia summary API first', async () => {
+    global.fetch = async (url) => {
+      expect(url).toContain('en.wikipedia.org/api/rest_v1/page/summary/Warangal%20Fort');
+      return {
+        ok: true,
+        json: async () => ({ originalimage: { source: 'https://upload.wikimedia.org/warangal-fort.jpg' } }),
+      };
+    };
+    const html = '<img data-entity="Warangal Fort" data-query="Warangal Fort stone gateway" alt="Warangal Fort">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain('src="https://upload.wikimedia.org/warangal-fort.jpg"');
+  });
+
+  test('falls back to Openverse when Wikipedia has no match', async () => {
+    global.fetch = async (url) => {
+      if (url.includes('wikipedia.org')) return { ok: false };
+      expect(url).toContain('api.openverse.org');
+      return { ok: true, json: async () => ({ results: [{ url: 'https://openverse.example/photo.jpg' }] }) };
+    };
+    const html = '<img data-entity="Some Obscure Place" data-query="obscure place scenic view" alt="Obscure Place">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain('src="https://openverse.example/photo.jpg"');
+  });
+
+  test('falls back to Pollinations when both Wikipedia and Openverse fail', async () => {
+    global.fetch = async () => { throw new Error('network down'); };
+    const html = '<img data-query="delicious hot biryani in clay pot" alt="Biryani">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain('image.pollinations.ai/prompt/');
+    expect(healed).toContain('delicious%20hot%20biryani');
+  });
+
+  test('leaves images without data-query/data-entity untouched (e.g. DiceBear avatars)', async () => {
+    global.fetch = async () => { throw new Error('should not be called'); };
+    const html = '<img src="https://api.dicebear.com/7.x/initials/svg?seed=Priya" alt="Priya">';
+    const healed = await bakeImages(html);
+    expect(healed).toBe(html);
+  });
+
+  test('uses an ASCII-safe fallback label when alt text is non-Latin', async () => {
+    global.fetch = async () => { throw new Error('network down'); };
+    const html = '<img data-query="ప్రసిద్ధ కోట" alt="ప్రసిద్ధ కోట">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain("text=Image");
+    expect(healed).not.toMatch(/text=%E0/); // no raw Telugu bytes leaked into the placehold.co fallback
+  });
+
+  test('adds a cascading onerror fallback even when the model already wrote one', async () => {
+    global.fetch = async () => ({ ok: true, json: async () => ({ results: [{ url: 'https://openverse.example/x.jpg' }] }) });
+    const html = '<img data-query="modern villa exterior" alt="Villa" onerror="oldHandler()">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain('this.dataset.fallback');
+    expect(healed).not.toContain('oldHandler()');
+  });
+
+  test('adds loading="lazy" when missing', async () => {
+    global.fetch = async () => ({ ok: true, json: async () => ({ results: [{ url: 'https://openverse.example/x.jpg' }] }) });
+    const html = '<img data-query="modern villa exterior" alt="Villa">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain('loading="lazy"');
+  });
+
+  test('handles multiple images independently', async () => {
+    global.fetch = async (url) => {
+      if (url.includes('Charminar')) return { ok: true, json: async () => ({ thumbnail: { source: 'https://wiki.example/charminar.jpg' } }) };
+      return { ok: false };
+    };
+    const html =
+      '<img data-entity="Charminar" data-query="Charminar minarets" alt="Charminar">' +
+      '<img data-query="paneer butter masala in bowl" alt="Paneer Butter Masala">';
+    const healed = await bakeImages(html);
+    expect(healed).toContain('src="https://wiki.example/charminar.jpg"');
+    expect(healed).toContain('image.pollinations.ai/prompt/');
+  });
+
+  test('returns non-string input unchanged', async () => {
+    expect(await bakeImages(null)).toBe(null);
+    expect(await bakeImages(undefined)).toBe(undefined);
   });
 });
