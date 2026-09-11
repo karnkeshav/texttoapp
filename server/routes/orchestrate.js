@@ -313,19 +313,30 @@ DESIGN & TECHNICAL SPECIFICATIONS:
    - Include interactive modal forms, action triggers, export to CSV/JSON, theme toggle, and instant feedback.
    - Use Lucide icons or FontAwesome via CDN or inline SVG icons.
    - Fully responsive for desktop and mobile devices.
-4. Semantic Imagery & Fallbacks (three free, no-signup tiers, resolved client-side):
-   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject (never src directly).
+4. Semantic Imagery & Fallbacks (four free, no-signup tiers, resolved client-side):
+   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject (never src directly). If the card is about a REAL, NAMED, identifiable thing (a famous landmark, monument, building, lake, dam/project, brand, public figure), ALSO add data-entity set to its best-guess exact Wikipedia article title — this is tried first and avoids generic/mismatched photos. Omit data-entity for generic or invented subjects (a sample dish, a fictional product).
    - Paste this helper verbatim into <script> and call it for every img[data-query] on DOMContentLoaded:
        async function resolveImage(imgEl) {
+         const entity = imgEl.dataset.entity;
          const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
          const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+         if (entity) {
+           try {
+             const r = await fetch(\`https://en.wikipedia.org/api/rest_v1/page/summary/\${encodeURIComponent(entity)}\`);
+             if (r.ok) {
+               const j = await r.json();
+               const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
+               if (src) { imgEl.src = src; return; }
+             }
+           } catch (e) {}
+         }
          try {
-           const r = await fetch(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=1&mature=false`);
+           const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
            const j = await r.json();
            const hit = j.results && j.results[0];
            if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
          } catch (e) {}
-         imgEl.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}?width=${w}&height=${h}&nologo=true`;
+         imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
        }
        document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('img[data-query]').forEach(resolveImage));
    - For user/team avatars, use https://api.dicebear.com/7.x/initials/svg?seed={Name} or https://api.dicebear.com/7.x/avataaars/svg?seed={Name} directly (no fetch needed).

@@ -213,45 +213,59 @@ All sample/reference data must be India-specific by default:
 Every single image on the page MUST be semantically accurate, visually stunning, and uniquely relevant to its specific card, section, or item.
 NEVER show the same image on multiple cards. NEVER use generic unrelated photos or placeholders.
 
-IMAGE STRATEGY — three free tiers, all no-signup / no-payment:
-  1. Openverse (real, licensed photos — searched by keyword) — tried first for realistic subjects.
-  2. Pollinations AI (generative) — tried when Openverse has no good match.
-  3. placehold.co (solid text placeholder) — final safety net if both fail.
-All three are resolved client-side by ONE shared helper you MUST paste verbatim into the page's <script>:
+IMAGE STRATEGY — four free tiers, all no-signup / no-payment:
+  1. Wikipedia/Wikimedia (real, correctly-licensed photo, looked up by EXACT article title) — tried first for any card about a real, named, identifiable thing: a famous landmark, monument, building, lake, dam/irrigation project, city, brand, public figure, film studio, etc.
+  2. Openverse (real, licensed photos — searched by keyword) — tried when there's no entity title, or Wikipedia has no match. Best for generic real-world subjects (a dish, an activity) that aren't a single named place.
+  3. Pollinations AI (generative) — tried when neither of the above has a good match. Best for invented/fictional subjects (a made-up product name, an abstract concept).
+  4. placehold.co (solid text placeholder) — final safety net if all three fail.
+All four are resolved client-side by ONE shared helper you MUST paste verbatim into the page's <script>:
 
   async function resolveImage(imgEl) {
+    const entity = imgEl.dataset.entity;
     const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
     const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+    if (entity) {
+      try {
+        const r = await fetch(\`https://en.wikipedia.org/api/rest_v1/page/summary/\${encodeURIComponent(entity)}\`);
+        if (r.ok) {
+          const j = await r.json();
+          const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
+          if (src) { imgEl.src = src; return; }
+        }
+      } catch (e) {}
+    }
     try {
-      const r = await fetch(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=1&mature=false`);
+      const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
       const j = await r.json();
       const hit = j.results && j.results[0];
       if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
     } catch (e) {}
-    imgEl.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}?width=${w}&height=${h}&nologo=true`;
+    imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
   }
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('img[data-query]').forEach(resolveImage);
   });
 
 HOW TO MARK UP EVERY CONTENT IMAGE:
-Do NOT hardcode a Pollinations/Openverse URL in src. Instead give the <img> a `data-query` with a vivid, specific 4–8 word description of the EXACT item, landmark, dish, product, or activity on that card, plus the safety-net onerror handler (see below). resolveImage() fills in src at load time.
+Do NOT hardcode a Pollinations/Openverse URL in src. Every content <img> gets a data-query attribute (vivid, specific 4–8 word description — also used as the Openverse/Pollinations fallback text) plus the safety-net onerror handler (see below). resolveImage() fills in src at load time.
+If the card is about a REAL, NAMED, identifiable thing, ALSO add a data-entity attribute set to its best-guess exact Wikipedia article title (e.g. "Charminar", "Golconda Fort", "Ramoji Film City", "Hussain Sagar", "Kaleshwaram Lift Irrigation Scheme", "Warangal Fort") — this is tried first and gives the correct real photo instead of a generic/mismatched one. Omit data-entity for generic or invented subjects (a sample dish, a fictional product, an activity).
 
-  Example (Hero banner, Telangana Tourism):
+  Example (Hero banner, Telangana Tourism — no single entity, generic scene):
     <img data-query="scenic Telangana tourism landscape heritage monuments and lakes golden hour" data-w="1200" data-h="500" alt="Telangana Tourism" loading="lazy" onerror="...">
-  Example (Landmark Card "Warangal Fort"):
-    <img data-query="Warangal Fort Kakatiya stone gateway historical monument Telangana" alt="Warangal Fort" loading="lazy" onerror="...">
-  Example (Food Card "Hyderabadi Chicken Biryani"):
+  Example (Landmark Card "Warangal Fort" — real named entity):
+    <img data-entity="Warangal Fort" data-query="Warangal Fort Kakatiya stone gateway historical monument Telangana" alt="Warangal Fort" loading="lazy" onerror="...">
+  Example (Food Card "Hyderabadi Chicken Biryani" — generic dish, no entity):
     <img data-query="delicious hot hyderabadi chicken biryani in clay pot garnished" alt="Hyderabadi Chicken Biryani" loading="lazy" onerror="...">
-  Example (Electronics Card "Smart 4K OLED TV"):
+  Example (Electronics Card "Smart 4K OLED TV" — generic product, no entity):
     <img data-query="smart 4k oled tv displaying vibrant colors in modern living room" alt="Smart 4K OLED TV" loading="lazy" onerror="...">
-  Example (Real Estate Card "3 BHK Luxury Villa"):
+  Example (Real Estate Card "3 BHK Luxury Villa" — generic listing, no entity):
     <img data-query="modern luxury villa exterior private swimming pool evening" alt="3 BHK Luxury Villa" loading="lazy" onerror="...">
 
 DYNAMIC CLIENT-SIDE / JAVASCRIPT RENDERING:
-If items or cards are rendered dynamically via JavaScript (from an array or localStorage), set data-query on the created <img> element and call resolveImage(imgEl) right after inserting it into the DOM — do NOT set src directly:
+If items or cards are rendered dynamically via JavaScript (from an array or localStorage), set data-query (and data-entity when the item is a real named thing) on the created <img> element and call resolveImage(imgEl) right after inserting it into the DOM — do NOT set src directly:
   const img = document.createElement('img');
-  img.dataset.query = `${item.name} ${item.category || ''} professional high quality photography`;
+  if (item.isRealEntity) img.dataset.entity = item.name;
+  img.dataset.query = \`\${item.name} \${item.category || ''} professional high quality photography\`;
   img.alt = item.name; img.loading = 'lazy';
   img.onerror = function(){ if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');} else { this.onerror=null; } };
   container.appendChild(img);
@@ -270,7 +284,7 @@ SAFETY & FALLBACK RULES:
 • NEVER use source.unsplash.com (shut down, returns 503).
 • NEVER use picsum.photos (random unrelated photos).
 • NEVER invent broken CDN paths.
-• NEVER repeat the same data-query across multiple cards.
+• NEVER repeat the same data-query or data-entity across multiple cards.
 
 ══════════════════════════════════════════════════════
 BEHAVIOUR
@@ -377,9 +391,10 @@ CONTENT CHECK:
 
 IMAGE CHECK:
   ✓ The resolveImage() helper is pasted verbatim into <script>, and runs on DOMContentLoaded for all img[data-query]
-  ✓ Every content <img> has a data-query with a specific 4–8 word natural language description (Openverse → Pollinations → placehold.co cascade), DiceBear for avatars
+  ✓ Every content <img> has a data-query with a specific 4–8 word natural language description (Wikipedia → Openverse → Pollinations → placehold.co cascade), DiceBear for avatars
+  ✓ Every card about a real named landmark/place/brand also has data-entity set to its exact Wikipedia title
   ✓ Each card/section's data-query reflects THAT card's specific subject and is completely unique
-  ✓ No duplicate data-query values across different cards
+  ✓ No duplicate data-query or data-entity values across different cards
   ✓ NO loremflickr.com (avoids random cat fallbacks) and NO picsum.photos (unrelated photos)
   ✓ Every <img> has onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
 
