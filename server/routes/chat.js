@@ -23,12 +23,25 @@ const express = require('express');
 const antigravity    = require('../services/antigravity');
 const { analyzePlanPhase, compileSpec } = require('../services/planPhase');
 const { getFileContent } = require('../services/githubService');
-const { auditAndHeal, fullQualityPass } = require('../services/codeQuality');
+const { auditAndHeal, fullQualityPass, bakeImages } = require('../services/codeQuality');
 const { pooledStream, pooledGenerate } = require('../services/geminiPool');
 const { checkGate, quickSection } = require('../middleware/packageGate');
 const { recordSession } = require('../services/firestoreService');
 
 const router = express.Router();
+
+// Bakes real image src values into the ```html block of a full assistant
+// response (REPO_NAME line + fenced code), preserving everything else as-is.
+async function bakeImagesInResponse(text) {
+  const htmlMatch = text.match(/```html\s*([\s\S]*?)```/i)
+                 || text.match(/```html\s*([\s\S]*?<\/html>)/i);
+  if (!htmlMatch) return text;
+  const baked = await bakeImages(htmlMatch[1]);
+  if (baked === htmlMatch[1]) return text; // nothing to change
+  return text.slice(0, htmlMatch.index) +
+    '```html\n' + baked.trim() + '\n```' +
+    text.slice(htmlMatch.index + htmlMatch[0].length);
+}
 
 // ── Fixed mode questions (multi-language) ───────────────────────────
 const I18N_MODE_QUESTIONS = {
@@ -903,7 +916,10 @@ ${langDirective}`;
         if (htmlMatch) {
           const rawHtml = htmlMatch[1].trim();
           const healed = await auditAndHeal(rawHtml, apiKey, 'gemini-2.5-flash');
-          if (healed && healed.healed) {
+          // Use healed.code unconditionally — bakeImages() inside auditAndHeal
+          // always resolves image src values even when no structural repair
+          // was needed (healed.healed only reflects whether an LLM repair ran).
+          if (healed && healed.code) {
             const introMatch = capturedResponse.match(/^([^`]+)/);
             const intro = introMatch ? introMatch[1].trim() + '\n\n' : '';
             finalEdit = `${intro}\`\`\`html\n${healed.code}\n\`\`\``;
@@ -1177,6 +1193,17 @@ ${langDirective}`;
     if (!capturedText) {
       sendEvent('error', { message: 'No response received. Please try again.' });
       return res.end();
+    }
+
+    // ── Bake real image src values (data-query/data-entity → resolved URL) ──
+    // Runs unconditionally — unrelated to the semantic quality gate below —
+    // so every build gets working images regardless of enrichedNotes length.
+    if (/```html/i.test(capturedText)) {
+      try {
+        capturedText = await bakeImagesInResponse(capturedText);
+      } catch (imgErr) {
+        console.warn('[BakeImages] Non-fatal — proceeding with original:', imgErr.message);
+      }
     }
 
     // ── Semantic quality pass (audit → self-heal → re-audit) ─────────

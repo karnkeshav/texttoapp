@@ -121,7 +121,24 @@ router.post('/push', requireAuth, async (req, res) => {
   }
 
   try {
-    const processed = processFiles(files, process.env.BACKEND_ORIGIN);
+    const apiKey = process.env.GEMINI_API_KEY;
+    const model  = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
+    // Bake real image src values (data-query/data-entity → resolved URL)
+    // before pushing — same as /deploy. Non-fatal on error: push proceeds
+    // with whatever src the file already has rather than blocking updates.
+    const auditedFiles = await Promise.all(files.map(async (file) => {
+      if (!file.path.endsWith('.html')) return file;
+      try {
+        const { code } = await auditAndHeal(file.content, apiKey, model);
+        return { ...file, content: code };
+      } catch (auditErr) {
+        console.warn('[Push] auditAndHeal non-fatal:', auditErr.message);
+        return file;
+      }
+    }));
+
+    const processed = processFiles(auditedFiles, process.env.BACKEND_ORIGIN);
     const repoUrl   = await pushFiles(req.githubToken, owner, repo, processed, 'Update app via Ready4Launch', branch);
     const pagesUrl  = await enablePages(req.githubToken, owner, repo, branch);
     res.json({ success: true, repoUrl, pagesUrl });
