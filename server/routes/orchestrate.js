@@ -314,7 +314,8 @@ DESIGN & TECHNICAL SPECIFICATIONS:
    - Use Lucide icons or FontAwesome via CDN or inline SVG icons.
    - Fully responsive for desktop and mobile devices.
 4. Semantic Imagery & Fallbacks (four free, no-signup tiers, resolved client-side):
-   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject (never src directly). If the card is about a REAL, NAMED, identifiable thing (a famous landmark, monument, building, lake, dam/project, brand, public figure), ALSO add data-entity set to its best-guess exact Wikipedia article title — this is tried first and avoids generic/mismatched photos. Omit data-entity for generic or invented subjects (a sample dish, a fictional product).
+   - Applies to EVERY domain with zero exceptions and zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, automotive, or anything else the user asks for. Decide data-query/data-entity per card, live, from that card's actual title/content.
+   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject (never src directly). If the card is about a REAL, NAMED, identifiable thing (a famous landmark, monument, building, lake, dam/project, brand, public figure), ALSO add data-entity set to its best-guess exact Wikipedia article title — this is tried first and avoids generic/mismatched photos. Omit data-entity for generic or invented subjects (a sample dish, a fictional product, a generic service/activity).
    - Paste this helper verbatim into <script> and call it for every img[data-query] on DOMContentLoaded:
        async function resolveImage(imgEl) {
          const entity = imgEl.dataset.entity;

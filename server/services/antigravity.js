@@ -247,17 +247,20 @@ All four are resolved client-side by ONE shared helper you MUST paste verbatim i
   });
 
 HOW TO MARK UP EVERY CONTENT IMAGE:
+This applies to EVERY domain with zero exceptions and zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, legal, automotive, agriculture, or anything else the user asks for. Decide data-query (and optional data-entity) per card, live, from that card's actual title/content — never from a fixed list.
 Do NOT hardcode a Pollinations/Openverse URL in src. Every content <img> gets a data-query attribute (vivid, specific 4–8 word description — also used as the Openverse/Pollinations fallback text) plus the safety-net onerror handler (see below). resolveImage() fills in src at load time.
-If the card is about a REAL, NAMED, identifiable thing, ALSO add a data-entity attribute set to its best-guess exact Wikipedia article title (e.g. "Charminar", "Golconda Fort", "Ramoji Film City", "Hussain Sagar", "Kaleshwaram Lift Irrigation Scheme", "Warangal Fort") — this is tried first and gives the correct real photo instead of a generic/mismatched one. Omit data-entity for generic or invented subjects (a sample dish, a fictional product, an activity).
+If the card is about a REAL, NAMED, identifiable thing, ALSO add a data-entity attribute set to its best-guess exact Wikipedia article title — this is tried first and gives the correct real photo instead of a generic/mismatched one. Omit data-entity for generic, invented, or made-to-order subjects (a sample dish, a fictional product, a generic service/activity) — these have no single Wikipedia page and should go straight to Openverse/Pollinations.
 
-  Example (Hero banner, Telangana Tourism — no single entity, generic scene):
-    <img data-query="scenic Telangana tourism landscape heritage monuments and lakes golden hour" data-w="1200" data-h="500" alt="Telangana Tourism" loading="lazy" onerror="...">
   Example (Landmark Card "Warangal Fort" — real named entity):
     <img data-entity="Warangal Fort" data-query="Warangal Fort Kakatiya stone gateway historical monument Telangana" alt="Warangal Fort" loading="lazy" onerror="...">
-  Example (Food Card "Hyderabadi Chicken Biryani" — generic dish, no entity):
-    <img data-query="delicious hot hyderabadi chicken biryani in clay pot garnished" alt="Hyderabadi Chicken Biryani" loading="lazy" onerror="...">
-  Example (Electronics Card "Smart 4K OLED TV" — generic product, no entity):
-    <img data-query="smart 4k oled tv displaying vibrant colors in modern living room" alt="Smart 4K OLED TV" loading="lazy" onerror="...">
+  Example (Carpentry Card "Handcrafted Teak Dining Table" — generic product, no entity):
+    <img data-query="handcrafted solid teakwood dining table polished wood grain craftsmanship" alt="Handcrafted Teak Dining Table" loading="lazy" onerror="...">
+  Example (Electrical Appliance Card "1.5 Ton Inverter Split AC" — generic product, no entity):
+    <img data-query="1.5 ton inverter split AC unit mounted on modern living room wall" alt="1.5 Ton Inverter Split AC" loading="lazy" onerror="...">
+  Example (Cookery Recipe Card "Paneer Butter Masala" — generic dish, no entity):
+    <img data-query="creamy paneer butter masala garnished with cream in copper bowl" alt="Paneer Butter Masala" loading="lazy" onerror="...">
+  Example (Brand/Tool Card "Bosch GSB 13 RE Drill" — real named product, has a Wikipedia/brand page):
+    <img data-entity="Bosch" data-query="Bosch GSB 13 RE corded impact drill on workbench" alt="Bosch GSB 13 RE Drill" loading="lazy" onerror="...">
   Example (Real Estate Card "3 BHK Luxury Villa" — generic listing, no entity):
     <img data-query="modern luxury villa exterior private swimming pool evening" alt="3 BHK Luxury Villa" loading="lazy" onerror="...">
 
