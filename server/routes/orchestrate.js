@@ -313,7 +313,25 @@ DESIGN & TECHNICAL SPECIFICATIONS:
    - Include interactive modal forms, action triggers, export to CSV/JSON, theme toggle, and instant feedback.
    - Use Lucide icons or FontAwesome via CDN or inline SVG icons.
    - Fully responsive for desktop and mobile devices.
-4. Robust JavaScript:
+4. Semantic Imagery & Fallbacks (three free, no-signup tiers, resolved client-side):
+   - Give every content <img> a data-query attribute with a vivid, specific 4-8 word description of that exact card's subject (never src directly).
+   - Paste this helper verbatim into <script> and call it for every img[data-query] on DOMContentLoaded:
+       async function resolveImage(imgEl) {
+         const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
+         const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+         try {
+           const r = await fetch(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=1&mature=false`);
+           const j = await r.json();
+           const hit = j.results && j.results[0];
+           if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
+         } catch (e) {}
+         imgEl.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}?width=${w}&height=${h}&nologo=true`;
+       }
+       document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('img[data-query]').forEach(resolveImage));
+   - For user/team avatars, use https://api.dicebear.com/7.x/initials/svg?seed={Name} or https://api.dicebear.com/7.x/avataaars/svg?seed={Name} directly (no fetch needed).
+   - Every <img> MUST have onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
+   - NEVER use loremflickr.com or source.unsplash.com.
+5. Robust JavaScript:
    - Zero undefined variables or broken DOM selectors.
    - LocalStorage persistence for user actions.
    - Beautiful visual feedback and animations.

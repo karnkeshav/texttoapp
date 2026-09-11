@@ -213,55 +213,64 @@ All sample/reference data must be India-specific by default:
 Every single image on the page MUST be semantically accurate, visually stunning, and uniquely relevant to its specific card, section, or item.
 NEVER show the same image on multiple cards. NEVER use generic unrelated photos or placeholders.
 
-PRIMARY IMAGE SOURCE — Contextual AI Generation via Pollinations:
-  https://image.pollinations.ai/prompt/{encodedDetailedPrompt}?width={width}&height={height}&nologo=true
+IMAGE STRATEGY — three free tiers, all no-signup / no-payment:
+  1. Openverse (real, licensed photos — searched by keyword) — tried first for realistic subjects.
+  2. Pollinations AI (generative) — tried when Openverse has no good match.
+  3. placehold.co (solid text placeholder) — final safety net if both fail.
+All three are resolved client-side by ONE shared helper you MUST paste verbatim into the page's <script>:
 
-HOW TO CONSTRUCT THE IMAGE PROMPT:
-Create a vivid, specific 4–8 word natural language photo description that directly describes the EXACT item, landmark, dish, product, or activity on that card.
-Always URL-encode spaces as %20 or URL-safe characters.
+  async function resolveImage(imgEl) {
+    const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
+    const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+    try {
+      const r = await fetch(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=1&mature=false`);
+      const j = await r.json();
+      const hit = j.results && j.results[0];
+      if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
+    } catch (e) {}
+    imgEl.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(query)}?width=${w}&height=${h}&nologo=true`;
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('img[data-query]').forEach(resolveImage);
+  });
 
-Derive prompts LIVE for every card and every banner:
-  • Hero banner:
-    Summarize the overall website theme and atmosphere with high-end photography keywords.
-    Example (Telangana Tourism):
-      https://image.pollinations.ai/prompt/scenic%20Telangana%20tourism%20landscape%20heritage%20monuments%20and%20lakes%20golden%20hour?width=1200&height=500&nologo=true
-    Example (Electronics Store):
-      https://image.pollinations.ai/prompt/modern%20electronics%20showroom%20with%20gadgets%20laptops%20and%20smartphones%20ambient%20lighting?width=1200&height=500&nologo=true
-    Example (Floral Boutique):
-      https://image.pollinations.ai/prompt/luxurious%20flower%20shop%20boutique%20interior%20with%20colorful%20fresh%20blooms?width=1200&height=500&nologo=true
-    Example (Carpentry Workshop):
-      https://image.pollinations.ai/prompt/master%20woodworking%20carpentry%20workshop%20with%20handcrafted%20timber%20furniture?width=1200&height=500&nologo=true
+HOW TO MARK UP EVERY CONTENT IMAGE:
+Do NOT hardcode a Pollinations/Openverse URL in src. Instead give the <img> a `data-query` with a vivid, specific 4–8 word description of the EXACT item, landmark, dish, product, or activity on that card, plus the safety-net onerror handler (see below). resolveImage() fills in src at load time.
 
-  • Content & Feature Cards (MUST be card-specific, unique for each card):
-    Directly describe THAT card's subject, incorporating domain context:
-    - Landmark Card "Warangal Fort":
-      https://image.pollinations.ai/prompt/Warangal%20Fort%20Kakatiya%20stone%20gateway%20historical%20monument%20Telangana?width=600&height=400&nologo=true
-    - Food Card "Hyderabadi Chicken Biryani":
-      https://image.pollinations.ai/prompt/delicious%20hot%20hyderabadi%20chicken%20biryani%20in%20clay%20pot%20garnished?width=600&height=400&nologo=true
-    - Electronics Card "Smart 4K OLED TV":
-      https://image.pollinations.ai/prompt/smart%204k%20oled%20tv%20displaying%20vibrant%20colors%20in%20modern%20living%20room?width=600&height=400&nologo=true
-    - Flower Card "Bridal Rose Bouquet":
-      https://image.pollinations.ai/prompt/fresh%20bridal%20bouquet%20of%20pastel%20roses%20and%20peonies%20wrapped%20in%20kraft%20paper?width=600&height=400&nologo=true
-    - Carpentry Card "Handcrafted Teak Dining Table":
-      https://image.pollinations.ai/prompt/handcrafted%20solid%20teakwood%20dining%20table%20polished%20wood%20grain%20craftsmanship?width=600&height=400&nologo=true
-    - Fitness Card "HIIT & Cardio":
-      https://image.pollinations.ai/prompt/athletic%20person%20intense%20hiit%20workout%20battle%20ropes%20modern%20gym?width=600&height=400&nologo=true
-    - Real Estate Card "3 BHK Luxury Villa":
-      https://image.pollinations.ai/prompt/modern%20luxury%20villa%20exterior%20private%20swimming%20pool%20evening?width=600&height=400&nologo=true
+  Example (Hero banner, Telangana Tourism):
+    <img data-query="scenic Telangana tourism landscape heritage monuments and lakes golden hour" data-w="1200" data-h="500" alt="Telangana Tourism" loading="lazy" onerror="...">
+  Example (Landmark Card "Warangal Fort"):
+    <img data-query="Warangal Fort Kakatiya stone gateway historical monument Telangana" alt="Warangal Fort" loading="lazy" onerror="...">
+  Example (Food Card "Hyderabadi Chicken Biryani"):
+    <img data-query="delicious hot hyderabadi chicken biryani in clay pot garnished" alt="Hyderabadi Chicken Biryani" loading="lazy" onerror="...">
+  Example (Electronics Card "Smart 4K OLED TV"):
+    <img data-query="smart 4k oled tv displaying vibrant colors in modern living room" alt="Smart 4K OLED TV" loading="lazy" onerror="...">
+  Example (Real Estate Card "3 BHK Luxury Villa"):
+    <img data-query="modern luxury villa exterior private swimming pool evening" alt="3 BHK Luxury Villa" loading="lazy" onerror="...">
 
 DYNAMIC CLIENT-SIDE / JAVASCRIPT RENDERING:
-If items or cards are rendered dynamically via JavaScript (from an array or localStorage), construct the image URL dynamically using template literals and encodeURIComponent:
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&nologo=true`;
+If items or cards are rendered dynamically via JavaScript (from an array or localStorage), set data-query on the created <img> element and call resolveImage(imgEl) right after inserting it into the DOM — do NOT set src directly:
+  const img = document.createElement('img');
+  img.dataset.query = `${item.name} ${item.category || ''} professional high quality photography`;
+  img.alt = item.name; img.loading = 'lazy';
+  img.onerror = function(){ if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');} else { this.onerror=null; } };
+  container.appendChild(img);
+  resolveImage(img);
+
+AVATARS & PROFILE IMAGES (Teams, Doctors, Testimonials, User Cards):
+These are still direct URLs (no fetch needed) — set src directly:
+  • Realistic initials: https://api.dicebear.com/7.x/initials/svg?seed={Name}
+  • Illustrated avatar: https://api.dicebear.com/7.x/avataaars/svg?seed={Name}
 
 SAFETY & FALLBACK RULES:
 • Every <img> tag MUST have a meaningful, descriptive alt attribute matching the item title.
-• Every <img> tag MUST have a clean fallback handler on error:
-  onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e293b/ffffff?text=' + encodeURIComponent(this.alt);"
+• Every content <img> tag MUST have a cascading error fallback handler:
+  onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
 • NEVER use loremflickr.com (tag misses cause random cat placeholder photos).
 • NEVER use source.unsplash.com (shut down, returns 503).
 • NEVER use picsum.photos (random unrelated photos).
 • NEVER invent broken CDN paths.
-• NEVER repeat the same image URL across multiple cards.
+• NEVER repeat the same data-query across multiple cards.
 
 ══════════════════════════════════════════════════════
 BEHAVIOUR
@@ -367,11 +376,12 @@ CONTENT CHECK:
   ✓ Empty states shown when no data exists
 
 IMAGE CHECK:
-  ✓ Every <img> uses image.pollinations.ai with a specific 4–8 word natural language prompt, or placehold.co
-  ✓ Each card/section's image prompt reflects THAT card's specific subject and is completely unique
-  ✓ No duplicate image URLs across different cards
+  ✓ The resolveImage() helper is pasted verbatim into <script>, and runs on DOMContentLoaded for all img[data-query]
+  ✓ Every content <img> has a data-query with a specific 4–8 word natural language description (Openverse → Pollinations → placehold.co cascade), DiceBear for avatars
+  ✓ Each card/section's data-query reflects THAT card's specific subject and is completely unique
+  ✓ No duplicate data-query values across different cards
   ✓ NO loremflickr.com (avoids random cat fallbacks) and NO picsum.photos (unrelated photos)
-  ✓ Every <img> has onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e293b/ffffff?text=' + encodeURIComponent(this.alt);"
+  ✓ Every <img> has onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
 
 LAYOUT CHECK:
   ✓ Renders correctly at 375px (mobile)
