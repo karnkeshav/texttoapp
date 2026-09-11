@@ -212,27 +212,50 @@ All sample/reference data must be India-specific by default:
 ▌ IMAGES — STRICT RULES
 Use ONLY these image sources:
 
-PRIMARY — domain-matched photos:
-  https://loremflickr.com/{width}/{height}/{keyword1},{keyword2}?lock={N}
+PRIMARY — subject-matched photos:
+  https://loremflickr.com/{width}/{height}/{specificKeyword},{domainKeyword}?lock={N}
 
-CRITICAL KEYWORD RULE — use the APP DOMAIN keywords, NOT the card/section title.
-Every <img> on the same site shares the same 2 keywords. Only ?lock={N} changes per image.
-  ❌ WRONG: HIIT card → /hiit,cardio?lock=2  (Flickr has almost no "hiit" photos → cat statues)
-  ✅ RIGHT:  HIIT card → /gym,fitness?lock=2  (Flickr has thousands → relevant gym photos)
+CRITICAL KEYWORD RULE — derive keywords LIVE from the actual prompt and actual card
+content every time. Never select them from a fixed list — there is no lookup table.
+Two keywords per image, worked out fresh for each build:
 
-DOMAIN → KEYWORDS (always use these exact keywords — proven Flickr-rich tags):
-  Carpenter/furniture → furniture,wood
-  Restaurant/food     → food,restaurant
-  Gym/fitness         → gym,fitness
-  Yoga/wellness       → yoga,wellness
-  Real estate         → house,interior
-  Fashion/clothing    → fashion,clothing
-  Travel              → travel,landscape
-  Tech/software       → technology,office
-  Beauty/salon        → beauty,salon
-  Education           → education,classroom
-  Healthcare          → healthcare,medical
-  Photography         → photography,camera
+  keyword1 (per-card, changes on every card) =
+    the specific noun this card/section is actually about, taken directly from
+    ITS OWN title/heading text. Strip filler words (the, and, a, package, experience,
+    section). Lowercase, no spaces (join multi-word names: "hussain sagar" → "hussainsagar").
+      Charminar card title "Charminar – Icon of Hyderabad"        → "charminar"
+      Menu card title "Hyderabadi Chicken Biryani"                → "biryani"
+      Product card title "Men's Running Sneakers"                 → "sneakers"
+      Service card title "Deep Tissue Massage"                    → "massage"
+
+  keyword2 (page-level, same for every card) =
+    one broad category noun that summarizes what THIS app is about, worked out from
+    the user's own prompt/app name — not from any preset domain list. If the user's
+    prompt was "tourism app for Telangana", keyword2 = "travel" or "telangana". If it
+    was "app for my pet grooming business", keyword2 = "petgrooming" or "dog". Whatever
+    the app is, name it in one plain English word or joined phrase yourself.
+
+  Combine as keyword1,keyword2 so every card's photo pool is anchored to THAT card's
+  own subject, with the page-level category only as a relevance backstop — never as
+  the sole driver of which photo shows up.
+
+  ❌ WRONG: every card on a Telangana tourism site → /travel,landscape?lock={N}
+            (Charminar, Golconda Fort, Ramoji Film City all draw from the same
+            generic pool — captions and photos stop matching each other)
+  ✅ RIGHT:  Charminar card     → /charminar,travel?lock=2
+             Golconda Fort card → /golconda,travel?lock=3
+             Ramoji Film City   → /ramojifilmcity,travel?lock=4
+             (each card's own name drives the photo; "travel" just keeps results
+             in-genre if the specific name has thin Flickr coverage)
+
+  ❌ WRONG: HIIT card → /hiit,cardio?lock=2  (an obscure specific term can return
+            near-nothing → Flickr falls back to unrelated junk)
+  ✅ RIGHT:  HIIT card → /hiit,gym?lock=2   (still card-specific; "gym" is this
+             app's own page-level category, derived from the prompt, not a table)
+
+  This must work identically for ANY domain the user types — food, real estate,
+  events, agriculture, pet care, retail, anything — because both keywords are
+  computed from that specific prompt and that specific card, never memorized.
 
 LOCK VALUES — increment by 1 for every image on the page (never repeat the same lock value):
   Hero image:          ?lock=1
@@ -242,12 +265,22 @@ LOCK VALUES — increment by 1 for every image on the page (never repeat the sam
   Gallery card 4:      ?lock=5
   … and so on
 
-  Example (fitness site, 4 program cards):
-  https://loremflickr.com/1200/500/gym,fitness?lock=1       ← hero banner
-  https://loremflickr.com/400/300/gym,fitness?lock=2        ← Strength Training card
-  https://loremflickr.com/400/300/gym,fitness?lock=3        ← HIIT & Cardio card
-  https://loremflickr.com/400/300/gym,fitness?lock=4        ← Yoga card
-  https://loremflickr.com/400/300/gym,fitness?lock=5        ← Personal Training card
+  Example (Telangana tourism site, 4 destination cards — app category noun = "travel"):
+  https://loremflickr.com/1200/500/telangana,travel?lock=1        ← hero banner (regional, not one place)
+  https://loremflickr.com/400/300/charminar,travel?lock=2         ← Charminar card
+  https://loremflickr.com/400/300/golconda,travel?lock=3          ← Golconda Fort card
+  https://loremflickr.com/400/300/hussainsagar,travel?lock=4      ← Hussain Sagar card
+  https://loremflickr.com/400/300/ramojifilmcity,travel?lock=5    ← Ramoji Film City card
+
+  Example (fitness site, 4 program cards — app category noun = "gym"):
+  https://loremflickr.com/1200/500/gym,fitness?lock=1        ← hero banner
+  https://loremflickr.com/400/300/strength,gym?lock=2        ← Strength Training card
+  https://loremflickr.com/400/300/hiit,gym?lock=3            ← HIIT & Cardio card
+  https://loremflickr.com/400/300/yoga,gym?lock=4            ← Yoga card
+  https://loremflickr.com/400/300/personaltrainer,gym?lock=5 ← Personal Training card
+
+  These two examples are illustrations of the METHOD, not a list to match against —
+  apply the same derivation to whatever domain the current prompt actually describes.
 
 FALLBACK — only when domain keyword is unclear:
   https://placehold.co/{width}x{height}/{bgColor}/{textColor}?text={label}
@@ -362,8 +395,9 @@ CONTENT CHECK:
   ✓ Empty states shown when no data exists
 
 IMAGE CHECK:
-  ✓ Every <img> uses loremflickr.com (with domain-matching keywords), placehold.co, or inline SVG
-  ✓ loremflickr URLs contain 2-3 keywords that actually match the app's subject matter
+  ✓ Every <img> uses loremflickr.com (with subject-matching keywords), placehold.co, or inline SVG
+  ✓ Each card/section's image keywords reflect THAT card's specific subject, not one fixed
+    pair reused across the whole page (e.g. per-destination, per-dish, per-product keywords)
   ✓ Each loremflickr image in a gallery has a unique ?lock={N} value
   ✓ NO picsum.photos (random, unrelated photos)
   ✓ Every <img> has onerror="this.style.display='none'"
