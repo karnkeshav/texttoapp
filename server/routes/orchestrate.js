@@ -216,12 +216,15 @@ async function handleOrchestration(req, res) {
           domainTitle = '💰 Multi-Cloud FinOps Intelligence';
           domainType = 'finops';
           domainSysPrompt = `You are the AI Multi-Cloud FinOps & Cost Intelligence Assistant covering AWS, Oracle Cloud (OCI), Microsoft Azure, and Google Cloud (GCP).
-Answer the user's cost/FinOps request with structured, readable markdown.
-Include:
-1. Clear spend summary per cloud provider with icons (🔶 AWS, 🔴 OCI, 🔷 Azure, ⚪ GCP).
-2. Key active infrastructure and cost drivers (Compute Instances, Storage Vaults, Bandwidth).
-3. Quantified monthly optimization recommendations (Active Assist, Idle Disks, Reserved Instances).
-4. Mermaid diagram or summary comparison table when relevant.
+Answer the user's cost/FinOps request thoroughly with structured markdown.
+
+FORMATTING INSTRUCTIONS:
+- If the user asks for "tabular" or "table" format: Output the spend breakdown in a clean Markdown table (| Cloud Provider | Period | Monthly Spend | Currency | Status / Source | Primary Drivers |) followed by an aggregated total row.
+- If the user asks for "graphical" or "chart" or "diagram" presentation: Include interactive Mermaid diagrams (\`\`\`mermaid pie ... \`\`\` or \`\`\`mermaid xychart-beta ... \`\`\`) along with summary financial highlights.
+- If the user asks for "sentence" or "narrative" or "in words" format: Write in flowing, natural English sentences and bulleted narrative explanations without Markdown tables or code blocks.
+- If no specific format is requested: Provide a comprehensive multi-perspective response (Executive spend KPI, Markdown table breakdown, Mermaid distribution chart, and actionable optimization insights).
+
+Include clear spend summary per cloud provider with icons (🔶 AWS, 🔴 OCI, 🔷 Azure, ⚪ GCP), key cost drivers, and quantified optimization recommendations.
 Do NOT output raw HTML documents or app code. Return pure, high-value Markdown.`;
         } else if (category === 'cloud' || /(?:instance|vm|server|ec2|bucket|s3|infrastructure|storage)/i.test(pLower)) {
           addLog(`[00:01] ☁️ Antigravity Cloud Engine: Auditing multi-cloud infrastructure & compute instances across AWS, OCI, Azure & GCP...`);
@@ -229,26 +232,31 @@ Do NOT output raw HTML documents or app code. Return pure, high-value Markdown.`
           domainTitle = '☁️ Multi-Cloud Infrastructure Inventory';
           domainType = 'cloud_query';
           domainSysPrompt = `You are the AI Multi-Cloud Infrastructure Architect covering AWS, OCI, Azure, and GCP.
-Answer the user's infrastructure query with structured markdown inventory tables (Provider, Instance/Resource Name, Shape/Machine Type, Zone/Region, State, IP) and status insights.`;
+Answer the user's infrastructure query with structured markdown.
+FORMATTING INSTRUCTIONS:
+- If tabular/table requested: Return markdown inventory tables (Provider, Instance/Resource Name, Shape/Machine Type, Zone/Region, State, IP) with total rows.
+- If graphical/chart requested: Return Mermaid distribution pie charts or flowchart diagrams (\`\`\`mermaid flowchart TD ... \`\`\`).
+- If sentence/narrative requested: Write in concise, professional English sentences and bullet summaries without tables or code blocks.
+- If default: Provide summary count, markdown inventory table, and Mermaid architecture diagram.`;
         } else if (category === 'shop' || /(?:deal|discount|amazon|flipkart|blinkit|zepto|meesho|buy|earphone|laptop|phone)/i.test(pLower)) {
           addLog(`[00:01] 🛍️ Antigravity Commerce Engine: Searching deal arbitrage across Amazon, Flipkart, Blinkit, Zepto & Meesho...`);
           domainTitle = '🛍️ Visual Best Deal Comparison';
           domainType = 'shopping';
           domainSysPrompt = `You are the AI Indian E-Commerce Price Arbitrage Assistant comparing Amazon, Flipkart, Blinkit, Zepto, and Meesho.
-Provide side-by-side pricing tables, delivery ETAs, discount breakdown, and smart ordering recommendations in markdown.`;
+Provide side-by-side pricing tables, delivery ETAs, discount breakdown, and smart ordering recommendations in markdown. Respect formatting directives (tabular tables, charts, or sentence recommendations) requested by the user.`;
         } else if (category === 'food' || /(?:food|paneer|biryani|pizza|burger|zomato|swiggy|restaurant)/i.test(pLower)) {
           addLog(`[00:01] 🍲 Antigravity Food Engine: Comparing restaurant dish pricing & delivery ETAs across Zomato & Swiggy...`);
           domainTitle = '🍲 Food Delivery Arbitrage';
           domainType = 'food_comparison';
-          domainSysPrompt = `You are the AI Food Delivery Intelligence Assistant comparing Zomato and Swiggy. Provide cheapest restaurant vs fastest delivery comparisons in markdown.`;
+          domainSysPrompt = `You are the AI Food Delivery Intelligence Assistant comparing Zomato and Swiggy. Provide cheapest restaurant vs fastest delivery comparisons in markdown. Respect tabular, graphical, or narrative format requests.`;
         } else if (category === 'travel' || /(?:ride|cab|fare|uber|ola|rapido|auto|bike taxi)/i.test(pLower)) {
           addLog(`[00:01] 🚖 Antigravity Mobility Engine: Calculating 3-way route fare arbitrage (Rapido vs Uber vs Ola)...`);
           domainTitle = '🚖 Mobility Fare Comparison';
           domainType = 'ride_comparison';
-          domainSysPrompt = `You are the 3-Way Mobility Arbitrage Assistant (Rapido vs Uber vs Ola). Compare bike taxi, auto rickshaw, and cab fares with ranking and recommendations.`;
+          domainSysPrompt = `You are the 3-Way Mobility Arbitrage Assistant (Rapido vs Uber vs Ola). Compare bike taxi, auto rickshaw, and cab fares with ranking and recommendations in markdown. Respect tabular, graphical, or sentence format requests.`;
         } else {
           addLog(`[00:01] 🧠 Antigravity Intelligence Engine: Processing request...`);
-          domainSysPrompt = `You are the Antigravity Autonomous AI Assistant. Answer the user's request thoroughly, accurately, and cleanly using formatted markdown.`;
+          domainSysPrompt = `You are the Antigravity Autonomous AI Assistant. Answer the user's request thoroughly, accurately, and cleanly using formatted markdown. Respect any requested presentation styles (tables, charts, or narrative sentences).`;
         }
 
         let directAnswer = '';

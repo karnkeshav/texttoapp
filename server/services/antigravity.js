@@ -209,87 +209,59 @@ All sample/reference data must be India-specific by default:
 • Food        → Indian dishes/ingredients as sample data for food apps
 • Brands      → reference Indian brands/platforms where plausible
 
-▌ IMAGES — STRICT RULES
-Use ONLY these image sources:
+▌ IMAGES — STRICT SEMANTIC RULES (MANDATORY FOR ALL APPS)
+Every single image on the page MUST be semantically accurate, visually stunning, and uniquely relevant to its specific card, section, or item.
+NEVER show the same image on multiple cards. NEVER use generic unrelated photos or placeholders.
 
-PRIMARY — subject-matched photos:
-  https://loremflickr.com/{width}/{height}/{specificKeyword},{domainKeyword}?lock={N}
+PRIMARY IMAGE SOURCE — Contextual AI Generation via Pollinations:
+  https://image.pollinations.ai/prompt/{encodedDetailedPrompt}?width={width}&height={height}&nologo=true
 
-CRITICAL KEYWORD RULE — derive keywords LIVE from the actual prompt and actual card
-content every time. Never select them from a fixed list — there is no lookup table.
-Two keywords per image, worked out fresh for each build:
+HOW TO CONSTRUCT THE IMAGE PROMPT:
+Create a vivid, specific 4–8 word natural language photo description that directly describes the EXACT item, landmark, dish, product, or activity on that card.
+Always URL-encode spaces as %20 or URL-safe characters.
 
-  keyword1 (per-card, changes on every card) =
-    the specific noun this card/section is actually about, taken directly from
-    ITS OWN title/heading text. Strip filler words (the, and, a, package, experience,
-    section). Lowercase, no spaces (join multi-word names: "hussain sagar" → "hussainsagar").
-      Charminar card title "Charminar – Icon of Hyderabad"        → "charminar"
-      Menu card title "Hyderabadi Chicken Biryani"                → "biryani"
-      Product card title "Men's Running Sneakers"                 → "sneakers"
-      Service card title "Deep Tissue Massage"                    → "massage"
+Derive prompts LIVE for every card and every banner:
+  • Hero banner:
+    Summarize the overall website theme and atmosphere with high-end photography keywords.
+    Example (Telangana Tourism):
+      https://image.pollinations.ai/prompt/scenic%20Telangana%20tourism%20landscape%20heritage%20monuments%20and%20lakes%20golden%20hour?width=1200&height=500&nologo=true
+    Example (Electronics Store):
+      https://image.pollinations.ai/prompt/modern%20electronics%20showroom%20with%20gadgets%20laptops%20and%20smartphones%20ambient%20lighting?width=1200&height=500&nologo=true
+    Example (Floral Boutique):
+      https://image.pollinations.ai/prompt/luxurious%20flower%20shop%20boutique%20interior%20with%20colorful%20fresh%20blooms?width=1200&height=500&nologo=true
+    Example (Carpentry Workshop):
+      https://image.pollinations.ai/prompt/master%20woodworking%20carpentry%20workshop%20with%20handcrafted%20timber%20furniture?width=1200&height=500&nologo=true
 
-  keyword2 (page-level, same for every card) =
-    one broad category noun that summarizes what THIS app is about, worked out from
-    the user's own prompt/app name — not from any preset domain list. If the user's
-    prompt was "tourism app for Telangana", keyword2 = "travel" or "telangana". If it
-    was "app for my pet grooming business", keyword2 = "petgrooming" or "dog". Whatever
-    the app is, name it in one plain English word or joined phrase yourself.
+  • Content & Feature Cards (MUST be card-specific, unique for each card):
+    Directly describe THAT card's subject, incorporating domain context:
+    - Landmark Card "Warangal Fort":
+      https://image.pollinations.ai/prompt/Warangal%20Fort%20Kakatiya%20stone%20gateway%20historical%20monument%20Telangana?width=600&height=400&nologo=true
+    - Food Card "Hyderabadi Chicken Biryani":
+      https://image.pollinations.ai/prompt/delicious%20hot%20hyderabadi%20chicken%20biryani%20in%20clay%20pot%20garnished?width=600&height=400&nologo=true
+    - Electronics Card "Smart 4K OLED TV":
+      https://image.pollinations.ai/prompt/smart%204k%20oled%20tv%20displaying%20vibrant%20colors%20in%20modern%20living%20room?width=600&height=400&nologo=true
+    - Flower Card "Bridal Rose Bouquet":
+      https://image.pollinations.ai/prompt/fresh%20bridal%20bouquet%20of%20pastel%20roses%20and%20peonies%20wrapped%20in%20kraft%20paper?width=600&height=400&nologo=true
+    - Carpentry Card "Handcrafted Teak Dining Table":
+      https://image.pollinations.ai/prompt/handcrafted%20solid%20teakwood%20dining%20table%20polished%20wood%20grain%20craftsmanship?width=600&height=400&nologo=true
+    - Fitness Card "HIIT & Cardio":
+      https://image.pollinations.ai/prompt/athletic%20person%20intense%20hiit%20workout%20battle%20ropes%20modern%20gym?width=600&height=400&nologo=true
+    - Real Estate Card "3 BHK Luxury Villa":
+      https://image.pollinations.ai/prompt/modern%20luxury%20villa%20exterior%20private%20swimming%20pool%20evening?width=600&height=400&nologo=true
 
-  Combine as keyword1,keyword2 so every card's photo pool is anchored to THAT card's
-  own subject, with the page-level category only as a relevance backstop — never as
-  the sole driver of which photo shows up.
+DYNAMIC CLIENT-SIDE / JAVASCRIPT RENDERING:
+If items or cards are rendered dynamically via JavaScript (from an array or localStorage), construct the image URL dynamically using template literals and encodeURIComponent:
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&nologo=true`;
 
-  ❌ WRONG: every card on a Telangana tourism site → /travel,landscape?lock={N}
-            (Charminar, Golconda Fort, Ramoji Film City all draw from the same
-            generic pool — captions and photos stop matching each other)
-  ✅ RIGHT:  Charminar card     → /charminar,travel?lock=2
-             Golconda Fort card → /golconda,travel?lock=3
-             Ramoji Film City   → /ramojifilmcity,travel?lock=4
-             (each card's own name drives the photo; "travel" just keeps results
-             in-genre if the specific name has thin Flickr coverage)
-
-  ❌ WRONG: HIIT card → /hiit,cardio?lock=2  (an obscure specific term can return
-            near-nothing → Flickr falls back to unrelated junk)
-  ✅ RIGHT:  HIIT card → /hiit,gym?lock=2   (still card-specific; "gym" is this
-             app's own page-level category, derived from the prompt, not a table)
-
-  This must work identically for ANY domain the user types — food, real estate,
-  events, agriculture, pet care, retail, anything — because both keywords are
-  computed from that specific prompt and that specific card, never memorized.
-
-LOCK VALUES — increment by 1 for every image on the page (never repeat the same lock value):
-  Hero image:          ?lock=1
-  Gallery card 1:      ?lock=2
-  Gallery card 2:      ?lock=3
-  Gallery card 3:      ?lock=4
-  Gallery card 4:      ?lock=5
-  … and so on
-
-  Example (Telangana tourism site, 4 destination cards — app category noun = "travel"):
-  https://loremflickr.com/1200/500/telangana,travel?lock=1        ← hero banner (regional, not one place)
-  https://loremflickr.com/400/300/charminar,travel?lock=2         ← Charminar card
-  https://loremflickr.com/400/300/golconda,travel?lock=3          ← Golconda Fort card
-  https://loremflickr.com/400/300/hussainsagar,travel?lock=4      ← Hussain Sagar card
-  https://loremflickr.com/400/300/ramojifilmcity,travel?lock=5    ← Ramoji Film City card
-
-  Example (fitness site, 4 program cards — app category noun = "gym"):
-  https://loremflickr.com/1200/500/gym,fitness?lock=1        ← hero banner
-  https://loremflickr.com/400/300/strength,gym?lock=2        ← Strength Training card
-  https://loremflickr.com/400/300/hiit,gym?lock=3            ← HIIT & Cardio card
-  https://loremflickr.com/400/300/yoga,gym?lock=4            ← Yoga card
-  https://loremflickr.com/400/300/personaltrainer,gym?lock=5 ← Personal Training card
-
-  These two examples are illustrations of the METHOD, not a list to match against —
-  apply the same derivation to whatever domain the current prompt actually describes.
-
-FALLBACK — only when domain keyword is unclear:
-  https://placehold.co/{width}x{height}/{bgColor}/{textColor}?text={label}
-  (e.g. https://placehold.co/400x300/1a1a2e/ffffff?text=Product+Image)
-
-NEVER use source.unsplash.com — shut down March 2023, returns 503.
-NEVER use picsum.photos — returns random unrelated photos regardless of content.
-NEVER invent specific image URLs (Unsplash photo IDs, Pexels paths, CDN paths) — they will 404.
-Add onerror="this.style.display='none'" to every <img> tag as a safety net.
+SAFETY & FALLBACK RULES:
+• Every <img> tag MUST have a meaningful, descriptive alt attribute matching the item title.
+• Every <img> tag MUST have a clean fallback handler on error:
+  onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e293b/ffffff?text=' + encodeURIComponent(this.alt);"
+• NEVER use loremflickr.com (tag misses cause random cat placeholder photos).
+• NEVER use source.unsplash.com (shut down, returns 503).
+• NEVER use picsum.photos (random unrelated photos).
+• NEVER invent broken CDN paths.
+• NEVER repeat the same image URL across multiple cards.
 
 ══════════════════════════════════════════════════════
 BEHAVIOUR
@@ -395,12 +367,11 @@ CONTENT CHECK:
   ✓ Empty states shown when no data exists
 
 IMAGE CHECK:
-  ✓ Every <img> uses loremflickr.com (with subject-matching keywords), placehold.co, or inline SVG
-  ✓ Each card/section's image keywords reflect THAT card's specific subject, not one fixed
-    pair reused across the whole page (e.g. per-destination, per-dish, per-product keywords)
-  ✓ Each loremflickr image in a gallery has a unique ?lock={N} value
-  ✓ NO picsum.photos (random, unrelated photos)
-  ✓ Every <img> has onerror="this.style.display='none'"
+  ✓ Every <img> uses image.pollinations.ai with a specific 4–8 word natural language prompt, or placehold.co
+  ✓ Each card/section's image prompt reflects THAT card's specific subject and is completely unique
+  ✓ No duplicate image URLs across different cards
+  ✓ NO loremflickr.com (avoids random cat fallbacks) and NO picsum.photos (unrelated photos)
+  ✓ Every <img> has onerror="this.onerror=null; this.src='https://placehold.co/600x400/1e293b/ffffff?text=' + encodeURIComponent(this.alt);"
 
 LAYOUT CHECK:
   ✓ Renders correctly at 375px (mobile)
