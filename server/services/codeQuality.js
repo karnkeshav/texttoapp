@@ -274,12 +274,64 @@ function asciiSafeLabel(text) {
   return /^[\x20-\x7E]*$/.test(trimmed) ? trimmed : 'Image';
 }
 
+// The server can only bake <img> elements present in the generated HTML. Most
+// catalog cards, however, are created later with innerHTML/template literals.
+// Add one small, idempotent browser-side safety net so those images cannot be
+// left blank when the generator omits its per-card resolveImage() call.
+function ensureRuntimeImageResolver(html) {
+  if (!html || typeof html !== 'string' || html.includes('data-r4l-image-resolver')) return html;
+
+  const runtime = `<script data-r4l-image-resolver>
+(()=>{
+  const fallback=(img)=>{
+    if(img.dataset.r4lFallback)return;
+    img.dataset.r4lFallback='1';
+    const label=/^[\\x20-\\x7E]*$/.test(img.alt||'')?img.alt:'Image';
+    img.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(label||'Image');
+  };
+  const resolve=async(img)=>{
+    if(!img || img.dataset.r4lResolving || (img.getAttribute('src')||'').trim())return;
+    img.dataset.r4lResolving='1';
+    const query=img.dataset.query||img.alt||'professional product photo';
+    const entity=img.dataset.entity;
+    try{
+      if(entity){
+        const r=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(entity));
+        if(r.ok){const j=await r.json();const src=(j.originalimage&&j.originalimage.source)||(j.thumbnail&&j.thumbnail.source);if(src){img.src=src;return;}}
+      }
+      const r=await fetch('https://api.openverse.org/v1/images/?q='+encodeURIComponent(query)+'&page_size=1&mature=false');
+      if(r.ok){const j=await r.json(),hit=j.results&&j.results[0],src=hit&&(hit.thumbnail||hit.url);if(src){img.src=src;return;}}
+      img.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(query)+'?width=600&height=400&nologo=true';
+    }catch(_){img.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(query)+'?width=600&height=400&nologo=true';}
+  };
+  const scan=(root=document)=>root.querySelectorAll('img[data-query],img[data-entity],img:not([src]),img[src=""]').forEach(resolve);
+  document.addEventListener('DOMContentLoaded',()=>scan());
+  new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{
+    if(node.nodeType!==1)return;
+    if(node.matches&&node.matches('img'))resolve(node);
+    scan(node);
+  }))).observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('error',event=>{
+    const img=event.target;
+    if(img&&img.tagName==='IMG'&&(img.dataset.query||img.dataset.entity)){
+      if(!img.dataset.r4lRetried){img.dataset.r4lRetried='1';delete img.dataset.r4lResolving;img.removeAttribute('src');resolve(img);}else fallback(img);
+    }
+  },true);
+})();
+</script>`;
+
+  return /<\/body\s*>/i.test(html)
+    ? html.replace(/<\/body\s*>/i, `${runtime}</body>`)
+    : `${html}\n${runtime}`;
+}
+
 async function bakeImages(html) {
   if (!html || typeof html !== 'string') return html;
 
   const imgTagRegex = /<img\b[^>]*>/gi;
   const tags = html.match(imgTagRegex);
-  if (!tags || tags.length === 0) return html;
+  const hasDynamicImages = /(?:innerHTML|insertAdjacentHTML)\s*=|createElement\s*\(\s*['"]img['"]\s*\)/i.test(html);
+  if (!tags || tags.length === 0) return hasDynamicImages ? ensureRuntimeImageResolver(html) : html;
 
   const resolved = await Promise.all(tags.map(async (tag) => {
     const attrs = tag.slice(4, -1); // strip leading "<img" and trailing ">"
@@ -287,6 +339,16 @@ async function bakeImages(html) {
     const entityMatch = attrs.match(/\bdata-entity\s*=\s*["']([^"']+)["']/i);
     const queryMatch   = attrs.match(/\bdata-query\s*=\s*["']([^"']+)["']/i);
     if (!entityMatch && !queryMatch) return tag; // not one of ours (e.g. a DiceBear avatar) — leave untouched
+    // This tag is in JavaScript-generated markup. Its values are not known
+    // until the browser renders the card, so let the runtime resolver handle it.
+    if (attrs.includes('${')) return tag;
+
+    // Already resolved (has a real src) — leave it exactly as-is. Re-resolving
+    // on every edit/audit pass would silently swap unrelated cards' images
+    // (some resolvers are non-deterministic) even when the user didn't ask
+    // to touch them. Only fill in tags the generator left blank.
+    const existingSrcMatch = attrs.match(/\bsrc\s*=\s*["']([^"']*)["']/i);
+    if (existingSrcMatch && existingSrcMatch[1].trim()) return tag;
 
     const altMatch = attrs.match(/\balt\s*=\s*["']([^"']*)["']/i);
     const wMatch    = attrs.match(/\bdata-w\s*=\s*["']?(\d+)/i);
@@ -318,7 +380,10 @@ async function bakeImages(html) {
   }));
 
   let i = 0;
-  return html.replace(imgTagRegex, () => resolved[i++]);
+  const baked = html.replace(imgTagRegex, () => resolved[i++]);
+  return (hasDynamicImages || tags.some(tag => /\bdata-(?:query|entity)\s*=/i.test(tag)))
+    ? ensureRuntimeImageResolver(baked)
+    : baked;
 }
 
 // ── Main audit + heal loop ────────────────────────────────────────
@@ -332,20 +397,20 @@ async function bakeImages(html) {
  * @returns {{ code: string, healed: boolean, attempts: number }}
  */
 async function auditAndHeal(code, apiKey, model) {
-  let current = await bakeImages(code);
+  let current = ensureRuntimeImageResolver(await bakeImages(code));
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const errors = runAllChecks(current);
 
     if (errors.length === 0) {
-      return { code: current, healed: attempt > 0, attempts: attempt };
+      return { code: ensureRuntimeImageResolver(current), healed: attempt > 0, attempts: attempt };
     }
 
     console.log(
       `[CodeAudit] Attempt ${attempt + 1}/2 — ${errors.length} issue(s): ` +
       errors.slice(0, 3).join(' | ')
     );
-    current = await bakeImages(await runRepairPass(current, errors, apiKey, model));
+    current = ensureRuntimeImageResolver(await bakeImages(await runRepairPass(current, errors, apiKey, model)));
   }
 
   // Final verification after all repair attempts
@@ -358,7 +423,7 @@ async function auditAndHeal(code, apiKey, model) {
     throw err;
   }
 
-  return { code: current, healed: true, attempts: 2 };
+  return { code: ensureRuntimeImageResolver(current), healed: true, attempts: 2 };
 }
 
 // ── Semantic audit ────────────────────────────────────────────────
@@ -537,6 +602,7 @@ module.exports = {
   checkCSSBraces,
   checkMetaTags,
   bakeImages,
+  ensureRuntimeImageResolver,
   resolveOneImageSrc,
   auditAndHeal,
   semanticAudit,
