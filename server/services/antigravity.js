@@ -213,37 +213,69 @@ All sample/reference data must be India-specific by default:
 Every single image on the page MUST be semantically accurate, visually stunning, and uniquely relevant to its specific card, section, or item.
 NEVER show the same image on multiple cards. NEVER use generic unrelated photos or placeholders.
 
-IMAGE STRATEGY — four free tiers, all no-signup / no-payment. You do NOT write any fetch/JS for this — our backend resolves every data-query/data-entity <img> into a real, baked src BEFORE the app ships, server-side, after you generate the HTML. That backend tries, in order:
+IMAGE STRATEGY — four free tiers, all no-signup / no-payment, cascading in order:
   1. Wikipedia/Wikimedia (real, correctly-licensed photo, looked up by EXACT article title) — for any card about a real, named, identifiable thing: a famous landmark, monument, building, lake, dam/irrigation project, city, brand, public figure, film studio, etc.
   2. Openverse (real, licensed photos — searched by keyword) — when there's no entity title, or Wikipedia has no match. Best for generic real-world subjects (a dish, an activity) that aren't a single named place.
   3. Pollinations AI (generative) — when neither of the above has a good match. Best for invented/fictional subjects (a made-up product name, an abstract concept).
-  4. placehold.co (solid text placeholder) — final safety net baked in as the onerror handler, in case the resolved image URL itself is ever unreachable in the browser.
+  4. placehold.co (solid text placeholder) — final safety net, wired as the onerror handler.
 
-HOW TO MARK UP EVERY CONTENT IMAGE:
-This applies to EVERY domain with zero exceptions and zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, legal, automotive, agriculture, or anything else the user asks for. Decide data-query (and optional data-entity) per card, live, from that card's actual title/content — never from a fixed list.
-Do NOT put a Pollinations/Openverse/any image URL in src yourself — leave src empty (or omit it) and give every content <img> a data-query attribute instead (vivid, specific 4–8 word description of THAT card's exact subject) plus the safety-net onerror handler (see below). Our backend fills in the real src after you generate the HTML.
-If the card is about a REAL, NAMED, identifiable thing, ALSO add a data-entity attribute set to its best-guess exact Wikipedia article title — this gets tried first and gives the correct real photo instead of a generic/mismatched one. Omit data-entity for generic, invented, or made-to-order subjects (a sample dish, a fictional product, a generic service/activity) — these have no single Wikipedia page and should go straight to Openverse/Pollinations.
+CRITICAL — WHICH RESOLVER RUNS THIS DEPENDS ON HOW THE MARKUP IS PRODUCED, NOT ON THE DOMAIN:
+  • <img> tags that exist as literal text in the HTML you output (static markup, present before any JS runs) get resolved by our BACKEND after you generate the code — leave their src empty and it will be filled in before the app ships.
+  • <img> tags built by YOUR OWN JavaScript at runtime (e.g. \`card.innerHTML = \\\`...<img data-query="...">...\\\`\`, or \`document.createElement('img')\`) are INVISIBLE to the backend — it only ever sees the HTML file's static text, never what your script constructs in the browser. This is the common case: almost every searchable/filterable card grid, catalog, or list you build renders its cards via JS templating, so most of your <img> tags fall in this bucket. For these YOU must call the resolveImage() helper below yourself, immediately after the tag is inserted into the DOM — there is no backend fallback for JS-rendered markup.
+  Rule of thumb: if you can point at literal <img ...> text in the HTML you're writing right now, backend baking covers it. If an <img> only comes into existence when your JS runs (template literal, innerHTML, createElement), you are responsible for resolving it yourself with the helper below.
 
-  Example (Landmark Card "Warangal Fort" — real named entity):
+REQUIRED HELPER — paste this verbatim into <script> in every app that renders ANY image via JavaScript (i.e. almost every app with a card grid, catalog, or list):
+  async function resolveImage(imgEl) {
+    const entity = imgEl.dataset.entity;
+    const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
+    const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+    if (entity) {
+      try {
+        const r = await fetch(\`https://en.wikipedia.org/api/rest_v1/page/summary/\${encodeURIComponent(entity)}\`);
+        if (r.ok) {
+          const j = await r.json();
+          const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
+          if (src) { imgEl.src = src; return; }
+        }
+      } catch (e) {}
+    }
+    try {
+      const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
+      const j = await r.json();
+      const hit = j.results && j.results[0];
+      if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
+    } catch (e) {}
+    imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
+  }
+
+HOW TO MARK UP EVERY CONTENT IMAGE (applies to EVERY domain, zero exceptions, zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, legal, automotive, agriculture, or anything else the user asks for; decide data-query/data-entity per card, live, from that card's actual content, never from a fixed list):
+Never put a Pollinations/Openverse/any image URL directly in src yourself for a real catalog item. Give the <img> a data-query attribute (vivid, specific 4–8 word description of THAT card's exact subject) plus the onerror safety net (see below). If the card is a REAL, NAMED, identifiable thing, ALSO add data-entity set to its best-guess exact Wikipedia article title. Omit data-entity for generic/invented subjects (a sample dish, a fictional product) — these have no Wikipedia page.
+
+  Example — static markup in the HTML you output directly (backend bakes it):
     <img data-entity="Warangal Fort" data-query="Warangal Fort Kakatiya stone gateway historical monument Telangana" alt="Warangal Fort" loading="lazy" onerror="...">
-  Example (Carpentry Card "Handcrafted Teak Dining Table" — generic product, no entity):
-    <img data-query="handcrafted solid teakwood dining table polished wood grain craftsmanship" alt="Handcrafted Teak Dining Table" loading="lazy" onerror="...">
-  Example (Electrical Appliance Card "1.5 Ton Inverter Split AC" — generic product, no entity):
-    <img data-query="1.5 ton inverter split AC unit mounted on modern living room wall" alt="1.5 Ton Inverter Split AC" loading="lazy" onerror="...">
-  Example (Cookery Recipe Card "Paneer Butter Masala" — generic dish, no entity):
-    <img data-query="creamy paneer butter masala garnished with cream in copper bowl" alt="Paneer Butter Masala" loading="lazy" onerror="...">
-  Example (Brand/Tool Card "Bosch GSB 13 RE Drill" — real named product, has a Wikipedia/brand page):
-    <img data-entity="Bosch" data-query="Bosch GSB 13 RE corded impact drill on workbench" alt="Bosch GSB 13 RE Drill" loading="lazy" onerror="...">
-  Example (Real Estate Card "3 BHK Luxury Villa" — generic listing, no entity):
-    <img data-query="modern luxury villa exterior private swimming pool evening" alt="3 BHK Luxury Villa" loading="lazy" onerror="...">
 
-DYNAMIC CLIENT-SIDE / JAVASCRIPT RENDERING (items created at RUNTIME, after the page already loaded — e.g. a user adds a new item via a form, or localStorage renders a saved list):
-These did NOT exist when the backend baked images, so they must build a working src directly in JS — no fetch, no dependency on any external API responding. Use Pollinations directly (always succeeds, it's just a URL) with the same cascading onerror as everything else:
-  const img = document.createElement('img');
-  img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&nologo=true\`;
-  img.alt = item.name; img.loading = 'lazy';
-  img.onerror = function(){ if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');} else { this.onerror=null; } };
-  container.appendChild(img);
+  Example — card built by JS from a catalog/seed data array (THE COMMON CASE — you must call resolveImage yourself right after inserting the card):
+    grid.insertAdjacentHTML('beforeend', \`
+      <div class="card">
+        <img data-entity="\${place.entity || ''}" data-query="\${place.query}" alt="\${place.name}" loading="lazy"
+             onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');}else{this.onerror=null;}">
+        <h3>\${place.name}</h3>
+      </div>\`);
+    grid.querySelectorAll('img[data-query]:not([src])').forEach(resolveImage); // resolve every card just inserted
+
+  Example — carpentry/electrical/cookery catalog items (same pattern, no entity since these are generic products/dishes, not a single named real-world thing):
+    <img data-query="handcrafted solid teakwood dining table polished wood grain craftsmanship" alt="Handcrafted Teak Dining Table" loading="lazy" onerror="...">
+    <img data-query="1.5 ton inverter split AC unit mounted on modern living room wall" alt="1.5 Ton Inverter Split AC" loading="lazy" onerror="...">
+    <img data-query="creamy paneer butter masala garnished with cream in copper bowl" alt="Paneer Butter Masala" loading="lazy" onerror="...">
+  Example — branded/named product (has a Wikipedia/brand page, use data-entity):
+    <img data-entity="Bosch" data-query="Bosch GSB 13 RE corded impact drill on workbench" alt="Bosch GSB 13 RE Drill" loading="lazy" onerror="...">
+
+  Example — items invented purely at RUNTIME with no known real-world match (a user adds a custom item via a form; there is nothing to look up, so skip the fetch chain and go straight to Pollinations for instant feedback):
+    const img = document.createElement('img');
+    img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&nologo=true\`;
+    img.alt = item.name; img.loading = 'lazy';
+    img.onerror = function(){ if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');} else { this.onerror=null; } };
+    container.appendChild(img);
 
 AVATARS & PROFILE IMAGES (Teams, Doctors, Testimonials, User Cards):
 These are still direct URLs (no fetch needed) — set src directly:
@@ -252,7 +284,7 @@ These are still direct URLs (no fetch needed) — set src directly:
 
 SAFETY & FALLBACK RULES:
 • Every <img> tag MUST have a meaningful, descriptive alt attribute matching the item title.
-• Every content <img> tag MUST have a cascading error fallback handler (our backend also enforces/overwrites this on every data-query/data-entity image, but write it correctly yourself too, since avatars and runtime-created images aren't backend-baked):
+• Every content <img> tag MUST have a cascading error fallback handler — write it yourself every time; the backend only bakes literal static <img> text, it cannot see or fix anything your JS constructs:
   onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(this.alt||'Image');}else{this.onerror=null;}"
 • If alt text may contain non-Latin characters (localized apps), guard the placehold.co fallback text with an ASCII check first — placehold.co's font cannot render non-Latin scripts and will show tofu boxes:
   encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image')
@@ -366,7 +398,8 @@ CONTENT CHECK:
   ✓ Empty states shown when no data exists
 
 IMAGE CHECK:
-  ✓ No <img> hardcodes a Pollinations/Openverse/any image URL in src (except runtime-created ones — see DYNAMIC section) — the backend bakes real src values from data-query/data-entity after generation
+  ✓ If ANY card/image is rendered via JavaScript (innerHTML, template literals, createElement — the common case for grids/catalogs), the resolveImage() helper is pasted verbatim into <script> AND called on every newly-inserted img[data-query] right after insertion — this is NOT optional, the backend cannot see JS-constructed markup
+  ✓ No <img> hardcodes a Pollinations/Openverse/any image URL in src for a real catalog item — use data-query (+ data-entity for real named things) instead, resolved either by the backend (static markup) or by calling resolveImage() yourself (JS-rendered markup)
   ✓ Every content <img> has a data-query with a specific 4–8 word natural language description (Wikipedia → Openverse → Pollinations → placehold.co cascade), DiceBear for avatars
   ✓ Every card about a real named landmark/place/brand also has data-entity set to its exact Wikipedia title
   ✓ Each card/section's data-query reflects THAT card's specific subject and is completely unique
