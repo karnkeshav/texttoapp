@@ -15,7 +15,7 @@
     "test:all": "npm run test && npm run test:e2e"
   },
   "dependencies": {
-    "@google/genai": "^2.6.0",
+    "@google/genai": "^2.22.0",
     "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^21.0.0",
     "axios": "^1.7.0",

@@ -3,19 +3,22 @@
  * geminiPool.js — Multi-SDK, multi-model Gemini fallback pool
  *
  * Confirmed free-tier models (1500 req/day each on Gemini free tier):
- *   Model                   SDK support   Tier
- *   ──────────────────────  ──────────    ──────
- *   gemini-2.5-flash        new + legacy  build (primary)
- *   gemini-3.5-flash        new + legacy  build (primary, 429 under high load)
- *   gemini-3-flash-preview  new only      build (primary)
- *   gemini-flash-latest     new + legacy  build (alias, 429 under high load)
- *   gemini-2.5-flash-lite   new + legacy  chat  (primary lite)
- *   gemini-3.1-flash-lite   new + legacy  chat  (primary lite)
- *   gemini-flash-lite-latest new + legacy chat  (alias lite)
+ *   Model                    SDK support   Tier
+ *   ──────────────────────   ──────────    ──────
+ *   gemini-3.6-flash         new + legacy  build (primary — replaces retired gemini-2.5-flash)
+ *   gemini-3.5-flash         new + legacy  build (primary, 429 under high load)
+ *   gemini-3-flash-preview   new only      build (primary)
+ *   gemini-flash-latest      new + legacy  build (alias, 429 under high load)
+ *   gemini-3.5-flash-lite    new + legacy  chat  (primary lite — replaces retired gemini-2.5-flash-lite)
+ *   gemini-3.1-flash-lite    new + legacy  chat  (primary lite)
+ *   gemini-flash-lite-latest new + legacy  chat  (alias lite)
  *
- *   gemma-4-31b-it          legacy only   chat  (open-source, BAD_REQUEST on new SDK)
- *   gemma-4-26b-a4b-it      legacy only   chat  (open-source)
+ *   gemma-4-31b-it           legacy only   chat  (open-source, BAD_REQUEST on new SDK)
+ *   gemma-4-26b-a4b-it       legacy only   chat  (open-source)
  *
+ *   ❌ retired for new users (404, confirmed via @google/genai 2.22.0 / @google/generative-ai
+ *      0.24.1 — Google's own error message names the successor): gemini-2.5-flash
+ *      (→ gemini-3.6-flash), gemini-2.5-flash-lite (→ gemini-3.5-flash-lite)
  *   ❌ needs billing: gemini-2.5-pro, gemini-2.0-*, gemini-3-pro-*, gemini-3.1-pro-*
  *   ❌ not found    : gemini-3.1-flash-lite-preview
  *
@@ -57,13 +60,13 @@ const POOL_CONFIG = [
 
   // ════════════════════════════════════════════════════════════════════════════
   // BUILD TIER — highest-quality models for code generation + reasoning
-  // Priority: gemini-2.5-flash first (stable), then 3.5/preview (higher per-minute quota)
+  // Priority: gemini-3.6-flash first (stable), then 3.5/preview (higher per-minute quota)
   // ════════════════════════════════════════════════════════════════════════════
 
-  { sdk: 'new',    model: 'gemini-2.5-flash',         mode: 'generate', tier: 'build' },
-  { sdk: 'new',    model: 'gemini-2.5-flash',         mode: 'stream',   tier: 'build' },
-  { sdk: 'legacy', model: 'gemini-2.5-flash',         mode: 'generate', tier: 'build' },
-  { sdk: 'legacy', model: 'gemini-2.5-flash',         mode: 'stream',   tier: 'build' },
+  { sdk: 'new',    model: 'gemini-3.6-flash',         mode: 'generate', tier: 'build' },
+  { sdk: 'new',    model: 'gemini-3.6-flash',         mode: 'stream',   tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-3.6-flash',         mode: 'generate', tier: 'build' },
+  { sdk: 'legacy', model: 'gemini-3.6-flash',         mode: 'stream',   tier: 'build' },
 
   // gemini-3.5-flash — newest model; gets 429 under load but still usable
   { sdk: 'new',    model: 'gemini-3.5-flash',         mode: 'generate', tier: 'build' },
@@ -88,10 +91,10 @@ const POOL_CONFIG = [
   // to build-tier models (handled in the loop logic below).
   // ════════════════════════════════════════════════════════════════════════════
 
-  { sdk: 'new',    model: 'gemini-2.5-flash-lite',    mode: 'generate', tier: 'chat' },
-  { sdk: 'new',    model: 'gemini-2.5-flash-lite',    mode: 'stream',   tier: 'chat' },
-  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',    mode: 'generate', tier: 'chat' },
-  { sdk: 'legacy', model: 'gemini-2.5-flash-lite',    mode: 'stream',   tier: 'chat' },
+  { sdk: 'new',    model: 'gemini-3.5-flash-lite',    mode: 'generate', tier: 'chat' },
+  { sdk: 'new',    model: 'gemini-3.5-flash-lite',    mode: 'stream',   tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-3.5-flash-lite',    mode: 'generate', tier: 'chat' },
+  { sdk: 'legacy', model: 'gemini-3.5-flash-lite',    mode: 'stream',   tier: 'chat' },
 
   { sdk: 'new',    model: 'gemini-3.1-flash-lite',    mode: 'generate', tier: 'chat' },
   { sdk: 'new',    model: 'gemini-3.1-flash-lite',    mode: 'stream',   tier: 'chat' },
@@ -186,12 +189,15 @@ function extractText(response, sdk) {
 }
 
 // ── Per-SDK generateContent wrappers ─────────────────────────────
+// NOTE: do NOT unconditionally add thinkingConfig here — lite/alias models
+// (e.g. gemini-flash-lite-latest) return 400 INVALID_ARGUMENT if sent a
+// thinkingConfig they don't support. Matches newSDKStream's existing caution.
 async function newSDKGenerate(model, contents, config, apiKey) {
   const ai = new GoogleGenAI({ apiKey });
   return ai.models.generateContent({
     model,
     contents,
-    config: { ...config, thinkingConfig: { thinkingBudget: 0 } },
+    config,
   });
 }
 
