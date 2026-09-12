@@ -43,6 +43,45 @@ async function bakeImagesInResponse(text) {
     text.slice(htmlMatch.index + htmlMatch[0].length);
 }
 
+// ── Edit-mode patch application (SEARCH/REPLACE blocks) ─────────────
+// Lets the model return only the changed lines instead of the whole file,
+// which cuts output tokens dramatically for small edits to large apps.
+function parsePatchBlocks(text) {
+  const blocks = [];
+  const re = /<{3,}\s*SEARCH\s*\n([\s\S]*?)\n={3,}\s*\n([\s\S]*?)\n>{3,}\s*REPLACE/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    blocks.push({ search: m[1], replace: m[2] });
+  }
+  return blocks;
+}
+
+function applySearchReplaceBlocks(originalCode, modelResponse) {
+  const blocks = parsePatchBlocks(modelResponse);
+  if (blocks.length === 0) {
+    return { ok: false, error: 'No SEARCH/REPLACE blocks found in model response' };
+  }
+
+  const firstMarkerIdx = modelResponse.search(/<{3,}\s*SEARCH/);
+  const summary = (firstMarkerIdx > 0 ? modelResponse.slice(0, firstMarkerIdx) : '').trim();
+
+  let code = originalCode;
+  for (const { search, replace } of blocks) {
+    if (!search) return { ok: false, error: 'Empty SEARCH block' };
+    const occurrences = code.split(search).length - 1;
+    if (occurrences !== 1) {
+      return {
+        ok: false,
+        error: occurrences === 0
+          ? 'SEARCH text not found in current code'
+          : `SEARCH text matched ${occurrences} times (ambiguous)`
+      };
+    }
+    code = code.replace(search, replace);
+  }
+  return { ok: true, code, summary };
+}
+
 // ── Fixed mode questions (multi-language) ───────────────────────────
 const I18N_MODE_QUESTIONS = {
   en: `One quick question before I start — what are we building?
@@ -872,28 +911,33 @@ router.post('/chat', requireAuth, async (req, res) => {
         return;
       }
 
-      // ── Edit intent: apply the requested change, return full updated HTML ──
+      // ── Edit intent: ask for a minimal SEARCH/REPLACE patch instead of the ──
+      // ── whole file — cuts output tokens sharply for small edits.         ──
       const langDirective = getLanguageDirective(currentLang);
-      const editSystemInstruction = `You are Ready4Launch in EDIT MODE. You modify existing single-page HTML web applications.
+      const patchSystemInstruction = `You are Ready4Launch in EDIT MODE. You modify existing single-page HTML web applications by producing a MINIMAL PATCH, not the full file.
 The user wants to update their existing app in the repository "${editOwner}/${editRepo}".
 
-CRITICAL EDIT MODE RULES:
-1. START WITH THE EXISTING CODE: You are provided with the exact CURRENT HTML code of index.html.
-2. APPLY ONLY THE REQUESTED CHANGES: Modify, add, or replace only what the user specifically asked for (e.g. style changes, color updates, text content, new sections/components, translations, bug fixes, or functionality improvements).
-3. DO NOT WIPE OUT EXISTING CODE: Preserve all existing styling, UI elements, layouts, script logic, event listeners, and features that the user did not ask to change.
-4. LANGUAGE CONTINUITY: Respect and maintain the existing language in which the website was built. If the existing index.html is in Hindi, Spanish, Telugu, or English, keep the website in that language and ensure any newly added sections, buttons, headings, or content match that same language (unless the user explicitly requests to translate the website to another language).
-5. COMPLETE OUTPUT: Return the COMPLETE modified HTML file inside a single \`\`\`html ... \`\`\` code block with <!DOCTYPE html> ... </html>.
-6. NO REPO_NAME: Do NOT output any REPO_NAME: prefix lines. Return a brief friendly 1-sentence summary in ${LANGUAGE_NAMES[currentLang] || 'English'} followed immediately by the \`\`\`html code block.
+CRITICAL RULES:
+1. DO NOT return the full HTML file. Return a brief friendly 1-sentence summary in ${LANGUAGE_NAMES[currentLang] || 'English'} of what you changed, followed by one or more SEARCH/REPLACE blocks in this EXACT format:
+<<<<<<< SEARCH
+(exact snippet copied verbatim from CURRENT CODE, including original whitespace/indentation)
+=======
+(the replacement snippet)
+>>>>>>> REPLACE
+2. Each SEARCH block MUST be an exact, verbatim substring of CURRENT CODE below — copy it character-for-character, never paraphrase, truncate, or use "...". Include enough surrounding lines so the SEARCH text is unique (occurs exactly once in the file).
+3. Use as many SEARCH/REPLACE blocks as needed, but keep each one as small as possible — only the lines that actually change. Preserve everything else exactly as-is.
+4. Do NOT wrap the blocks in a code fence (no \`\`\`). Do NOT output REPO_NAME lines.
+5. LANGUAGE CONTINUITY: keep any new text in the same language as the existing app unless the user explicitly asks to translate.
+6. CHANGING AN IMAGE: if the request is to change/replace a card's or section's image, your REPLACE block must update that <img> tag's data-query (and data-entity if it names a real thing) to describe the NEW image AND clear its src attribute (src="") so a fresh image gets resolved. Do not just leave the old src in place.
 ${langDirective}`;
 
-      const editPrompt =
+      const patchPrompt =
         `REPOSITORY: ${editOwner}/${editRepo}\n\n` +
         `CURRENT CODE OF index.html:\n\`\`\`html\n${req.session.currentCode}\n\`\`\`\n\n` +
         `USER CHANGE REQUEST:\n"${trimmedMessage}"\n\n` +
         `INSTRUCTIONS:\n` +
-        `- Apply the user's change request directly to the CURRENT CODE above.\n` +
-        `- Retain the whole existing design and code base, incorporating the requested change cleanly.\n` +
-        `- Return the complete updated HTML in a \`\`\`html code block.`;
+        `- Produce SEARCH/REPLACE blocks that apply the user's change request to the CURRENT CODE above.\n` +
+        `- Do not repeat unchanged code — only the blocks that need to change.`;
 
       const applyingStatus = currentLang === 'hi' ? 'आपके बदलाव लागू किए जा रहे हैं…'
         : currentLang === 'es' ? 'Aplicando tus cambios…'
@@ -901,38 +945,83 @@ ${langDirective}`;
         : 'Applying your changes…';
       sendEvent('status', { message: applyingStatus });
 
-      await antigravity.streamChat(editPrompt, [], null, onChunk, onEditDone, '', apiKey, editSystemInstruction);
+      await antigravity.streamChat(patchPrompt, [], null, onChunk, onEditDone, '', apiKey, patchSystemInstruction);
 
-      if (!capturedResponse || !/```html/i.test(capturedResponse)) {
+      if (!capturedResponse) {
         sendEvent('error', { message: 'Could not generate the updated code. Please try again.' });
         return res.end();
       }
 
-      // Non-destructive check & heal pass for HTML syntax/structure
-      let finalEdit = capturedResponse;
-      try {
-        const htmlMatch = capturedResponse.match(/```html\s*([\s\S]*?)```/i)
-                       || capturedResponse.match(/```html\s*([\s\S]*?<\/html>)/i);
-        if (htmlMatch) {
-          const rawHtml = htmlMatch[1].trim();
-          const healed = await auditAndHeal(rawHtml, apiKey, 'gemini-2.5-flash');
-          // Use healed.code unconditionally — bakeImages() inside auditAndHeal
-          // always resolves image src values even when no structural repair
-          // was needed (healed.healed only reflects whether an LLM repair ran).
-          if (healed && healed.code) {
-            const introMatch = capturedResponse.match(/^([^`]+)/);
-            const intro = introMatch ? introMatch[1].trim() + '\n\n' : '';
-            finalEdit = `${intro}\`\`\`html\n${healed.code}\n\`\`\``;
-          }
-        }
-      } catch (qErr) {
-        console.warn('[AuditAndHeal] Edit mode non-fatal:', qErr.message);
-      }
+      const patchResult = applySearchReplaceBlocks(req.session.currentCode, capturedResponse);
+      let finalEdit;
 
-      // Update cached code so subsequent edit turns build on this version
-      const updatedHtmlMatch = finalEdit.match(/```html\s*([\s\S]*?)```/i)
-                            || finalEdit.match(/```html\s*([\s\S]*?<\/html>)/i);
-      if (updatedHtmlMatch) req.session.currentCode = updatedHtmlMatch[1].trim();
+      if (patchResult.ok) {
+        let updatedCode = patchResult.code;
+        try {
+          const healed = await auditAndHeal(updatedCode, apiKey, 'gemini-2.5-flash');
+          if (healed && healed.code) updatedCode = healed.code;
+        } catch (qErr) {
+          console.warn('[AuditAndHeal] Edit mode non-fatal:', qErr.message);
+        }
+        const summary = patchResult.summary || 'Updated your app as requested.';
+        finalEdit = `${summary}\n\n\`\`\`html\n${updatedCode}\n\`\`\``;
+        req.session.currentCode = updatedCode;
+      } else {
+        // Patch didn't apply cleanly (model drifted / ambiguous match) —
+        // fall back to full-file regeneration so the edit still succeeds.
+        console.warn('[EditMode] Patch apply failed, falling back to full regenerate:', patchResult.error);
+        sendEvent('status', { message: applyingStatus });
+
+        const fullEditSystemInstruction = `You are Ready4Launch in EDIT MODE. You modify existing single-page HTML web applications.
+The user wants to update their existing app in the repository "${editOwner}/${editRepo}".
+
+CRITICAL EDIT MODE RULES:
+1. START WITH THE EXISTING CODE: You are provided with the exact CURRENT HTML code of index.html.
+2. APPLY ONLY THE REQUESTED CHANGES: Modify, add, or replace only what the user specifically asked for.
+3. DO NOT WIPE OUT EXISTING CODE: Preserve all existing styling, UI elements, layouts, script logic, event listeners, and features that the user did not ask to change.
+4. LANGUAGE CONTINUITY: keep the existing language of the app unless the user explicitly asks to translate.
+5. COMPLETE OUTPUT: Return the COMPLETE modified HTML file inside a single \`\`\`html ... \`\`\` code block with <!DOCTYPE html> ... </html>.
+6. NO REPO_NAME: Do NOT output any REPO_NAME: prefix lines. Return a brief friendly 1-sentence summary in ${LANGUAGE_NAMES[currentLang] || 'English'} followed immediately by the \`\`\`html code block.
+${langDirective}`;
+
+        const fullEditPrompt =
+          `REPOSITORY: ${editOwner}/${editRepo}\n\n` +
+          `CURRENT CODE OF index.html:\n\`\`\`html\n${req.session.currentCode}\n\`\`\`\n\n` +
+          `USER CHANGE REQUEST:\n"${trimmedMessage}"\n\n` +
+          `INSTRUCTIONS:\n` +
+          `- Apply the user's change request directly to the CURRENT CODE above.\n` +
+          `- Retain the whole existing design and code base, incorporating the requested change cleanly.\n` +
+          `- Return the complete updated HTML in a \`\`\`html code block.`;
+
+        let fallbackResponse = null;
+        await antigravity.streamChat(fullEditPrompt, [], null, () => {}, (t) => { fallbackResponse = t; }, '', apiKey, fullEditSystemInstruction);
+
+        if (!fallbackResponse || !/```html/i.test(fallbackResponse)) {
+          sendEvent('error', { message: 'Could not generate the updated code. Please try again.' });
+          return res.end();
+        }
+
+        finalEdit = fallbackResponse;
+        try {
+          const htmlMatch = fallbackResponse.match(/```html\s*([\s\S]*?)```/i)
+                         || fallbackResponse.match(/```html\s*([\s\S]*?<\/html>)/i);
+          if (htmlMatch) {
+            const rawHtml = htmlMatch[1].trim();
+            const healed = await auditAndHeal(rawHtml, apiKey, 'gemini-2.5-flash');
+            if (healed && healed.code) {
+              const introMatch = fallbackResponse.match(/^([^`]+)/);
+              const intro = introMatch ? introMatch[1].trim() + '\n\n' : '';
+              finalEdit = `${intro}\`\`\`html\n${healed.code}\n\`\`\``;
+            }
+          }
+        } catch (qErr) {
+          console.warn('[AuditAndHeal] Edit mode fallback non-fatal:', qErr.message);
+        }
+
+        const updatedHtmlMatch = finalEdit.match(/```html\s*([\s\S]*?)```/i)
+                              || finalEdit.match(/```html\s*([\s\S]*?<\/html>)/i);
+        if (updatedHtmlMatch) req.session.currentCode = updatedHtmlMatch[1].trim();
+      }
 
       req.session.chatHistory.push({ role: 'assistant', content: finalEdit });
       const branch = req.session.editMode?.branch || editBranch;
