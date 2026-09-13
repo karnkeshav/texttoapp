@@ -646,11 +646,15 @@ function t(key, fallback = '') {
 
 function applyAppLanguage(lang) {
   if (!lang) return;
-  currentAppLang = lang;
-  localStorage.setItem('r4l_lang', lang);
-  document.documentElement.lang = lang;
+  const newLang = (lang || 'en').toLowerCase();
+  if (newLang === currentAppLang) return; // No change
 
-  const dict = I18N_APP[lang] || I18N_APP.en;
+  currentAppLang = newLang;
+  localStorage.setItem('r4l_lang', newLang);
+  localStorage.setItem('aios_lang', newLang); // Sync with ai-orchestration
+  document.documentElement.lang = newLang;
+
+  const dict = I18N_APP[newLang] || I18N_APP.en;
 
   // Translate static DOM elements
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -780,7 +784,13 @@ function clearAttachment() {
 
 // ── Init ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+  // Initialize language from URL, localStorage, or default
+  const urlLang = new URLSearchParams(window.location.search).get('lang');
+  const storedLang = localStorage.getItem('r4l_lang') || localStorage.getItem('aios_lang');
+  const initLang = urlLang || storedLang || 'en';
+  currentAppLang = initLang.toLowerCase();
   applyAppLanguage(currentAppLang);
+
   await loadUser();
   autoResize(document.getElementById('chatInput'));
   updateWelcomeForMode();
@@ -2285,6 +2295,10 @@ window.addEventListener('message', function(event) {
     _allRepos = [];
     loadUser();
   } else if (event.data && (event.data.type === 'SET_LANGUAGE' || event.data.action === 'SET_LANGUAGE')) {
-    applyAppLanguage(event.data.lang);
+    const lang = event.data.lang || event.data.language;
+    if (lang) {
+      console.log('[Ready4Launch] Language changed via postMessage:', lang);
+      applyAppLanguage(lang);
+    }
   }
 });
