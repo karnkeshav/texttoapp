@@ -50,7 +50,7 @@ function pinCDNVersions(html) {
 // Skipped entirely when BACKEND_ORIGIN is not configured (avoids injecting
 // a broken URL into user-facing apps).
 function injectTelemetry(html, backendOrigin) {
-  if (!backendOrigin) return html; // no origin configured — skip injection
+  if (!backendOrigin || html.includes('Ready4Launch runtime monitor')) return html; // no origin configured or already injected
 
   const snippet = `
   <!-- Ready4Launch runtime monitor -->
