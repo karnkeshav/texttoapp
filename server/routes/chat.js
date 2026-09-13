@@ -158,9 +158,22 @@ const LANGUAGE_NAMES = {
   te: 'Telugu (తెలుగు)'
 };
 
+// Default real-world region/ethnicity a generic (non-named) person photo should
+// depict for each build language, so stock/generated images match the audience
+// instead of defaulting to a generic Western look.
+const IMAGE_REGION_BY_LANG = {
+  hi: 'Indian (North Indian)',
+  te: 'Indian (Telugu-speaking South Indian — Telangana/Andhra Pradesh)',
+  es: 'Latin American (Hispanic/Latino)'
+};
+
 function getLanguageDirective(lang) {
   if (!lang || lang === 'en') return '';
   const langName = LANGUAGE_NAMES[lang] || lang;
+  const region = IMAGE_REGION_BY_LANG[lang];
+  const regionRule = region ? `
+4. IMAGE REGION MATCH: Every data-query for a photo/illustration that shows a GENERIC person (an exercise pose, a customer, a chef, a family, a shopper — anyone not a specific real-world named individual) MUST explicitly describe them as ${region} — bake the descriptor word directly into the data-query text (e.g. "Indian elderly woman doing chair yoga, sitting on a chair, hands visible"), not left implicit.
+   EXCEPTION: if the card has a data-entity (a specific real, named place/person/brand looked up on Wikipedia), leave that query describing the real thing accurately — do NOT force ${region} onto a real photo of a specific named place or person from elsewhere; a real entity's own true origin always wins.` : '';
   return `\n── MANDATORY LANGUAGE DIRECTIVE ──
 Target Language: ${langName} (${lang})
 1. ALL user-visible text in the generated web application (HTML, CSS, JS) MUST be written in natural, fluent ${langName}:
@@ -169,7 +182,7 @@ Target Language: ${langName} (${lang})
    - Pre-loaded sample data (product names, descriptions, user testimonials, transaction items, etc.) MUST be realistic and written in ${langName}.
    - If pricing is shown, use regional currency format where appropriate (e.g. ₹ for Hindi/Telugu, €/$ for Spanish).
 2. Code syntax, HTML tags, CSS property names, and JavaScript variable/function names must remain valid standard English code syntax.
-3. Conversational explanation / response text from you to the user MUST also be in ${langName}.
+3. Conversational explanation / response text from you to the user MUST also be in ${langName}.${regionRule}
 ─────────────────────────────────\n`;
 }
 
