@@ -316,8 +316,9 @@ DESIGN & TECHNICAL SPECIFICATIONS:
 4. Semantic Imagery & Fallbacks (four free, no-signup tiers — cascading Wikipedia → Openverse → Pollinations → placehold.co):
    - Applies to EVERY domain with zero exceptions and zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, automotive, or anything else the user asks for. Decide data-query/data-entity per card, live, from that card's actual title/content.
    - CRITICAL — which resolver runs depends on HOW the markup is produced, not the domain: <img> tags present as literal text in the HTML you output are resolved by our BACKEND after generation (leave their src empty). <img> tags YOUR OWN JavaScript builds at runtime (innerHTML template strings, createElement — the common case for any searchable/filterable card grid, which item 3 above requires) are invisible to the backend; YOU must resolve those yourself by calling the resolveImage() helper below immediately after inserting each card.
-   - Paste this verbatim into <script> in any app that renders images via JS (i.e. almost every app with a card grid):
+   - Paste this verbatim into <script> in any app that renders images via JS (i.e. almost every app with a card grid). The first line is mandatory even if you're careful about when you call it — it makes resolveImage() a safe no-op on an already-resolved image, so it can never stomp on a correctly baked src:
        async function resolveImage(imgEl) {
+         if ((imgEl.getAttribute('src') || '').trim()) return; // already resolved — never re-fetch/overwrite
          const entity = imgEl.dataset.entity;
          const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
          const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;

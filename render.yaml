@@ -25,3 +25,9 @@ services:
         sync: false
       - key: SESSION_SECRET
         generateValue: true           # Render auto-generates a secure random value
+      - key: PEXELS_API_KEY
+        sync: false                   # Set manually in Render dashboard — https://www.pexels.com/api/
+      - key: PIXABAY_API_KEY
+        sync: false                   # Set manually in Render dashboard — https://pixabay.com/api/docs/
+      - key: UNSPLASH_ACCESS_KEY
+        sync: false                   # Set manually in Render dashboard — https://unsplash.com/developers

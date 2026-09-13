@@ -224,8 +224,9 @@ CRITICAL — WHICH RESOLVER RUNS THIS DEPENDS ON HOW THE MARKUP IS PRODUCED, NOT
   • <img> tags built by YOUR OWN JavaScript at runtime (e.g. \`card.innerHTML = \\\`...<img data-query="...">...\\\`\`, or \`document.createElement('img')\`) are INVISIBLE to the backend — it only ever sees the HTML file's static text, never what your script constructs in the browser. This is the common case: almost every searchable/filterable card grid, catalog, or list you build renders its cards via JS templating, so most of your <img> tags fall in this bucket. For these YOU must call the resolveImage() helper below yourself, immediately after the tag is inserted into the DOM — there is no backend fallback for JS-rendered markup.
   Rule of thumb: if you can point at literal <img ...> text in the HTML you're writing right now, backend baking covers it. If an <img> only comes into existence when your JS runs (template literal, innerHTML, createElement), you are responsible for resolving it yourself with the helper below.
 
-REQUIRED HELPER — paste this verbatim into <script> in every app that renders ANY image via JavaScript (i.e. almost every app with a card grid, catalog, or list):
+REQUIRED HELPER — paste this verbatim into <script> in every app that renders ANY image via JavaScript (i.e. almost every app with a card grid, catalog, or list). Note the FIRST LINE: it makes resolveImage() a safe no-op on an image that already has a real src, so calling it broadly (e.g. document.querySelectorAll('img[data-query]').forEach(resolveImage) at startup) can NEVER stomp on a correctly baked image — this guard is mandatory, do not drop it even if you're always careful to call resolveImage() only on unresolved images yourself:
   async function resolveImage(imgEl) {
+    if ((imgEl.getAttribute('src') || '').trim()) return; // already resolved — never re-fetch/overwrite
     const entity = imgEl.dataset.entity;
     const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
     const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
