@@ -486,8 +486,8 @@ async function bakeImages(html) {
   const resolved = await Promise.all(tags.map(async (tag) => {
     const attrs = tag.slice(4, -1); // strip leading "<img" and trailing ">"
 
-    const entityMatch = attrs.match(/\bdata-entity\s*=\s*["']([^"']+)["']/i);
-    const queryMatch   = attrs.match(/\bdata-query\s*=\s*["']([^"']+)["']/i);
+    const entityMatch = attrs.match(/\bdata-entity\s*=\s*(?:"([^"]+)"|'([^']+)')/i);
+    const queryMatch   = attrs.match(/\bdata-query\s*=\s*(?:"([^"]+)"|'([^']+)')/i);
     if (!entityMatch && !queryMatch) return tag; // not one of ours (e.g. a DiceBear avatar) — leave untouched
     // This tag is in JavaScript-generated markup. Its values are not known
     // until the browser renders the card, so let the runtime resolver handle it.
@@ -497,28 +497,30 @@ async function bakeImages(html) {
     // on every edit/audit pass would silently swap unrelated cards' images
     // (some resolvers are non-deterministic) even when the user didn't ask
     // to touch them. Only fill in tags the generator left blank.
-    const existingSrcMatch = attrs.match(/\bsrc\s*=\s*["']([^"']*)["']/i);
-    if (existingSrcMatch && existingSrcMatch[1].trim()) return tag;
+    const existingSrcMatch = attrs.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const existingSrc = existingSrcMatch ? (existingSrcMatch[1] ?? existingSrcMatch[2]) : '';
+    if (existingSrc && existingSrc.trim()) return tag;
 
-    const altMatch = attrs.match(/\balt\s*=\s*["']([^"']*)["']/i);
+    const altMatch  = attrs.match(/\balt\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const altText   = altMatch ? (altMatch[1] ?? altMatch[2]) : '';
     const wMatch    = attrs.match(/\bdata-w\s*=\s*["']?(\d+)/i);
     const hMatch    = attrs.match(/\bdata-h\s*=\s*["']?(\d+)/i);
 
-    const entity = entityMatch ? entityMatch[1] : null;
-    const query  = queryMatch ? queryMatch[1] : (altMatch ? altMatch[1] : 'image');
+    const entity = entityMatch ? (entityMatch[1] ?? entityMatch[2]) : null;
+    const query  = queryMatch ? (queryMatch[1] ?? queryMatch[2]) : (altText || 'image');
     const width  = wMatch ? wMatch[1] : 600;
     const height = hMatch ? hMatch[1] : 400;
 
     const src = await resolveOneImageSrc({ entity, query, width, height });
-    const safeLabel = asciiSafeLabel(altMatch ? altMatch[1] : query);
+    const safeLabel = asciiSafeLabel(altText || query);
     const fallbackUrl = `https://placehold.co/${width}x${height}/1e293b/ffffff?text=${encodeURIComponent(safeLabel)}`;
 
-    let newAttrs = /\bsrc\s*=\s*["'][^"']*["']/i.test(attrs)
-      ? attrs.replace(/\bsrc\s*=\s*["'][^"']*["']/i, `src="${src}"`)
+    let newAttrs = /\bsrc\s*=\s*(?:"[^"]*"|'[^']*')/i.test(attrs)
+      ? attrs.replace(/\bsrc\s*=\s*(?:"[^"]*"|'[^']*')/i, `src="${src}"`)
       : `src="${src}" ${attrs}`;
 
-    if (/\bonerror\s*=/i.test(newAttrs)) {
-      newAttrs = newAttrs.replace(/\bonerror\s*=\s*["'][^"']*["']/i,
+    if (/\bonerror\s*=\s*(?:"[^"]*"|'[^']*')/i.test(newAttrs)) {
+      newAttrs = newAttrs.replace(/\bonerror\s*=\s*(?:"[^"]*"|'[^']*')/i,
         `onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallbackUrl}';}else{this.onerror=null;}"`);
     } else {
       newAttrs += ` onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallbackUrl}';}else{this.onerror=null;}"`;
