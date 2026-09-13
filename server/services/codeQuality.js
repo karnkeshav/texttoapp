@@ -219,22 +219,91 @@ function runAllChecks(html) {
 // The generating model marks content <img> tags with data-query (and,
 // for real named things, data-entity) instead of a hardcoded image URL.
 // We resolve the ACTUAL src ourselves, server-side, so the shipped app
-// never depends on client-side fetch/CORS/JS-correctness at runtime:
-//   1. Wikipedia REST summary API  — exact-title lookup for named entities
-//   2. Openverse                   — keyword search over real licensed photos
-//   3. Pollinations AI             — generative fallback (URL only, always succeeds)
+// never depends on client-side fetch/CORS/JS-correctness at runtime, and
+// so our Pexels/Pixabay/Unsplash keys never reach the browser (this is
+// the ONLY place those keys may be used — the client-side resolveImage()
+// helper baked into generated apps' JS runs in strangers' browsers and
+// must stay keyless: Wikipedia -> Openverse -> Pollinations only):
+//   1. Wikipedia REST summary API — exact-title lookup for named entities
+//   2. Pexels     (if PEXELS_API_KEY is set)     — curated, well-tagged real photos
+//   3. Pixabay    (if PIXABAY_API_KEY is set)    — real photos + illustrations
+//   4. Unsplash   (if UNSPLASH_ACCESS_KEY is set) — high-quality real photos
+//   5. Openverse                    — keyword search over real licensed photos, keyless
+//   6. Pollinations AI              — generative last resort (URL only, always succeeds)
+// Any keyed tier whose env var isn't set is skipped automatically, so this
+// degrades gracefully to the original keyless cascade with zero config.
 // Domain-agnostic: works off whatever data-query/data-entity each card carries,
 // there is nothing hardcoded per-domain here.
 const IMAGE_FETCH_TIMEOUT_MS = 3500;
 
-async function fetchWithTimeout(url, ms = IMAGE_FETCH_TIMEOUT_MS) {
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY || '';
+const PIXABAY_API_KEY = process.env.PIXABAY_API_KEY || '';
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
+
+async function fetchWithTimeout(url, ms = IMAGE_FETCH_TIMEOUT_MS, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    return await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Ready4Launch-ImageResolver/1.0' } });
+    return await fetch(url, {
+      signal: controller.signal,
+      ...options,
+      headers: { 'User-Agent': 'Ready4Launch-ImageResolver/1.0', ...(options.headers || {}) },
+    });
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function resolveViaWikipedia(entity) {
+  const r = await fetchWithTimeout(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(entity)}`);
+  if (!r.ok) return null;
+  const j = await r.json();
+  return (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source) || null;
+}
+
+async function resolveViaPexels(query) {
+  if (!PEXELS_API_KEY) return null;
+  const r = await fetchWithTimeout(
+    `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=1`,
+    IMAGE_FETCH_TIMEOUT_MS,
+    { headers: { Authorization: PEXELS_API_KEY } }
+  );
+  if (!r.ok) return null;
+  const j = await r.json();
+  const hit = j.photos && j.photos[0];
+  return (hit && hit.src && (hit.src.large || hit.src.medium || hit.src.original)) || null;
+}
+
+async function resolveViaPixabay(query) {
+  if (!PIXABAY_API_KEY) return null;
+  const r = await fetchWithTimeout(
+    `https://pixabay.com/api/?key=${encodeURIComponent(PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&per_page=3&image_type=photo&safesearch=true`
+  );
+  if (!r.ok) return null;
+  const j = await r.json();
+  const hit = j.hits && j.hits[0];
+  return (hit && (hit.largeImageURL || hit.webformatURL)) || null;
+}
+
+async function resolveViaUnsplash(query) {
+  if (!UNSPLASH_ACCESS_KEY) return null;
+  const r = await fetchWithTimeout(
+    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1`,
+    IMAGE_FETCH_TIMEOUT_MS,
+    { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+  );
+  if (!r.ok) return null;
+  const j = await r.json();
+  const hit = j.results && j.results[0];
+  return (hit && hit.urls && (hit.urls.regular || hit.urls.small)) || null;
+}
+
+async function resolveViaOpenverse(query) {
+  const r = await fetchWithTimeout(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=1&mature=false`);
+  if (!r.ok) return null;
+  const j = await r.json();
+  const hit = j.results && j.results[0];
+  return (hit && (hit.thumbnail || hit.url)) || null;
 }
 
 async function resolveOneImageSrc({ entity, query, width, height }) {
@@ -244,24 +313,17 @@ async function resolveOneImageSrc({ entity, query, width, height }) {
 
   if (entity) {
     try {
-      const r = await fetchWithTimeout(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(entity)}`);
-      if (r.ok) {
-        const j = await r.json();
-        const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
-        if (src) return src;
-      }
+      const src = await resolveViaWikipedia(entity);
+      if (src) return src;
     } catch (e) { /* fall through */ }
   }
 
-  try {
-    const r = await fetchWithTimeout(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(safeQuery)}&page_size=1&mature=false`);
-    if (r.ok) {
-      const j = await r.json();
-      const hit = j.results && j.results[0];
-      const src = hit && (hit.thumbnail || hit.url);
+  for (const resolver of [resolveViaPexels, resolveViaPixabay, resolveViaUnsplash, resolveViaOpenverse]) {
+    try {
+      const src = await resolver(safeQuery);
       if (src) return src;
-    }
-  } catch (e) { /* fall through */ }
+    } catch (e) { /* fall through to next tier */ }
+  }
 
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(safeQuery)}?width=${w}&height=${h}&nologo=true`;
 }

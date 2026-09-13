@@ -172,7 +172,8 @@ function getLanguageDirective(lang) {
   const langName = LANGUAGE_NAMES[lang] || lang;
   const region = IMAGE_REGION_BY_LANG[lang];
   const regionRule = region ? `
-4. IMAGE REGION MATCH: Every data-query for a photo/illustration that shows a GENERIC person (an exercise pose, a customer, a chef, a family, a shopper — anyone not a specific real-world named individual) MUST explicitly describe them as ${region} — bake the descriptor word directly into the data-query text (e.g. "Indian elderly woman doing chair yoga, sitting on a chair, hands visible"), not left implicit.
+4. IMAGE REGION MATCH: Every data-query for a photo/illustration that shows a GENERIC person (an exercise pose, a customer, a chef, a family, a shopper — anyone not a specific real-world named individual) MUST explicitly describe them as ${region} — bake the descriptor word directly into the data-query text, not left implicit.
+   QUERY STYLE: keep it a SHORT keyword phrase (4-6 words, no commas, not a full sentence) — real photo search ranks on keyword weight, not natural-language understanding, so "Indian senior chair yoga stretch" reliably beats a longer descriptive sentence like "Indian elderly woman doing chair yoga, sitting on a chair, hands visible", which can return a completely unrelated top result.
    EXCEPTION: if the card has a data-entity (a specific real, named place/person/brand looked up on Wikipedia), leave that query describing the real thing accurately — do NOT force ${region} onto a real photo of a specific named place or person from elsewhere; a real entity's own true origin always wins.` : '';
   return `\n── MANDATORY LANGUAGE DIRECTIVE ──
 Target Language: ${langName} (${lang})
