@@ -637,7 +637,7 @@ const I18N_APP = {
   }
 };
 
-let currentAppLang = new URLSearchParams(window.location.search).get('lang') || localStorage.getItem('r4l_lang') || localStorage.getItem('aios_lang') || 'en';
+let currentAppLang = null; // Will be initialized by applyAppLanguage() on DOMContentLoaded
 
 function t(key, fallback = '') {
   const dict = I18N_APP[currentAppLang] || I18N_APP.en;
@@ -647,7 +647,9 @@ function t(key, fallback = '') {
 function applyAppLanguage(lang) {
   if (!lang) return;
   const newLang = (lang || 'en').toLowerCase();
-  if (newLang === currentAppLang) return; // No change
+
+  // Skip only if language hasn't changed AND we've already initialized (currentAppLang starts as null)
+  if (currentAppLang === newLang) return;
 
   currentAppLang = newLang;
   localStorage.setItem('r4l_lang', newLang);
@@ -656,7 +658,7 @@ function applyAppLanguage(lang) {
 
   const dict = I18N_APP[newLang] || I18N_APP.en;
 
-  // Translate static DOM elements
+  // Translate all static DOM elements with data-i18n attributes (must run on initial load)
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const k = el.getAttribute('data-i18n');
     if (dict[k]) {
