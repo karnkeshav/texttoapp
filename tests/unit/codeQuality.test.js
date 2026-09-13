@@ -388,6 +388,28 @@ describe('bakeImages', () => {
     const healed = await bakeImages(html);
     expect(healed).toContain('image.pollinations.ai/prompt/');
     expect(healed).toContain('delicious%20hot%20biryani');
+    expect(healed).toMatch(/seed=\d+/);
+  });
+
+  test('produces deterministic seed for the same query across multiple calls', async () => {
+    global.fetch = async () => { throw new Error('network down'); };
+    const html1 = '<img data-query="spicy hyderabadi biryani" alt="Biryani">';
+    const html2 = '<img data-query="spicy hyderabadi biryani" alt="Biryani">';
+    const healed1 = await bakeImages(html1);
+    const healed2 = await bakeImages(html2);
+    const seed1 = healed1.match(/seed=(\d+)/)[1];
+    const seed2 = healed2.match(/seed=(\d+)/)[1];
+    expect(seed1).toBe(seed2);
+  });
+
+  test('ensureRuntimeImageResolver injects locking, caching, and deterministic seeds', async () => {
+    const html = '<div id="cards"></div><script>document.createElement("img");</script>';
+    const baked = await bakeImages(html);
+    expect(baked).toContain('data-r4l-image-resolver');
+    expect(baked).toContain('window.__r4lImgCache');
+    expect(baked).toContain('dataset.r4lResolving');
+    expect(baked).toContain('dataset.r4lResolved');
+    expect(baked).toContain('window.resolveImage = resolve');
   });
 
   test('leaves images without data-query/data-entity untouched (e.g. DiceBear avatars)', async () => {

@@ -316,19 +316,42 @@ DESIGN & TECHNICAL SPECIFICATIONS:
 4. Semantic Imagery & Fallbacks (four free, no-signup tiers — cascading Wikipedia → Openverse → Pollinations → placehold.co):
    - Applies to EVERY domain with zero exceptions and zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, automotive, or anything else the user asks for. Decide data-query/data-entity per card, live, from that card's actual title/content.
    - CRITICAL — which resolver runs depends on HOW the markup is produced, not the domain: <img> tags present as literal text in the HTML you output are resolved by our BACKEND after generation (leave their src empty). <img> tags YOUR OWN JavaScript builds at runtime (innerHTML template strings, createElement — the common case for any searchable/filterable card grid, which item 3 above requires) are invisible to the backend; YOU must resolve those yourself by calling the resolveImage() helper below immediately after inserting each card.
-   - Paste this verbatim into <script> in any app that renders images via JS (i.e. almost every app with a card grid). The first line is mandatory even if you're careful about when you call it — it makes resolveImage() a safe no-op on an already-resolved image, so it can never stomp on a correctly baked src:
+   - Paste this verbatim into <script> in any app that renders images via JS (i.e. almost every app with a card grid). The first line is mandatory even if you're careful about when you call it — it prevents parallel resolvers, deduplicates via cache, and ensures images remain permanently stable and deterministic:
        async function resolveImage(imgEl) {
-         if ((imgEl.getAttribute('src') || '').trim()) return; // already resolved — never re-fetch/overwrite
+         if (!imgEl || imgEl.dataset.r4lResolving || imgEl.dataset.r4lResolved || (imgEl.getAttribute('src') || '').trim()) return;
+         imgEl.dataset.r4lResolving = '1';
+         const cache = window.__r4lImgCache = window.__r4lImgCache || new Map();
          const entity = imgEl.dataset.entity;
          const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
          const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+         const cacheKey = (entity ? 'e:' + entity : 'q:' + query) + '@' + w + 'x' + h;
+         if (cache.has(cacheKey)) {
+           imgEl.src = cache.get(cacheKey);
+           imgEl.dataset.r4lResolved = '1';
+           delete imgEl.dataset.r4lResolving;
+           return;
+         }
+         const getSeed = (s) => {
+           let hash = 5381;
+           const str = String(s || 'image');
+           for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); hash |= 0; }
+           return Math.abs(hash);
+         };
+         const seed = getSeed(entity || query);
+         const pollinationsUrl = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&seed=\${seed}&nologo=true\`;
          if (entity) {
            try {
              const r = await fetch(\`https://en.wikipedia.org/api/rest_v1/page/summary/\${encodeURIComponent(entity)}\`);
              if (r.ok) {
                const j = await r.json();
                const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
-               if (src) { imgEl.src = src; return; }
+               if (src) {
+                 cache.set(cacheKey, src);
+                 imgEl.src = src;
+                 imgEl.dataset.r4lResolved = '1';
+                 delete imgEl.dataset.r4lResolving;
+                 return;
+               }
              }
            } catch (e) {}
          }
@@ -336,14 +359,26 @@ DESIGN & TECHNICAL SPECIFICATIONS:
            const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
            const j = await r.json();
            const hit = j.results && j.results[0];
-           if (hit && (hit.url || hit.thumbnail)) { imgEl.src = hit.url || hit.thumbnail; return; }
+           if (hit && (hit.url || hit.thumbnail)) {
+             const src = hit.url || hit.thumbnail;
+             cache.set(cacheKey, src);
+             imgEl.src = src;
+             imgEl.dataset.r4lResolved = '1';
+             delete imgEl.dataset.r4lResolving;
+             return;
+           }
          } catch (e) {}
-         imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
+         cache.set(cacheKey, pollinationsUrl);
+         imgEl.src = pollinationsUrl;
+         imgEl.dataset.r4lResolved = '1';
+         delete imgEl.dataset.r4lResolving;
        }
+       window.resolveImage = window.resolveImage || resolveImage;
    - Give every content <img> a data-query attribute (vivid, specific 4-8 word description of that exact card's subject) plus data-entity (best-guess exact Wikipedia article title) for real named things (a famous landmark, monument, building, lake, dam/project, brand, public figure). Omit data-entity for generic/invented subjects (a sample dish, a fictional product). For JS-rendered cards, call resolveImage() on each newly-inserted img[data-query] right after insertion, e.g.: grid.querySelectorAll('img[data-query]:not([src])').forEach(resolveImage);
    - QUERY ACCURACY IS MANDATORY: name the card's exact distinguishing equipment/posture/setting in the query, not just the generic activity (a "Chair Yoga" card needs "chair" literally in the query, not just "yoga stretch" — otherwise the search returns a plausible but wrong photo, e.g. someone on a floor mat instead of a chair). Keep it a SHORT keyword phrase (4-6 words, no commas) — real photo search ranks by keyword weight, so "senior chair yoga stretch" beats a longer sentence like "elderly woman doing chair yoga, sitting on a chair, hands visible", which can return a completely unrelated top result.
    - EXCEPTION — items invented purely at RUNTIME with no known real-world match (a user adds a custom item via a form): skip the fetch chain, build src directly with Pollinations (instant, no dependency on any API responding) plus the same cascading onerror:
-       img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' professional high quality photography')}?width=600&height=400&nologo=true\`;
+       const seed = Math.abs((item.name || 'item').split('').reduce((a,c)=>((a<<5)+a)+c.charCodeAt(0)|0, 5381));
+       img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' professional high quality photography')}?width=600&height=400&seed=\${seed}&nologo=true\`;
    - For user/team avatars, use https://api.dicebear.com/7.x/initials/svg?seed={Name} or https://api.dicebear.com/7.x/avataaars/svg?seed={Name} directly (no fetch needed).
    - Every <img> MUST have onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');}else{this.onerror=null;}" — the ASCII check prevents tofu-box rendering when alt text is in a non-Latin script.
    - NEVER use loremflickr.com or source.unsplash.com.

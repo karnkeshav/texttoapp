@@ -310,6 +310,16 @@ async function resolveViaOpenverse(query) {
   return (hit && (hit.url || hit.thumbnail)) || null;
 }
 
+function getDeterministicSeed(str) {
+  let hash = 5381;
+  const s = String(str || 'image');
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) + hash) + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 async function resolveOneImageSrc({ entity, query, width, height }) {
   const w = width || 600;
   const h = height || 400;
@@ -329,7 +339,8 @@ async function resolveOneImageSrc({ entity, query, width, height }) {
     } catch (e) { /* fall through to next tier */ }
   }
 
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(safeQuery)}?width=${w}&height=${h}&nologo=true`;
+  const seed = getDeterministicSeed(entity || safeQuery);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(safeQuery)}?width=${w}&height=${h}&seed=${seed}&nologo=true`;
 }
 
 // placehold.co's default font can't render non-Latin scripts (renders tofu
@@ -349,40 +360,113 @@ function ensureRuntimeImageResolver(html) {
 
   const runtime = `<script data-r4l-image-resolver>
 (()=>{
-  const fallback=(img)=>{
-    if(img.dataset.r4lFallback)return;
-    img.dataset.r4lFallback='1';
-    const label=/^[\\x20-\\x7E]*$/.test(img.alt||'')?img.alt:'Image';
-    img.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(label||'Image');
-  };
-  const resolve=async(img)=>{
-    if(!img || img.dataset.r4lResolving || (img.getAttribute('src')||'').trim())return;
-    img.dataset.r4lResolving='1';
-    const query=img.dataset.query||img.alt||'professional product photo';
-    const entity=img.dataset.entity;
-    try{
-      if(entity){
-        const r=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(entity));
-        if(r.ok){const j=await r.json();const src=(j.originalimage&&j.originalimage.source)||(j.thumbnail&&j.thumbnail.source);if(src){img.src=src;return;}}
-      }
-      const r=await fetch('https://api.openverse.org/v1/images/?q='+encodeURIComponent(query)+'&page_size=1&mature=false');
-      if(r.ok){const j=await r.json(),hit=j.results&&j.results[0],src=hit&&(hit.url||hit.thumbnail);if(src){img.src=src;return;}}
-      img.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(query)+'?width=600&height=400&nologo=true';
-    }catch(_){img.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(query)+'?width=600&height=400&nologo=true';}
-  };
-  const scan=(root=document)=>root.querySelectorAll('img[data-query],img[data-entity],img:not([src]),img[src=""]').forEach(resolve);
-  document.addEventListener('DOMContentLoaded',()=>scan());
-  new MutationObserver(records=>records.forEach(record=>record.addedNodes.forEach(node=>{
-    if(node.nodeType!==1)return;
-    if(node.matches&&node.matches('img'))resolve(node);
-    scan(node);
-  }))).observe(document.documentElement,{childList:true,subtree:true});
-  document.addEventListener('error',event=>{
-    const img=event.target;
-    if(img&&img.tagName==='IMG'&&(img.dataset.query||img.dataset.entity)){
-      if(!img.dataset.r4lRetried){img.dataset.r4lRetried='1';delete img.dataset.r4lResolving;img.removeAttribute('src');resolve(img);}else fallback(img);
+  const cache = window.__r4lImgCache = window.__r4lImgCache || new Map();
+  const getSeed = (s) => {
+    let h = 5381;
+    const str = String(s || 'image');
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) + h) + str.charCodeAt(i);
+      h |= 0;
     }
-  },true);
+    return Math.abs(h);
+  };
+  const fallback = (img) => {
+    if (!img || img.dataset.r4lFallback) return;
+    img.dataset.r4lFallback = '1';
+    img.dataset.r4lResolved = '1';
+    delete img.dataset.r4lResolving;
+    const label = /^[\\x20-\\x7E]*$/.test(img.alt || '') ? img.alt : 'Image';
+    const w = img.dataset.w || 600, h = img.dataset.h || 400;
+    img.src = 'https://placehold.co/' + w + 'x' + h + '/1e293b/ffffff?text=' + encodeURIComponent(label || 'Image');
+  };
+  const resolve = async (img) => {
+    if (!img || img.dataset.r4lResolving || img.dataset.r4lResolved) return;
+    const currentSrc = (img.getAttribute('src') || '').trim();
+    if (currentSrc && !currentSrc.startsWith('data:image/svg+xml;base64,PHN2Zy')) {
+      img.dataset.r4lResolved = '1';
+      return;
+    }
+    img.dataset.r4lResolving = '1';
+    const entity = img.dataset.entity;
+    const query = img.dataset.query || img.alt || 'professional product photo';
+    const w = img.dataset.w || 600, h = img.dataset.h || 400;
+    const cacheKey = (entity ? 'e:' + entity : 'q:' + query) + '@' + w + 'x' + h;
+
+    if (cache.has(cacheKey)) {
+      img.src = cache.get(cacheKey);
+      img.dataset.r4lResolved = '1';
+      delete img.dataset.r4lResolving;
+      return;
+    }
+
+    const seed = getSeed(entity || query);
+    const pollinationsFallback = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(query) + '?width=' + w + '&height=' + h + '&seed=' + seed + '&nologo=true';
+
+    try {
+      if (entity) {
+        const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(entity));
+        if (r.ok) {
+          const j = await r.json();
+          const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
+          if (src) {
+            cache.set(cacheKey, src);
+            img.src = src;
+            img.dataset.r4lResolved = '1';
+            delete img.dataset.r4lResolving;
+            return;
+          }
+        }
+      }
+      const r = await fetch('https://api.openverse.org/v1/images/?q=' + encodeURIComponent(query) + '&page_size=1&mature=false');
+      if (r.ok) {
+        const j = await r.json();
+        const hit = j.results && j.results[0];
+        const src = hit && (hit.url || hit.thumbnail);
+        if (src) {
+          cache.set(cacheKey, src);
+          img.src = src;
+          img.dataset.r4lResolved = '1';
+          delete img.dataset.r4lResolving;
+          return;
+        }
+      }
+      cache.set(cacheKey, pollinationsFallback);
+      img.src = pollinationsFallback;
+      img.dataset.r4lResolved = '1';
+      delete img.dataset.r4lResolving;
+    } catch (_) {
+      cache.set(cacheKey, pollinationsFallback);
+      img.src = pollinationsFallback;
+      img.dataset.r4lResolved = '1';
+      delete img.dataset.r4lResolving;
+    }
+  };
+
+  window.resolveImage = resolve;
+
+  const scan = (root = document) => {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('img[data-query],img[data-entity],img:not([src]),img[src=""]').forEach(resolve);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => scan());
+  } else {
+    scan();
+  }
+
+  new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+    if (node.nodeType !== 1) return;
+    if (node.matches && node.matches('img')) resolve(node);
+    scan(node);
+  }))).observe(document.documentElement, { childList: true, subtree: true });
+
+  document.addEventListener('error', event => {
+    const img = event.target;
+    if (img && img.tagName === 'IMG' && (img.dataset.query || img.dataset.entity)) {
+      fallback(img);
+    }
+  }, true);
 })();
 </script>`;
 

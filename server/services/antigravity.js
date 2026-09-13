@@ -224,19 +224,42 @@ CRITICAL — WHICH RESOLVER RUNS THIS DEPENDS ON HOW THE MARKUP IS PRODUCED, NOT
   • <img> tags built by YOUR OWN JavaScript at runtime (e.g. \`card.innerHTML = \\\`...<img data-query="...">...\\\`\`, or \`document.createElement('img')\`) are INVISIBLE to the backend — it only ever sees the HTML file's static text, never what your script constructs in the browser. This is the common case: almost every searchable/filterable card grid, catalog, or list you build renders its cards via JS templating, so most of your <img> tags fall in this bucket. For these YOU must call the resolveImage() helper below yourself, immediately after the tag is inserted into the DOM — there is no backend fallback for JS-rendered markup.
   Rule of thumb: if you can point at literal <img ...> text in the HTML you're writing right now, backend baking covers it. If an <img> only comes into existence when your JS runs (template literal, innerHTML, createElement), you are responsible for resolving it yourself with the helper below.
 
-REQUIRED HELPER — paste this verbatim into <script> in every app that renders ANY image via JavaScript (i.e. almost every app with a card grid, catalog, or list). Note the FIRST LINE: it makes resolveImage() a safe no-op on an image that already has a real src, so calling it broadly (e.g. document.querySelectorAll('img[data-query]').forEach(resolveImage) at startup) can NEVER stomp on a correctly baked image — this guard is mandatory, do not drop it even if you're always careful to call resolveImage() only on unresolved images yourself:
+REQUIRED HELPER — paste this verbatim into <script> in every app that renders ANY image via JavaScript (i.e. almost every app with a card grid, catalog, or list). Note the FIRST LINE: it prevents parallel resolvers, deduplicates via cache, and ensures images remain permanently stable and deterministic:
   async function resolveImage(imgEl) {
-    if ((imgEl.getAttribute('src') || '').trim()) return; // already resolved — never re-fetch/overwrite
+    if (!imgEl || imgEl.dataset.r4lResolving || imgEl.dataset.r4lResolved || (imgEl.getAttribute('src') || '').trim()) return;
+    imgEl.dataset.r4lResolving = '1';
+    const cache = window.__r4lImgCache = window.__r4lImgCache || new Map();
     const entity = imgEl.dataset.entity;
     const query = imgEl.dataset.query || imgEl.alt || 'placeholder';
     const w = imgEl.dataset.w || 600, h = imgEl.dataset.h || 400;
+    const cacheKey = (entity ? 'e:' + entity : 'q:' + query) + '@' + w + 'x' + h;
+    if (cache.has(cacheKey)) {
+      imgEl.src = cache.get(cacheKey);
+      imgEl.dataset.r4lResolved = '1';
+      delete imgEl.dataset.r4lResolving;
+      return;
+    }
+    const getSeed = (s) => {
+      let hash = 5381;
+      const str = String(s || 'image');
+      for (let i = 0; i < str.length; i++) { hash = ((hash << 5) + hash) + str.charCodeAt(i); hash |= 0; }
+      return Math.abs(hash);
+    };
+    const seed = getSeed(entity || query);
+    const pollinationsUrl = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&seed=\${seed}&nologo=true\`;
     if (entity) {
       try {
         const r = await fetch(\`https://en.wikipedia.org/api/rest_v1/page/summary/\${encodeURIComponent(entity)}\`);
         if (r.ok) {
           const j = await r.json();
           const src = (j.originalimage && j.originalimage.source) || (j.thumbnail && j.thumbnail.source);
-          if (src) { imgEl.src = src; return; }
+          if (src) {
+            cache.set(cacheKey, src);
+            imgEl.src = src;
+            imgEl.dataset.r4lResolved = '1';
+            delete imgEl.dataset.r4lResolving;
+            return;
+          }
         }
       } catch (e) {}
     }
@@ -244,10 +267,21 @@ REQUIRED HELPER — paste this verbatim into <script> in every app that renders 
       const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
       const j = await r.json();
       const hit = j.results && j.results[0];
-      if (hit && (hit.url || hit.thumbnail)) { imgEl.src = hit.url || hit.thumbnail; return; }
+      if (hit && (hit.url || hit.thumbnail)) {
+        const src = hit.url || hit.thumbnail;
+        cache.set(cacheKey, src);
+        imgEl.src = src;
+        imgEl.dataset.r4lResolved = '1';
+        delete imgEl.dataset.r4lResolving;
+        return;
+      }
     } catch (e) {}
-    imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
+    cache.set(cacheKey, pollinationsUrl);
+    imgEl.src = pollinationsUrl;
+    imgEl.dataset.r4lResolved = '1';
+    delete imgEl.dataset.r4lResolving;
   }
+  window.resolveImage = window.resolveImage || resolveImage;
 
 HOW TO MARK UP EVERY CONTENT IMAGE (applies to EVERY domain, zero exceptions, zero hardcoding — tourism, carpentry, electrical appliances, cookery, medical, legal, automotive, agriculture, or anything else the user asks for; decide data-query/data-entity per card, live, from that card's actual content, never from a fixed list):
 Never put a Pollinations/Openverse/any image URL directly in src yourself for a real catalog item. Give the <img> a data-query attribute (vivid, specific 4–8 word description of THAT card's exact subject) plus the onerror safety net (see below). If the card is a REAL, NAMED, identifiable thing, ALSO add data-entity set to its best-guess exact Wikipedia article title. Omit data-entity for generic/invented subjects (a sample dish, a fictional product) — these have no Wikipedia page.
@@ -275,7 +309,8 @@ QUERY STYLE: write it as a SHORT keyword phrase — 4-6 plain words, no commas, 
 
   Example — items invented purely at RUNTIME with no known real-world match (a user adds a custom item via a form; there is nothing to look up, so skip the fetch chain and go straight to Pollinations for instant feedback):
     const img = document.createElement('img');
-    img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&nologo=true\`;
+    const seed = Math.abs((item.name || 'item').split('').reduce((a,c)=>((a<<5)+a)+c.charCodeAt(0)|0, 5381));
+    img.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&seed=${seed}&nologo=true`;
     img.alt = item.name; img.loading = 'lazy';
     img.onerror = function(){ if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');} else { this.onerror=null; } };
     container.appendChild(img);
