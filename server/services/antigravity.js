@@ -310,7 +310,7 @@ QUERY STYLE: write it as a SHORT keyword phrase — 4-6 plain words, no commas, 
   Example — items invented purely at RUNTIME with no known real-world match (a user adds a custom item via a form; there is nothing to look up, so skip the fetch chain and go straight to Pollinations for instant feedback):
     const img = document.createElement('img');
     const seed = Math.abs((item.name || 'item').split('').reduce((a,c)=>((a<<5)+a)+c.charCodeAt(0)|0, 5381));
-    img.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&seed=${seed}&nologo=true`;
+    img.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(item.name + ' ' + (item.category || '') + ' professional high quality photography')}?width=600&height=400&seed=\${seed}&nologo=true\`;
     img.alt = item.name; img.loading = 'lazy';
     img.onerror = function(){ if(!this.dataset.fallback){this.dataset.fallback='1'; this.src='https://placehold.co/600x400/1e293b/ffffff?text='+encodeURIComponent(/^[\\x20-\\x7E]*$/.test(this.alt||'')?this.alt:'Image');} else { this.onerror=null; } };
     container.appendChild(img);
