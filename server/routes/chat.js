@@ -114,7 +114,39 @@ Which would you like?`,
 
 📦 **పూర్తి ఉత్పత్తి (Complete Product)** — నేను మిమ్మల్ని 5 లక్ష్య ప్రశ్నలు అడుగుతాను (తుది లక్ష్యం, వినియోగదారులు, ఫీచర్లు, సాంకేతిక అవసరాలు, శైలి) మరియు మీ పూర్తి దృష్టికి సరిపోయే ప్రొడక్షన్-రెడీ యాప్‌ను నిర్మిస్తాను.
 
-మీరు దేనిని ఎంచుకోవాలనుకుంటున్నారు?`
+మీరు దేనిని ఎంచుకోవాలనుకుంటున్నారు?`,
+
+  kn: `ನಾವು ಪ್ರಾರಂಭಿಸುವ ಮೊದಲು ಒಂದು ಸಂಕ್ಷಿಪ್ತ ಪ್ರಶ್ನೆ — ನಾವು ಏನನ್ನು ನಿರ್ಮಿಸುತ್ತಿದ್ದೇವೆ?
+
+🚀 **ಪ್ರೋಟೋಟೈಪ್ (Prototype)** — 5+ ಮೃದುವಾದ ವಿಭಾಗಗಳನ್ನು ಹೊಂದಿರುವ ಪಾಲಿಶ್ ಮಾಡಿದ ಸಿಂಗಲ್-ಪೇಜ್ ಆ್ಯಪ್, ವೇಗವಾಗಿ ಸಿದ್ಧವಾಗುತ್ತದೆ. ವಿಚಾರಗಳನ್ನು ಸಾಬೀತುಪಡಿಸಲು ಅಥವಾ ಪೂರ್ವವೀಕ್ಷಣೆ ಹಂಚಿಕೊಳ್ಳಲು ಪರಿಪೂರ್ಣ.
+
+📦 **ಸಂಪೂರ್ಣ ಉತ್ಪನ್ನ (Complete Product)** — ನಾನು ನಿಮಗೆ 5 ಫೋಕಸ್ಡ್ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳುತ್ತೇನೆ (ಅಂತ್ಯ ಗುರಿ, ಪ್ರೇಕ್ಷಕರು, ವೈಶಿಷ್ಟ್ಯಗಳು, ತಾಂತ್ರಿಕ ಅಗತ್ಯತೆಗಳು, ಶೈಲಿ) ಮತ್ತು ನಿಮ್ಮ ಸಂಪೂರ್ಣ ವಿಷನ್‌ಗೆ ಹೊಂದಿಕೆಯಾಗುವ ಪ್ರೊಡಕ್ಷನ್-ರೆಡಿ ಆ್ಯಪ್ ನಿರ್ಮಿಸುತ್ತೇನೆ.
+
+ನೀವು ಯಾವುದನ್ನು ಬಯಸುತ್ತೀರಿ?`,
+
+  bn: `শুরু করার আগে একটি দ্রুত প্রশ্ন — আমরা কী তৈরি করছি?
+
+🚀 **প্রোটোটাইপ (Prototype)** — 5+ মসৃণ স্ক্রলিং সেকশন সহ একটি পলিশড সিঙ্গেল-পেজ অ্যাপ, দ্রুত তৈরি। আপনার ধারণা যাচাই বা প্রিভিউ শেয়ার করার জন্য নিখুঁত।
+
+📦 **সম্পূর্ণ পণ্য (Complete Product)** — আমি আপনাকে 5টি ফোকাসড প্রশ্ন জিজ্ঞাসা করব (চূড়ান্ত লক্ষ্য, দর্শক, বৈশিষ্ট্য, প্রযুক্তিগত চাহিদা, শৈলী) এবং আপনার সম্পূর্ণ দৃষ্টিভঙ্গির সাথে মেলে এমন একটি প্রোডাকশন-রেডি অ্যাপ তৈরি করব।
+
+আপনি কোনটি পছন্দ করেন?`,
+
+  fr: `Une petite question avant de commencer — qu'allons-nous construire?
+
+🚀 **Prototype (Prototype)** — Une application monopage élégante avec plus de 5 sections fluides, créée rapidement. Parfait pour valider vos idées ou partager un aperçu.
+
+📦 **Produit Complet (Complete Product)** — Je vous poserai 5 questions ciblées (objectif final, public, fonctionnalités, besoins techniques, style) et je construirai une application prête pour la production qui correspond exactement à votre vision complète.
+
+Lequel préférez-vous?`,
+
+  de: `Eine kurze Frage, bevor wir anfangen — was bauen wir?
+
+🚀 **Prototyp (Prototype)** — Eine polierte Single-Page-App mit 5+ sanften Scrolling-Abschnitten, schnell erstellt. Perfekt zum Validieren von Ideen oder zum Teilen einer Vorschau.
+
+📦 **Vollständiges Produkt (Complete Product)** — Ich stelle Ihnen 5 fokussierte Fragen (Endziel, Zielgruppe, Funktionen, technische Anforderungen, Stil) und erstelle eine produktionsreife App, die genau zu Ihrer vollständigen Vision passt.
+
+Welches bevorzugen Sie?`
 };
 const MODE_QUESTION = I18N_MODE_QUESTIONS.en;
 
@@ -147,6 +179,34 @@ const I18N_COMPLETE_QUESTIONS = {
     `**ప్రశ్న 3 / 5 — ముఖ్యమైన ఫీచర్లు:** తప్పనిసరిగా ఉండవలసిన 3–5 ముఖ్యమైన ఫీచర్లను పేర్కొనండి. ఏదైనా ఐచ్ఛిక ఫీచర్ ఉందా?`,
     `**ప్రశ్న 4 / 5 — సాంకేతిక అవసరాలు:** ఏదైనా నిర్దిష్ట అవసరాలు ఉన్నాయా?\n• డేటాను నిల్వ చేయాలా (localStorage)?\n• మొబైల్-ఫస్ట్ లేదా డెస్క్‌టాప్-ఫస్ట్?\n• డేటా ఎగుమతి/దిగుమతి (CSV, PDF)?`,
     `**ప్రశ్న 5 / 5 — శైలి మరియు లుక్:** చివరి ప్రశ్న! డార్క్ థీమా లేదా లైట్ థీమా? మినిమల్ లేదా బోల్డ్? మీకు నచ్చిన రంగులు లేదా బ్రాండ్ పేర్కొనండి.`
+  ],
+  kn: [
+    `ಇದನ್ನು ಸರಿಯಾಗಿ ನಿರ್ಮಿಸೋಣ. 🎯\n\n**ಪ್ರಶ್ನೆ 1 / 5 — ಮುಖ್ಯ ಲಕ್ಷ್ಯ:** ಯಾರಾದರೂ ಈ ಆ್ಯಪ್ ಬಳಸುವುದು ಮುಗಿಸಿದಾಗ, ಅವರು ಏನು ಸಾಧಿಸುತ್ತಾರೆ? ಮುಖ್ಯ ಕೆಲಸ ಯಾವುದು? ಸವಿವರವಾಗಿ ಹೇಳಿ — ಯೂজರ್‌ಗಳು ಯಾವ ಡೇಟಾ ನಮೂದಿಸುತ್ತಾರೆ, ಆ್ಯಪ್ ಏನು ಪ್ರದರ್ಶಿಸುತ್ತದೆ, ಅಂತಿಮ ಫಲಿತಾಂಶ ಏನು?`,
+    `**ಪ್ರಶ್ನೆ 2 / 5 — ನಿಮ್ಮ ಬಳಕೆದಾರರು:** ಈ ಆ್ಯಪ್ ಅನ್ನು ಯಾರು ಬಳಸುತ್ತಾರೆ? (ಉದಾಹರಣೆ: "ರೆಸ್ಟೋರೆಂಟ್ ಗ್ರಾಹಕರು", "ವಿದ್ಯಾರ್ಥಿಗಳು", "ಸಾಮಾನ್ಯ ಜನತೆ") — ಹೆಚ್ಚು ನಿರ್ದಿಷ್ಟವಾಗಿರುವುದು ಉತ್ತಮ.`,
+    `**ಪ್ರಶ್ನೆ 3 / 5 — ಅಗತ್ಯ ವೈಶಿಷ್ಟ್ಯಗಳು:** ಆರಂಭದಲ್ಲಿ ಕೆಲಸ ಮಾಡಬೇಕಾದ 3–5 ಮುಖ್ಯ ವೈಶಿಷ್ಟ್ಯಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ. ಐಚ್ಛಿಕ ವೈಶಿಷ್ಟ್ಯಗಳು ಇವೆಯೇ?`,
+    `**ಪ್ರಶ್ನೆ 4 / 5 — ತಾಂತ್ರಿಕ ಅಗತ್ಯತೆಗಳು:** ಯಾವುದೇ ನಿರ್ದಿಷ್ಟ ಅಗತ್ಯತೆಗಳು?\n• ಭೇಟಿಗಳ ನಡುವೆ ಡೇಟಾ ಉಳಿಸಬೇಕು (localStorage)?\n• ಮೊಬೈಲ್-ಫಿರಸ್ಟ್ ಅಥವಾ ಡೆಸ್ಕ್‌ಟಾಪ್-ಫಿರಸ್ಟ್?\n• ಡೇಟಾ ರಫ್ತು/ಆಮದು (CSV, PDF)?`,
+    `**ಪ್ರಶ್ನೆ 5 / 5 — ಶೈಲಿ ಮತ್ತು ರೂಪ:** ಕೊನೆಯ ಪ್ರಶ್ನೆ! ಡಾರ್ಕ್ ಥೀಮ್ ಅಥವಾ ಲೈಟ್ ಥೀಮ್? ನಿಮಗೆ ಇಷ್ಟವಾದ ರಂಗಿನ ಪ್ಯಾಲೆಟ್ ಅಥವಾ ಬ್ರಾಂಡ್ ವರ್ಣನೆ ಮಾಡಿ.`
+  ],
+  bn: [
+    `এটি সঠিকভাবে তৈরি করি। 🎯\n\n**প্রশ্ন 1 / 5 — লক্ষ্য:** যখন কেউ এই অ্যাপ ব্যবহার শেষ করে, তারা কী অর্জন করে? মূল উদ্দেশ্য কী? বিস্তারিত বলুন — ব্যবহারকারীরা কী ডেটা প্রবেশ করে, অ্যাপ কী দেখায়, চূড়ান্ত ফলাফল কী?`,
+    `**প্রশ্ন 2 / 5 — আপনার ব্যবহারকারীরা:** এই অ্যাপ কে ব্যবহার করবে? (উদাহরণ: "রেস্তোরাঁ গ্রাহক", "শিক্ষার্থী", "সাধারণ মানুষ") — যত বেশি নির্দিষ্ট হবে, ফলাফল তত ভাল।`,
+    `**প্রশ্ন 3 / 5 — অত্যাবশ্যক বৈশিষ্ট্য:** 3–5টি গুরুত্বপূর্ণ বৈশিষ্ট্য তালিকা করুন যা অবশ্যই কাজ করবে। কোনো ঐচ্ছিক বৈশিষ্ট্য আছে?`,
+    `**প্রশ্ন 4 / 5 — প্রযুক্তিগত চাহিদা:** কোনো নির্দিষ্ট প্রয়োজনীয়তা আছে?\n• পরিদর্শনের মধ্যে ডেটা সংরক্ষণ করবেন (localStorage)?\n• মোবাইল-প্রথম বা ডেস্কটপ-প্রথম?\n• ডেটা রপ্তানি/আমদানি (CSV, PDF)?`,
+    `**প্রশ্ন 5 / 5 — শৈলী এবং অনুভূতি:** শেষ প্রশ্ন! গাঢ় বা উজ্জ্বল? ন্যূনতম বা সাহসী? আপনার পছন্দের রঙ পরিকল্পনা বা ব্র্যান্ড বর্ণনা করুন।`
+  ],
+  fr: [
+    `Construisons cela correctement. 🎯\n\n**Question 1 / 5 — Objectif principal:** Quand quelqu'un termine cette application, qu'a-t-il réalisé? Quel est l'objectif fondamental? Soyez aussi spécifique que possible — quelles données entrent les utilisateurs, que montre l'app, quel est le résultat final?`,
+    `**Question 2 / 5 — Vos utilisateurs:** Qui utilisera cette application? (Par exemple: "clients de restaurant", "étudiants", "public général") — plus c'est spécifique, meilleur sera le résultat.`,
+    `**Question 3 / 5 — Fonctionnalités essentielles:** Listez les 3–5 fonctionnalités qui doivent absolument fonctionner. Y a-t-il des éléments optionnels?`,
+    `**Question 4 / 5 — Besoins techniques:** Y a-t-il des exigences spécifiques?\n• Sauvegarder les données entre les visites (localStorage)?\n• Conception axée sur mobile ou ordinateur?\n• Exporter/importer des données (CSV, PDF)?`,
+    `**Question 5 / 5 — Style et ambiance:** Dernière question! Thème sombre ou clair? Minimaliste ou audacieux? Décrivez une palette de couleurs ou une marque que vous aimez.`
+  ],
+  de: [
+    `Bauen wir das richtig. 🎯\n\n**Frage 1 / 5 — Hauptziel:** Wenn jemand diese App beendet, was hat er erreicht? Was ist der Kernzweck? Seien Sie spezifisch — welche Daten geben Benutzer ein, was zeigt die App, was ist das Endergebnis?`,
+    `**Frage 2 / 5 — Ihre Benutzer:** Wer wird diese App verwenden? (Zum Beispiel: "Restaurant-Kunden", "Studenten", "Allgemeines Publikum") — je spezifischer, desto besser das Ergebnis.`,
+    `**Frage 3 / 5 — Erforderliche Funktionen:** Führen Sie die 3–5 wichtigsten Funktionen auf, die funktionieren müssen. Gibt es optionale Funktionen?`,
+    `**Frage 4 / 5 — Technische Anforderungen:** Gibt es spezifische Anforderungen?\n• Daten zwischen Besuchen speichern (localStorage)?\n• Mobile-First oder Desktop-First?\n• Daten exportieren/importieren (CSV, PDF)?`,
+    `**Frage 5 / 5 — Stil und Stimmung:** Letzte Frage! Dunkles oder helles Design? Minimalistisch oder auffällig? Beschreiben Sie eine bevorzugte Farbpalette oder Marke.`
   ]
 };
 const COMPLETE_QUESTIONS = I18N_COMPLETE_QUESTIONS.en;
@@ -155,7 +215,11 @@ const LANGUAGE_NAMES = {
   en: 'English',
   hi: 'Hindi (हिन्दी)',
   es: 'Spanish (Español)',
-  te: 'Telugu (తెలుగు)'
+  te: 'Telugu (తెలుగు)',
+  kn: 'Kannada (ಕನ್ನಡ)',
+  bn: 'Bengali (বাংলা)',
+  fr: 'French (Français)',
+  de: 'German (Deutsch)'
 };
 
 // Default real-world region/ethnicity a generic (non-named) person photo should
@@ -164,7 +228,11 @@ const LANGUAGE_NAMES = {
 const IMAGE_REGION_BY_LANG = {
   hi: 'Indian (North Indian)',
   te: 'Indian (Telugu-speaking South Indian — Telangana/Andhra Pradesh)',
-  es: 'Latin American (Hispanic/Latino)'
+  kn: 'Indian (Kannada-speaking South Indian — Karnataka)',
+  bn: 'Indian (Bengali-speaking East Indian — West Bengal/Bangladesh)',
+  es: 'Latin American (Hispanic/Latino)',
+  fr: 'European (French/Western European)',
+  de: 'European (German/Western European)'
 };
 
 function getLanguageDirective(lang) {
@@ -506,6 +574,34 @@ O describe tus propios colores, una marca de referencia o el estilo que prefiera
 • ⚡ **బోల్డ్ లుక్** (డార్క్ బ్యాక్‌గ్రౌండ్ + ప్రత్యేక రంగులు)
 • 🎯 **మినిమల్ ప్రో** (సాధారణ మరియు ప్రొఫెషనల్ లుక్)`;
   }
+  if (lang === 'kn') {
+    return `ಅಂತಿಮ ದೃಷ್ಟಿ ವಿವರಣೆ — ಈ ಆ್ಯಪ್ ಕೆ ನೀವು ಯಾವ ಶೈಲಿ ಅಥವಾ ಥೀಮ್ ಬಯಸುತ್ತೀರಿ? 🎨
+• 🖤 **ಡಾರ್ಕ್ ಥೀಮ್** (ಆಧುನಿಕ ಮತ್ತು ಪ್ರೀಮಿಯಂ ಡಾರ್ಕ್ ಬ್ಯಾಕ್‌ಗ್ರೌಂಡ್)
+• ☀️ **ಲೈಟ್ ಥೀಮ್** (ಸ್ವಚ್ಛ ಸೀ ತೆ/ಗ್ರೇ ಕಾರ್ಪೊರೇಟ್ ಲುಕ್)
+• ⚡ **ಬೋಲ್ಡ್ ಲುಕ್** (ಡಾರ್ಕ್ ಬ್ಯಾಕ್‌ಗ್ರೌಂಡ್ + ಜೀವಂತ ಬಣ್ಣಗಳು)
+• 🎯 **ಮಿನಿಮಲ್ ಪ್ರೋ** (ನಿರಪೇಕ್ಷ ಟೋನ್‌ಗಳು, ಸೂಕ್ಷ್ಮ ಲುಕ್)`;
+  }
+  if (lang === 'bn') {
+    return `চূড়ান্ত দৃশ্য বিবরণ — এই অ্যাপের জন্য আপনি কী শৈলী পছন্দ করেন? 🎨
+• 🖤 **ডার্ক থিম** (আধুনিক এবং প্রিমিয়াম গাঢ় পটভূমি)
+• ☀️ **লাইট থিম** (পরিষ্কার সাদা/ধূসর কর্পোরেট চেহারা)
+• ⚡ **সাহসী এবং প্রাণবন্ত** (গাঢ় পটভূমি + প্রাণবন্ত রঙ)
+• 🎯 **মিনিমাল প্রো** (নিরপেক্ষ টোন, সূক্ষ্ম নকশা)`;
+  }
+  if (lang === 'fr') {
+    return `Un dernier détail visuel — quel style ou ambiance préférez-vous pour cette application? 🎨
+• 🖤 **Thème Sombre** (fond sombre moderne et premium)
+• ☀️ **Thème Clair** (fond blanc/gris propre, look corporatif)
+• ⚡ **Audacieux et Énergique** (fond sombre + couleurs vives)
+• 🎯 **Minimaliste Pro** (tons neutres, design subtil)`;
+  }
+  if (lang === 'de') {
+    return `Ein letztes visuelles Detail — welchen Stil bevorzugen Sie für diese App? 🎨
+• 🖤 **Dunkles Design** (moderner und premium dunkler Hintergrund)
+• ☀️ **Helles Design** (sauberer weiß/grauer Unternehmens-Look)
+• ⚡ **Mutig und Energisch** (dunkler Hintergrund + lebendige Farben)
+• 🎯 **Minimalistisch Pro** (neutrale Töne, subtiles Design)`;
+  }
   return `One quick thing — what vibe are you going for? 🎨
 
 • 🖤 Dark & Sleek (black + purple/blue)
@@ -531,7 +627,7 @@ router.post('/chat', requireAuth, async (req, res) => {
     editBranch = 'main',
     attachment,   // optional: { fileName, mimeType, data (base64) }
     modeHint,     // optional: 'convert' | 'chat' — set by frontend when user clicks a welcome card
-    language,     // optional: 'en' | 'hi' | 'es' | 'te'
+    language,     // optional: 'en' | 'hi' | 'es' | 'te' | 'kn' | 'bn' | 'fr' | 'de'
   } = req.body;
 
   if (language) {
