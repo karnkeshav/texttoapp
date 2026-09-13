@@ -335,7 +335,7 @@ DESIGN & TECHNICAL SPECIFICATIONS:
            const r = await fetch(\`https://api.openverse.org/v1/images/?q=\${encodeURIComponent(query)}&page_size=1&mature=false\`);
            const j = await r.json();
            const hit = j.results && j.results[0];
-           if (hit && (hit.thumbnail || hit.url)) { imgEl.src = hit.thumbnail || hit.url; return; }
+           if (hit && (hit.url || hit.thumbnail)) { imgEl.src = hit.url || hit.thumbnail; return; }
          } catch (e) {}
          imgEl.src = \`https://image.pollinations.ai/prompt/\${encodeURIComponent(query)}?width=\${w}&height=\${h}&nologo=true\`;
        }

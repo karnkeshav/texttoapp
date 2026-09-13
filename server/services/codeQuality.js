@@ -288,7 +288,7 @@ async function resolveViaPixabay(query) {
 async function resolveViaUnsplash(query) {
   if (!UNSPLASH_ACCESS_KEY) return null;
   const r = await fetchWithTimeout(
-    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1`,
+    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&content_filter=high`,
     IMAGE_FETCH_TIMEOUT_MS,
     { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
   );
@@ -303,7 +303,11 @@ async function resolveViaOpenverse(query) {
   if (!r.ok) return null;
   const j = await r.json();
   const hit = j.results && j.results[0];
-  return (hit && (hit.thumbnail || hit.url)) || null;
+  // `url` is the real (often large) source file; `thumbnail` is a ~245px
+  // preview that looks visibly blurry once stretched into a normal card —
+  // prefer the real image and only fall back to the thumbnail if that's
+  // literally all the API returned.
+  return (hit && (hit.url || hit.thumbnail)) || null;
 }
 
 async function resolveOneImageSrc({ entity, query, width, height }) {
@@ -362,7 +366,7 @@ function ensureRuntimeImageResolver(html) {
         if(r.ok){const j=await r.json();const src=(j.originalimage&&j.originalimage.source)||(j.thumbnail&&j.thumbnail.source);if(src){img.src=src;return;}}
       }
       const r=await fetch('https://api.openverse.org/v1/images/?q='+encodeURIComponent(query)+'&page_size=1&mature=false');
-      if(r.ok){const j=await r.json(),hit=j.results&&j.results[0],src=hit&&(hit.thumbnail||hit.url);if(src){img.src=src;return;}}
+      if(r.ok){const j=await r.json(),hit=j.results&&j.results[0],src=hit&&(hit.url||hit.thumbnail);if(src){img.src=src;return;}}
       img.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(query)+'?width=600&height=400&nologo=true';
     }catch(_){img.src='https://image.pollinations.ai/prompt/'+encodeURIComponent(query)+'?width=600&height=400&nologo=true';}
   };
