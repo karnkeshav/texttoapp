@@ -146,7 +146,15 @@ Lequel préférez-vous?`,
 
 📦 **Vollständiges Produkt (Complete Product)** — Ich stelle Ihnen 5 fokussierte Fragen (Endziel, Zielgruppe, Funktionen, technische Anforderungen, Stil) und erstelle eine produktionsreife App, die genau zu Ihrer vollständigen Vision passt.
 
-Welches bevorzugen Sie?`
+Welches bevorzugen Sie?`,
+
+  mai: `शुरू करय सँ पहिले एकटा संक्षिप्त प्रश्न — हम सब की बना रहल छी?
+
+🚀 **प्रोटोटाइप (Prototype)** — 5+ नीक आ सुचारू सेक्शन वाला आधुनिक सिंगल-पेज ऐप, जे तुरंत तैयार होएत। अपन विचार केर पुष्टि वा लाइव प्रीव्यू साझा करय लेल उत्तम।
+
+📦 **पूर्ण उत्पाद (Complete Product)** — हम अहाँ सँ 5 मुख्य प्रश्न पूछब (अंतिम लक्ष्य, लक्षित उपयोगकर्ता, मुख्य विशेषता, तकनीकी आवश्यकता, डिज़ाइन शैली) आ अहाँक कल्पना अनुसार सम्पूर्ण प्रोडक्शन-रेडी ऐप बनयब।
+
+अहाँ कोन चुनय चाहब?`
 };
 const MODE_QUESTION = I18N_MODE_QUESTIONS.en;
 
@@ -207,6 +215,13 @@ const I18N_COMPLETE_QUESTIONS = {
     `**Frage 3 / 5 — Erforderliche Funktionen:** Führen Sie die 3–5 wichtigsten Funktionen auf, die funktionieren müssen. Gibt es optionale Funktionen?`,
     `**Frage 4 / 5 — Technische Anforderungen:** Gibt es spezifische Anforderungen?\n• Daten zwischen Besuchen speichern (localStorage)?\n• Mobile-First oder Desktop-First?\n• Daten exportieren/importieren (CSV, PDF)?`,
     `**Frage 5 / 5 — Stil und Stimmung:** Letzte Frage! Dunkles oder helles Design? Minimalistisch oder auffällig? Beschreiben Sie eine bevorzugte Farbpalette oder Marke.`
+  ],
+  mai: [
+    `आउ एकरा पूरी गुणवत्ता संग बनबी। 🎯\n\n**प्रश्न 1 / 5 — मुख्य लक्ष्य:** जखन कोनो व्यक्ति ई ऐप केर उपयोग पूरा करैत अछि, तखन ओ की हासिल करैत अछि? ऐप केर मुख्य काज की अछि? विस्तार सँ बताउ — उपयोगकर्ता की डेटा दर्ज करैत छथि, ऐप की देखाबैत अछि, आ अंतिम परिणाम की अछि?`,
+    `**प्रश्न 2 / 5 — अहाँक उपयोगकर्ता:** ई ऐप केर उपयोग के करत? (जैसे "8 लोकक आंतरिक टीम", "रेस्टोरेंट ग्राहक", "छात्र", "आम जनता") — जतेक सटीक होएत, परिणाम ओतबे नीक होएत।`,
+    `**प्रश्न 3 / 5 — अनिवार्य विशेषता (Must-have features):** 3–5 एहन विशेषता बताउ जे अनिवार्य रूप सँ काज करय। की कोनो वैकल्पिक सुविधा सेहो अछि? (यदि किछु नहि तँ "कोनो नहि" लिखू)`,
+    `**प्रश्न 4 / 5 — तकनीकी आवश्यकता:** की कोनो विशेष आवश्यकता अछि?\n• की डेटा सहेजय के चाही (localStorage)?\n• मोबाइल-प्रथम वा डेस्कटॉप-प्रथम?\n• डेटा निर्यात/आयात (CSV, PDF) चाही?\n\n(यदि किछु नहि तँ "कोनो नहि" लिखू)`,
+    `**प्रश्न 5 / 5 — डिज़ाइन शैली आ लुक:** अंतिम प्रश्न! डार्क थीम वा लाइट? मिनिमल वा बोल्ड? पसंदीदा रंग पैलेट वा कोनो ब्रांड बताउ जे अहाँक पसंद होय।`
   ]
 };
 const COMPLETE_QUESTIONS = I18N_COMPLETE_QUESTIONS.en;
@@ -219,7 +234,8 @@ const LANGUAGE_NAMES = {
   kn: 'Kannada (ಕನ್ನಡ)',
   bn: 'Bengali (বাংলা)',
   fr: 'French (Français)',
-  de: 'German (Deutsch)'
+  de: 'German (Deutsch)',
+  mai: 'Maithili (मैथिली)'
 };
 
 // Default real-world region/ethnicity a generic (non-named) person photo should
@@ -230,6 +246,7 @@ const IMAGE_REGION_BY_LANG = {
   te: 'Indian (Telugu-speaking South Indian — Telangana/Andhra Pradesh)',
   kn: 'Indian (Kannada-speaking South Indian — Karnataka)',
   bn: 'Indian (Bengali-speaking East Indian — West Bengal/Bangladesh)',
+  mai: 'Indian (Mithila / Bihar / North Indian)',
   es: 'Latin American (Hispanic/Latino)',
   fr: 'European (French/Western European)',
   de: 'European (German/Western European)'
@@ -601,6 +618,15 @@ O describe tus propios colores, una marca de referencia o el estilo que prefiera
 • ☀️ **Helles Design** (sauberer weiß/grauer Unternehmens-Look)
 • ⚡ **Mutig und Energisch** (dunkler Hintergrund + lebendige Farben)
 • 🎯 **Minimalistisch Pro** (neutrale Töne, subtiles Design)`;
+  }
+  if (lang === 'mai') {
+    return `एकटा अंतिम विवरण — अहाँ ई ऐप लेल कोना केर लुक आ थीम पसंद करब? 🎨
+• 🖤 **डार्क थीम** (गहिर बैकग्राउंड, नियॉन वा वायलेट एक्सेंट — आधुनिक आ प्रीमियम)
+• ☀️ **लाइट थीम** (साफ, उज्जर/धूसर बैकग्राउंड, कॉर्पोरेट लुक)
+• ⚡ **बोल्ड आ ऊर्जावान** (गहिर बैकग्राउंड + आकर्षक एक्सेंट)
+• 🎯 **मिनिमल प्रो** (सटीक, न्यूनतम आ व्यावसायिक रूप)
+
+वा अपन मनपसंद रंग पैलेट, कोनो ब्रांड वा शैली बताउ जे अहाँ चाहैत छी।`;
   }
   return `One quick thing — what vibe are you going for? 🎨
 
@@ -977,8 +1003,13 @@ router.post('/chat', requireAuth, async (req, res) => {
       // Fetch (and cache) the current index.html so we only hit GitHub once per session
       if (!req.session.currentCode) {
         const fetchStatus = currentLang === 'hi' ? `कोड प्राप्त कर रहा हूँ: ${editOwner}/${editRepo}…`
+          : currentLang === 'mai' ? `कोड प्राप्त कऽ रहल छी: ${editOwner}/${editRepo}…`
           : currentLang === 'es' ? `Obteniendo código de ${editOwner}/${editRepo}…`
           : currentLang === 'te' ? `కోడ్‌ను పొందుతోంది ${editOwner}/${editRepo}…`
+          : currentLang === 'kn' ? `ಕೋಡ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ ${editOwner}/${editRepo}…`
+          : currentLang === 'bn' ? `কোড আনা হচ্ছে: ${editOwner}/${editRepo}…`
+          : currentLang === 'fr' ? `Récupération du code de ${editOwner}/${editRepo}…`
+          : currentLang === 'de' ? `Code wird abgerufen von ${editOwner}/${editRepo}…`
           : `Fetching code from ${editOwner}/${editRepo}…`;
         sendEvent('status', { message: fetchStatus });
         try {
@@ -1050,8 +1081,13 @@ ${langDirective}`;
         `- Do not repeat unchanged code — only the blocks that need to change.`;
 
       const applyingStatus = currentLang === 'hi' ? 'आपके बदलाव लागू किए जा रहे हैं…'
+        : currentLang === 'mai' ? 'अहाँक बदलाव लागू कएल जा रहल अछि…'
         : currentLang === 'es' ? 'Aplicando tus cambios…'
         : currentLang === 'te' ? 'మీ మార్పులను వర్తింపజేస్తోంది…'
+        : currentLang === 'kn' ? 'ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಅನ್ವಯಿಸಲಾಗುತ್ತಿದೆ…'
+        : currentLang === 'bn' ? 'আপনার পরিবর্তনগুলি প্রয়োগ করা হচ্ছে…'
+        : currentLang === 'fr' ? 'Application de vos modifications…'
+        : currentLang === 'de' ? 'Ihre Änderungen werden angewendet…'
         : 'Applying your changes…';
       sendEvent('status', { message: applyingStatus });
 
